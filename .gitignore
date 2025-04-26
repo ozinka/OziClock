@@ -1,52 +1,66 @@
-# Prerequisites
-*.d
+## Ignore Visual Studio temporary files, build results, and
+## user-specific files
 
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
+# Build results
+bin/
+obj/
 
-# Linker output
-*.ilk
-*.map
-*.exp
+# NuGet packages
+*.nupkg
+*.snupkg
+packages/
+# NuGet v3
+project.lock.json
+project.assets.json
+*.nuget.props
+*.nuget.targets
 
-# Precompiled Headers
-*.gch
-*.pch
+# Visual Studio files
+.vs/
+*.user
+*.suo
+*.sdf
+*.cache
+*.dbmdl
+*.VC.db
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
+# Rider
+.idea/
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
+# User-specific files
+*.userosscache
+*.sln.docstates
 
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
+# WPF specific
+Generated_Code/
 
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
+# Windows image cache
+Thumbs.db
 
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
+# JetBrains Rider
+.idea/
+
+# Backup & crash logs
+*.bak
+*.log
+
+# Publish output
+publish/
+
+# Test results
+TestResults/
+
+# Others
+_ReSharper*/
+*.ncrunch*
+*.vspscc
+*.vssscc
+*.orig
+
+# Uncomment if using local database files
+# *.mdf
+# *.ldf
+
+# Uncomment if using dotnet CLI
+# .vscode/
+# *.dotCover
