@@ -1,6 +1,4 @@
-﻿using System.Configuration;
-using System.Data;
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 using System.Windows;
 
@@ -9,7 +7,7 @@ namespace Ozi.Clock;
 /// <summary>
 /// Interaction logic for App.xaml
 /// </summary>
-public partial class App : Application
+public partial class App
 {
     public static AppSettings Settings { get; private set; } = null!;
 

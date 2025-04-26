@@ -14,21 +14,21 @@ public class LineData
 
 public partial class TimeChecker2 : Window
 {
-    private MainWindow fFmMain;
+    private readonly MainWindow _fFmMain;
 
     public TimeChecker2(MainWindow fmMain)
     {
         InitializeComponent();
-        fFmMain = fmMain;
+        _fFmMain = fmMain;
 
-        this.Loaded += Window_Loaded;
+        Loaded += Window_Loaded;
     }
 
     private void GridSplitter_LayoutUpdated(object sender, EventArgs e)
     {
         if (IsMouseOver)
-            fFmMain.newFmTimeChecker.slTimeChecker.Value =
-                rwTop.Height.Value * fFmMain.newFmTimeChecker.slTimeChecker.Maximum / rwTop.MaxHeight;
+            _fFmMain.NewFmTimeChecker.slTimeChecker.Value =
+                rwTop.Height.Value * _fFmMain.NewFmTimeChecker.slTimeChecker.Maximum / rwTop.MaxHeight;
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -43,7 +43,7 @@ public partial class TimeChecker2 : Window
     private double GetRegionOffset(string region)
     {
         // Define the time zone information for the regions.
-        var timeZoneOffsets = new Dictionary<string, string>
+        var timeZoneOffsets = new Dictionary<string, string?>
         {
             { "NY", "Eastern Standard Time" }, // New York (EST)
             { "LDN", "GMT Standard Time" }, // London (GMT)
@@ -54,17 +54,17 @@ public partial class TimeChecker2 : Window
         };
 
         // Get the time zone info based on the region
-        if (timeZoneOffsets.TryGetValue(region, out string timeZoneId))
+        if (timeZoneOffsets.TryGetValue(region, out var timeZoneId))
         {
-            TimeZoneInfo timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId!);
 
             // Get current time in Kyiv and the region's timezone
-            DateTime kyivNow = TimeZoneInfo.ConvertTime(DateTime.UtcNow, TimeZoneInfo.Utc,
+            var kyivNow = TimeZoneInfo.ConvertTime(DateTime.UtcNow, TimeZoneInfo.Utc,
                 TimeZoneInfo.FindSystemTimeZoneById("FLE Standard Time"));
-            DateTime regionNow = TimeZoneInfo.ConvertTime(DateTime.UtcNow, TimeZoneInfo.Utc, timeZoneInfo);
+            var regionNow = TimeZoneInfo.ConvertTime(DateTime.UtcNow, TimeZoneInfo.Utc, timeZoneInfo);
 
             // Calculate the offset in hours
-            TimeSpan timeDifference = regionNow - kyivNow;
+            var timeDifference = regionNow - kyivNow;
 
             // Return the total offset in hours (including fractional hours for half-hour differences)
             return timeDifference.TotalHours;
@@ -81,7 +81,7 @@ public partial class TimeChecker2 : Window
         double[] pattern = { 25, 15, 15, 20, 15, 15 };
 
         // Add line data
-        for (int i = 0; i < 24; i++) // 24 hours
+        for (var i = 0; i < 24; i++) // 24 hours
         {
             foreach (var x2 in pattern)
             {
@@ -125,23 +125,23 @@ public partial class TimeChecker2 : Window
         }
 
         // Calculate time offset for the region dynamically
-        double offset = GetRegionOffset(region);
+        var offset = GetRegionOffset(region);
 
         double labelYOffset = -2; // Starting position for the first label
 
         // Add time labels considering the timezone offset for the region
-        for (int i = 0; i < 25; i++)
+        for (var i = 0; i < 25; i++)
         {
             // raw “hour” plus offset (can be fractional, e.g. Pune +5.5)
-            double raw = i + offset;
+            var raw = i + offset;
 
             // wrap into [0,24)
             raw %= 24;
             if (raw < 0) raw += 24;
 
             // split into whole hours + minutes
-            int hours = (int)Math.Floor(raw);
-            int minutes = (int)Math.Round((raw - hours) * 60);
+            var hours = (int)Math.Floor(raw);
+            var minutes = (int)Math.Round((raw - hours) * 60);
 
             // format label
             string timeLabel;
@@ -162,7 +162,7 @@ public partial class TimeChecker2 : Window
             }
 
             // Create the label for the adjusted time
-            Label label = new Label
+            var label = new Label
             {
                 Content = timeLabel,
                 FontWeight = FontWeights.Bold,

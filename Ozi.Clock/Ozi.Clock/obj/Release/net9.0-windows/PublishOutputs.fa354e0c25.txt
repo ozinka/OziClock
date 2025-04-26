@@ -1,0 +1,6 @@
+C:\Users\melni\OneDrive\Desktop\result\Ozi.Clock.exe
+C:\Users\melni\OneDrive\Desktop\result\appsettings.json
+C:\Users\melni\OneDrive\Desktop\result\Ozi.Clock.dll
+C:\Users\melni\OneDrive\Desktop\result\Ozi.Clock.deps.json
+C:\Users\melni\OneDrive\Desktop\result\Ozi.Clock.runtimeconfig.json
+C:\Users\melni\OneDrive\Desktop\result\Ozi.Clock.pdb

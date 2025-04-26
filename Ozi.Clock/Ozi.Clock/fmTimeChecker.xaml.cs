@@ -5,16 +5,14 @@ namespace Ozi.Clock;
 /// <summary>
 /// Interaction logic for fmTimeChecker.xaml
 /// </summary>
-public partial class fmTimeChecker : Window
+public partial class FmTimeChecker : Window
 {
-    private MainWindow fFmMain;
-    public DateTime curTime;
+    public DateTime CurTime;
 
-    public fmTimeChecker(MainWindow fmMain)
+    public FmTimeChecker(MainWindow fmMain)
     {
         InitializeComponent();
-        fFmMain = fmMain;
-        Left = fFmMain.Left;
-        Top = fFmMain.Top + fFmMain.Height;
+        Left = fmMain.Left;
+        Top = fmMain.Top + fmMain.Height;
     }
 }

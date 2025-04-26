@@ -1,14 +1,7 @@
 ﻿using System.Reflection;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using System.Windows.Threading;
 
 
@@ -19,49 +12,49 @@ namespace Ozi.Clock;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private List<OsClock> lstClock;
-    private double fTransparentValue = 90;
-    private bool fIsTransparent = false;
-    public bool isAutoFold = false;
-    private bool isFolded = false;
-    public fmTimeChecker newFmTimeChecker;
-    private TimeChecker2 _TimeChecker2;
-    private DateTime localTime;
-    private DispatcherTimer  timeTimer;
-    public bool useSnap = true;
+    private List<OsClock>? _lstClock;
+    private double _fTransparentValue = 90;
+    private bool _fIsTransparent;
+    public bool IsAutoFold;
+    private bool _isFolded;
+    public readonly FmTimeChecker NewFmTimeChecker;
+    private readonly TimeChecker2 _timeChecker2;
+    private DateTime _localTime;
+    private DispatcherTimer?  _timeTimer;
+    public bool UseSnap = true;
     // private Screen[] screens;
 
     public MainWindow()
     {
         InitializeComponent();
 
-        newFmTimeChecker = new fmTimeChecker(this);
-        _TimeChecker2 = new TimeChecker2(this);
+        NewFmTimeChecker = new FmTimeChecker(this);
+        _timeChecker2 = new TimeChecker2(this);
         // screens = Screen.AllScreens;
     }
 
-    public bool isTransparent
+    public bool IsTransparent
     {
         set
         {
-            fIsTransparent = value;
-            if (!fIsTransparent)
-                this.Opacity = 1;
+            _fIsTransparent = value;
+            if (!_fIsTransparent)
+                Opacity = 1;
         }
-        get { return fIsTransparent; }
+        get { return _fIsTransparent; }
     }
 
-    public double transparentValue
+    public double TransparentValue
     {
         set
         {
-            fTransparentValue = value;
-            if (fIsTransparent)
-                fmMain.Opacity = fTransparentValue;
+            _fTransparentValue = value;
+            if (_fIsTransparent)
+                fmMain.Opacity = _fTransparentValue;
             else
                 fmMain.Opacity = 1;
         }
-        get { return fTransparentValue; }
+        get { return _fTransparentValue; }
     }
 
     private void fmMain_Loaded(object sender, RoutedEventArgs e)
@@ -69,29 +62,31 @@ public partial class MainWindow : Window
         init_Timer();
         read_Config();
 
-        lstClock = new List<OsClock>();
+        _lstClock = new List<OsClock>();
 
-        lstClock.Add((new OsClock("NYK", "Eastern Standard Time", "#FFAAAAFF", lstClock.Count * 100)));
-        lstClock.Add((new OsClock("LDN", "GMT Standard Time", "#FFAAFFAA", lstClock.Count * 100)));
-        lstClock.Add((new OsClock("KYIV", "FLE Standard Time", "#FFAAFFFF", lstClock.Count * 100)));
-        lstClock.Add((new OsClock("PUN", "India Standard Time", "#FF99BBBB", lstClock.Count * 100)));
-        lstClock.Add((new OsClock("SGP", "Singapore Standard Time", "#FFFFFFAA", lstClock.Count * 100)));
-        lstClock.Add((new OsClock("TKO", "Tokyo Standard Time", "#FFFFAAAA", lstClock.Count * 100)));
+        _lstClock.Add((new OsClock("NYK", "Eastern Standard Time", "#FFAAAAFF", _lstClock.Count * 100)));
+        _lstClock.Add((new OsClock("LDN", "GMT Standard Time", "#FFAAFFAA", _lstClock.Count * 100)));
+        _lstClock.Add((new OsClock("KYIV", "FLE Standard Time", "#FFAAFFFF", _lstClock.Count * 100)));
+        _lstClock.Add((new OsClock("PUN", "India Standard Time", "#FF99BBBB", _lstClock.Count * 100)));
+        _lstClock.Add((new OsClock("SGP", "Singapore Standard Time", "#FFFFFFAA", _lstClock.Count * 100)));
+        _lstClock.Add((new OsClock("TKO", "Tokyo Standard Time", "#FFFFAAAA", _lstClock.Count * 100)));
 
-        foreach (OsClock item in lstClock)
+        foreach (var item in _lstClock)
         {
-            gdMain.Children.Add(item.osGrid);
+            gdMain.Children.Add(item.OsGrid);
         }
 
-        fmMain.Width = lstClock.Count * 100 + 1;
-        lstClock[2].isMain = true;
+        fmMain.Width = _lstClock.Count * 100 + 1;
+        _lstClock[2].IsMain = true;
 
 
         //Context menu
-        System.Windows.Controls.ContextMenu mainMenu = new System.Windows.Controls.ContextMenu();
+        var mainMenu = new ContextMenu();
 
-        System.Windows.Controls.MenuItem item1 = new System.Windows.Controls.MenuItem();
-        item1.Header = "About";
+        var item1 = new MenuItem
+        {
+            Header = "About"
+        };
         //item1.Icon = new System.Windows.Controls.Image
         //{
         //    Source = new BitmapImage(new Uri("Resources/Copy16.png", UriKind.Relative))
@@ -100,8 +95,10 @@ public partial class MainWindow : Window
         item1.Click += MenuItemAbout_Click;
         mainMenu.Items.Add(item1);
 
-        System.Windows.Controls.MenuItem item3 = new System.Windows.Controls.MenuItem();
-        item3.Header = "Settings";
+        var item3 = new MenuItem
+        {
+            Header = "Settings"
+        };
         item3.Click += MenuItemSettings_Click;
         mainMenu.Items.Add(item3);
 
@@ -110,8 +107,10 @@ public partial class MainWindow : Window
 
         mainMenu.Items.Add(new Separator());
 
-        System.Windows.Controls.MenuItem item5 = new System.Windows.Controls.MenuItem();
-        item5.Header = "Exit";
+        var item5 = new MenuItem
+        {
+            Header = "Exit"
+        };
         item5.Click += MenuItemExit_Click;
         mainMenu.Items.Add(item5);
 
@@ -122,81 +121,83 @@ public partial class MainWindow : Window
     {
         Left = App.Settings.MainWndLeft;
         Top = App.Settings.MainWndTop;
-        isTransparent = App.Settings.IsTransparent;
-        transparentValue = App.Settings.TransparentValue;
+        IsTransparent = App.Settings.IsTransparent;
+        TransparentValue = App.Settings.TransparentValue;
         ShowInTaskbar = App.Settings.ShowInTaskBar;
         Topmost = App.Settings.TopMost;
-        isAutoFold = App.Settings.IsAutoFold;
-        useSnap = App.Settings.UseSnap;
+        IsAutoFold = App.Settings.IsAutoFold;
+        UseSnap = App.Settings.UseSnap;
     }
 
     private void save_Config()
     {
         App.Settings.MainWndLeft = Left;
         App.Settings.MainWndTop = Top;
-        App.Settings.IsTransparent = isTransparent;
-        App.Settings.TransparentValue = transparentValue;
+        App.Settings.IsTransparent = IsTransparent;
+        App.Settings.TransparentValue = TransparentValue;
         App.Settings.ShowInTaskBar = ShowInTaskbar;
         App.Settings.TopMost = Topmost;
-        App.Settings.IsAutoFold = isAutoFold;
-        App.Settings.UseSnap = useSnap;
+        App.Settings.IsAutoFold = IsAutoFold;
+        App.Settings.UseSnap = UseSnap;
 
         // App.Settings.Save();
     }
 
     private void init_Timer()
     {
-        timeTimer = new DispatcherTimer ();
-        timeTimer.Interval = TimeSpan.FromSeconds(1);
-        timeTimer.Tick += new EventHandler(ttTick);
-        timeTimer.Start();
+        _timeTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        _timeTimer.Tick += TtTick!;
+        _timeTimer.Start();
     }
 
-    private void ttTick(object sender, EventArgs e)
+    private void TtTick(object sender, EventArgs e)
     {
-        if (newFmTimeChecker.Visibility == Visibility.Visible)
+        if (NewFmTimeChecker.Visibility == Visibility.Visible)
         {
-            localTime = newFmTimeChecker.curTime.Date;
-            localTime = localTime.AddMinutes(((int)newFmTimeChecker.slTimeChecker.Value) * 5);
-            _TimeChecker2.rwTop.Height = new GridLength(_TimeChecker2.rwTop.MaxHeight *
-                newFmTimeChecker.slTimeChecker.Value / newFmTimeChecker.slTimeChecker.Maximum);
+            _localTime = NewFmTimeChecker.CurTime.Date;
+            _localTime = _localTime.AddMinutes(((int)NewFmTimeChecker.slTimeChecker.Value) * 5);
+            _timeChecker2.rwTop.Height = new GridLength(_timeChecker2.rwTop.MaxHeight *
+                NewFmTimeChecker.slTimeChecker.Value / NewFmTimeChecker.slTimeChecker.Maximum);
         }
         else
-            localTime = DateTime.Now;
+            _localTime = DateTime.Now;
 
-        foreach (OsClock item in lstClock)
-            item.setTime(localTime);
+        foreach (var item in _lstClock!)
+            item.SetTime(_localTime);
     }
 
     private void MenuItemSettings_Click(object sender, RoutedEventArgs e)
     {
-        FmSettings newFmSettings = new FmSettings(this);
+        var newFmSettings = new FmSettings(this);
         newFmSettings.ShowDialog();
     }
 
-    private void adjustTimeCheckerPosition()
+    private void AdjustTimeCheckerPosition()
     {
-        _TimeChecker2.Left = Left;
-        _TimeChecker2.Top = Top + Height;
-        newFmTimeChecker.Left = this.Left;
-        newFmTimeChecker.Top = this.Top + this.Height + _TimeChecker2.Height;
+        _timeChecker2.Left = Left;
+        _timeChecker2.Top = Top + Height;
+        NewFmTimeChecker.Left = Left;
+        NewFmTimeChecker.Top = Top + Height + _timeChecker2.Height;
     }
 
     private void MenuItemTimeChecker_Click(object sender, RoutedEventArgs e)
     {
-        if (this.newFmTimeChecker.Visibility == Visibility.Visible)
+        if (NewFmTimeChecker.Visibility == Visibility.Visible)
         {
-            newFmTimeChecker.Hide();
-            _TimeChecker2.Hide();
-            timeTimer.Interval = TimeSpan.FromSeconds(1);
+            NewFmTimeChecker.Hide();
+            _timeChecker2.Hide();
+            _timeTimer!.Interval = TimeSpan.FromSeconds(1);
         }
         else
         {
-            newFmTimeChecker.curTime = localTime;
-            newFmTimeChecker.slTimeChecker.Value = localTime.Hour * 12 + (int)(localTime.Minute / 5);
-            newFmTimeChecker.Show();
-            _TimeChecker2.Show();
-            timeTimer.Interval = TimeSpan.FromMicroseconds(100);
+            NewFmTimeChecker.CurTime = _localTime;
+            NewFmTimeChecker.slTimeChecker.Value = _localTime.Hour * 12 + (int)(_localTime.Minute / 5);
+            NewFmTimeChecker.Show();
+            _timeChecker2.Show();
+            _timeTimer.Interval = TimeSpan.FromMicroseconds(100);
         }
 
         fmMain_MouseLeave(null, null);
@@ -204,16 +205,16 @@ public partial class MainWindow : Window
 
     private void MenuItemExit_Click(object sender, RoutedEventArgs e)
     {
-        System.Windows.Application.Current.Shutdown();
+        Application.Current.Shutdown();
     }
 
     private void MenuItemAbout_Click(object sender, RoutedEventArgs e)
     {
         string version = null;
-        Assembly assem = typeof(MainWindow).Assembly;
+        var assem = typeof(MainWindow).Assembly;
         version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
 
-        System.Windows.MessageBox.Show("Ozi clock. " + version);
+        MessageBox.Show("Ozi clock. " + version);
     }
 
     private void fmMain_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -233,93 +234,93 @@ public partial class MainWindow : Window
         }
 
         if (e.ChangedButton == MouseButton.Middle)
-            if (isFolded)
+            if (_isFolded)
                 UnFoldMainWindow();
             else
                 FoldMainWindow();
     }
 
-    private void foldingMainWindow()
+    private void FoldingMainWindow()
     {
-        int i = (int)this.Height;
-        if (this.IsMouseOver)
+        var i = (int)Height;
+        if (IsMouseOver)
         {
             while (i <= 62)
-                if (this.IsMouseOver)
+                if (IsMouseOver)
                 {
                     Height = i++;
-                    adjustTimeCheckerPosition();
+                    AdjustTimeCheckerPosition();
                 }
                 else
                     return;
         }
         else
             while (i >= 29)
-                if (!this.IsMouseOver)
+                if (!IsMouseOver)
                 {
                     Height = i--;
-                    adjustTimeCheckerPosition();
+                    AdjustTimeCheckerPosition();
                 }
                 else
                     return;
     }
 
-    private void fmMain_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    private void fmMain_MouseEnter(object sender, MouseEventArgs e)
     {
-        if (isTransparent)
-            this.Opacity = 1;
-        if (isAutoFold && isFolded)
-            foldingMainWindow();
+        if (IsTransparent)
+            Opacity = 1;
+        if (IsAutoFold && _isFolded)
+            FoldingMainWindow();
     }
 
-    private void fmMain_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    private void fmMain_MouseLeave(object sender, MouseEventArgs e)
     {
-        if (isTransparent && !(newFmTimeChecker.Visibility == Visibility.Visible))
-            this.Opacity = transparentValue;
+        if (IsTransparent && !(NewFmTimeChecker.Visibility == Visibility.Visible))
+            Opacity = TransparentValue;
         else
-            this.Opacity = 100;
-        if (isAutoFold && isFolded)
-            foldingMainWindow();
+            Opacity = 100;
+        if (IsAutoFold && _isFolded)
+            FoldingMainWindow();
     }
 
     private void FoldMainWindow()
     {
         {
-            for (int i = (int)this.Height; i > 29; i--)
+            for (var i = (int)Height; i > 29; i--)
             {
                 fmMain.Height = i;
-                adjustTimeCheckerPosition();
+                AdjustTimeCheckerPosition();
             }
 
-            isFolded = true;
+            _isFolded = true;
         }
     }
 
     private void UnFoldMainWindow()
     {
         {
-            for (int i = (int)this.Height; i < 62; i++)
+            for (var i = (int)Height; i < 62; i++)
             {
                 fmMain.Height = i;
-                adjustTimeCheckerPosition();
+                AdjustTimeCheckerPosition();
             }
 
-            isFolded = false;
+            _isFolded = false;
         }
     }
 
     private void fmMain_LocationChanged(object sender, EventArgs e)
     {
-        if (useSnap)
-            snapWindow();
-        adjustTimeCheckerPosition();
+        if (UseSnap)
+            SnapWindow();
+        AdjustTimeCheckerPosition();
     }
 
-    private bool isAlreadySnapped = false;
+    private bool _isAlreadySnapped = false;
 
-    private void snapWindow()
+    private void SnapWindow()
     {
-        if (!useSnap) return;
+        if (!UseSnap) return;
 
         // Screen screenTmp = null;
         // foreach (Screen screen in screens)
