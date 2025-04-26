@@ -1,52 +1,61 @@
-# Prerequisites
-*.d
+# Build results
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
 
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
+# Visual Studio folders
+.vs/
 
-# Linker output
-*.ilk
-*.map
-*.exp
+# Rider / JetBrains IDEs
+.idea/
 
-# Precompiled Headers
-*.gch
-*.pch
+# VS Code settings
+.vscode/
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
+# NuGet
+*.nupkg
+*.snupkg
+*.nuspec
+packages/
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
-*.dSYM/
-*.su
-*.idb
+# MSBuild generated files
+*.log
+*.tlog
+*.cache
 *.pdb
 
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
+# Others
+*.dbmdl
+*.bak
+*.backup
+*.tmp
+*.temp
+
+# Publish output
+publish/
+
+# Configuration files
+appsettings.*.json
+# (only ignore user-specific settings, not base appsettings.json)
+appsettings.Development.json
+appsettings.user.json
+
+# Windows thumbnail cache
+Thumbs.db
+Desktop.ini
+
+# Resharper
+_ReSharper*/
+*.DotSettings.user
+
+# WPF specific
+*.g.i.cs
+*.g.cs
+*.baml
+*.xaml.cs~
+
+# Rider IDE (optional)
+.idea/
