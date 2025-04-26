@@ -1,0 +1,11 @@
+﻿<Window
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:Ozi.Clock" x:Name="fmMain" x:Class="Ozi.Clock.MainWindow"
+    Title="Ozi Clocks" Height="62" Width="708" Topmost="True" Background="Black" BorderBrush="Black"
+    ResizeMode="NoResize" ShowInTaskbar="False" Closing="fmMain_Closing" Loaded="fmMain_Loaded"
+    SnapsToDevicePixels="True" AllowsTransparency="True" WindowStyle="None" BorderThickness="0"
+    MouseEnter="fmMain_MouseEnter" MouseLeave="fmMain_MouseLeave" Icon="clock.ico"
+    LocationChanged="fmMain_LocationChanged">
+    <Grid x:Name="gdMain" Margin="1" MouseDown="gdMain_MouseDown" RenderTransformOrigin="0.459,0.49" />
+</Window>

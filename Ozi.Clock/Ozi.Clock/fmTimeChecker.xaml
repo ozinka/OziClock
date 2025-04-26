@@ -1,0 +1,22 @@
+﻿<Window x:Class="Ozi.Clock.fmTimeChecker"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="TimeChecker" Height="69" Width="601" ResizeMode="NoResize" Topmost="True" WindowStyle="None" Background="Black" ShowInTaskbar="False">
+    <Grid x:Name="gdMain" Background="#FF383838" Margin="1,0,1,1">
+        <Slider x:Name="slTimeChecker" Height="37" Margin="5,10,9,0" VerticalAlignment="Top" Maximum="288" SmallChange="1" TickPlacement="Both" TickFrequency="12" LargeChange="60"/>
+        <Label Content="0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2,39,0,0" Foreground="#FFC7C3C3"/>
+        <Label Content="2" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="50,39,0,0" Foreground="#FFC7C3C3"/>
+        <Label Content="4" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="98,39,0,0" Foreground="#FFC7C3C3"/>
+        <Label Content="6" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="147,39,0,0" Foreground="#FFC7C3C3"/>
+        <Label Content="8" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="195,39,0,0" Foreground="#FFC7C3C3"/>
+        <Label Content="10" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="239,39,0,0" Foreground="#FFC7C3C3"/>
+        <Label Content="12" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="287,39,0,0" Foreground="#FFC7C3C3"/>
+        <Label Content="14" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="335,39,0,0" Foreground="#FFC7C3C3"/>
+        <Label Content="16" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="383,39,0,0" Foreground="#FFC7C3C3"/>
+        <Label Content="18" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="431,39,0,0" Foreground="#FFC7C3C3"/>
+        <Label Content="20" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="479,39,0,0" Foreground="#FFC7C3C3"/>
+        <Label Content="22" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="527,39,0,0" Foreground="#FFC7C3C3"/>
+        <Label Content="24" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="574,39,0,0" Foreground="#FFC7C3C3"/>
+    </Grid>
+
+</Window>
