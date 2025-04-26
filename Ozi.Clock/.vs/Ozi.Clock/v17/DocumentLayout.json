@@ -26,8 +26,8 @@
               "Title": "MainWindow.xaml.cs",
               "DocumentMoniker": "C:\\projects\\ozi-clock\\Ozi.Clock\\Ozi.Clock\\MainWindow.xaml.cs",
               "RelativeDocumentMoniker": "Ozi.Clock\\MainWindow.xaml.cs",
-              "ToolTip": "C:\\projects\\ozi-clock\\Ozi.Clock\\Ozi.Clock\\MainWindow.xaml.cs*",
-              "RelativeToolTip": "Ozi.Clock\\MainWindow.xaml.cs*",
+              "ToolTip": "C:\\projects\\ozi-clock\\Ozi.Clock\\Ozi.Clock\\MainWindow.xaml.cs",
+              "RelativeToolTip": "Ozi.Clock\\MainWindow.xaml.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAgAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-04-26T09:41:36.271Z",
@@ -42,8 +42,7 @@
               "ToolTip": "C:\\projects\\ozi-clock\\Ozi.Clock\\Ozi.Clock\\MainWindow.xaml",
               "RelativeToolTip": "Ozi.Clock\\MainWindow.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2025-04-26T09:41:21.817Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-04-26T09:41:21.817Z"
             }
           ]
         }

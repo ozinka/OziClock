@@ -9,6 +9,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Windows.Threading;
+
 
 namespace Ozi.Clock;
 
@@ -25,7 +27,7 @@ public partial class MainWindow : Window
     public fmTimeChecker newFmTimeChecker;
     private TimeChecker2 _TimeChecker2;
     private DateTime localTime;
-    private Timer timeTimer;
+    private DispatcherTimer  timeTimer;
     public bool useSnap = true;
     // private Screen[] screens;
 
@@ -118,34 +120,34 @@ public partial class MainWindow : Window
 
     private void read_Config()
     {
-        Left = Properties.Settings.Default.mainWndLeft;
-        Top = Properties.Settings.Default.mainWndTop;
-        isTransparent = Properties.Settings.Default.isTransparent;
-        transparentValue = Properties.Settings.Default.transparentValue;
-        ShowInTaskbar = Properties.Settings.Default.showInTaskBar;
-        Topmost = Properties.Settings.Default.topMost;
-        isAutoFold = Properties.Settings.Default.isAutoFold;
-        useSnap = Properties.Settings.Default.useSnap;
+        Left = App.Settings.MainWndLeft;
+        Top = App.Settings.MainWndTop;
+        isTransparent = App.Settings.IsTransparent;
+        transparentValue = App.Settings.TransparentValue;
+        ShowInTaskbar = App.Settings.ShowInTaskBar;
+        Topmost = App.Settings.TopMost;
+        isAutoFold = App.Settings.IsAutoFold;
+        useSnap = App.Settings.UseSnap;
     }
 
     private void save_Config()
     {
-        Properties.Settings.Default.mainWndLeft = Left;
-        Properties.Settings.Default.mainWndTop = Top;
-        Properties.Settings.Default.isTransparent = isTransparent;
-        Properties.Settings.Default.transparentValue = transparentValue;
-        Properties.Settings.Default.showInTaskBar = ShowInTaskbar;
-        Properties.Settings.Default.topMost = Topmost;
-        Properties.Settings.Default.isAutoFold = isAutoFold;
-        Properties.Settings.Default.useSnap = useSnap;
+        App.Settings.MainWndLeft = Left;
+        App.Settings.MainWndTop = Top;
+        App.Settings.IsTransparent = isTransparent;
+        App.Settings.TransparentValue = transparentValue;
+        App.Settings.ShowInTaskBar = ShowInTaskbar;
+        App.Settings.TopMost = Topmost;
+        App.Settings.IsAutoFold = isAutoFold;
+        App.Settings.UseSnap = useSnap;
 
-        Properties.Settings.Default.Save();
+        // App.Settings.Save();
     }
 
     private void init_Timer()
     {
-        timeTimer = new Timer();
-        timeTimer.Interval = 1000;
+        timeTimer = new DispatcherTimer ();
+        timeTimer.Interval = TimeSpan.FromSeconds(1);
         timeTimer.Tick += new EventHandler(ttTick);
         timeTimer.Start();
     }
@@ -168,7 +170,7 @@ public partial class MainWindow : Window
 
     private void MenuItemSettings_Click(object sender, RoutedEventArgs e)
     {
-        fmSettings newFmSettings = new fmSettings(this);
+        FmSettings newFmSettings = new FmSettings(this);
         newFmSettings.ShowDialog();
     }
 
@@ -186,7 +188,7 @@ public partial class MainWindow : Window
         {
             newFmTimeChecker.Hide();
             _TimeChecker2.Hide();
-            timeTimer.Interval = 1000;
+            timeTimer.Interval = TimeSpan.FromSeconds(1);
         }
         else
         {
@@ -194,7 +196,7 @@ public partial class MainWindow : Window
             newFmTimeChecker.slTimeChecker.Value = localTime.Hour * 12 + (int)(localTime.Minute / 5);
             newFmTimeChecker.Show();
             _TimeChecker2.Show();
-            timeTimer.Interval = 100;
+            timeTimer.Interval = TimeSpan.FromMicroseconds(100);
         }
 
         fmMain_MouseLeave(null, null);
