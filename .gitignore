@@ -56,6 +56,3 @@ _ReSharper*/
 *.g.cs
 *.baml
 *.xaml.cs~
-
-# Rider IDE (optional)
-.idea/
