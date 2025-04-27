@@ -1,4 +1,4 @@
-﻿<Window x:Name="fmTimeChecker2" x:Class="Ozi.Clock.TimeChecker2"
+﻿<Window x:Name="fmTimeChecker2" x:Class="Ozi.Utilities.TimeChecker2"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="TimeChecker" Height="453" Width="601" ResizeMode="NoResize" Topmost="True" WindowStyle="None"

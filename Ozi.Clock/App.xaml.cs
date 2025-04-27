@@ -1,31 +1,23 @@
-﻿using System;
-using System.IO;
-using System.Text.Json;
-using System.Windows;
+﻿using System.Windows;
 
-namespace Ozi.Clock;
+namespace Ozi.Utilities;
 
 /// <summary>
 /// Interaction logic for App.xaml
 /// </summary>
 public partial class App
 {
-    public static AppSettings Settings { get; private set; } = null!;
+    public static AppSettings Settings { get; } = new();
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        Settings.Load();
+    }
 
-        var settingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-
-        if (File.Exists(settingsPath))
-        {
-            Settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(settingsPath)) ??
-                       throw new InvalidOperationException();
-        }
-        else
-        {
-            throw new FileNotFoundException("appsettings.json not found", settingsPath);
-        }
+    protected override void OnExit(ExitEventArgs e)
+    {
+        base.OnExit(e);
+        Settings.Save();
     }
 }

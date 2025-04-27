@@ -7,6 +7,10 @@
         <ImplicitUsings>false</ImplicitUsings>
         <UseWPF>true</UseWPF>
         <ApplicationIcon>clock.ico</ApplicationIcon>
+        <RootNamespace>Ozi.Utilities</RootNamespace>
+        <Title>Ozi.Clock</Title>
+        <Authors>Ozi</Authors>
+        <PackageId>Ozi.Clock</PackageId>
     </PropertyGroup>
 
     <ItemGroup>

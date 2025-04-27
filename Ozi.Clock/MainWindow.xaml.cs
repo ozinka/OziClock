@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 
-
-namespace Ozi.Clock;
+namespace Ozi.Utilities;
 
 /// <summary>
 /// Interaction logic for MainWindow.xaml
@@ -22,7 +22,7 @@ public partial class MainWindow : Window
     public readonly FmTimeChecker NewFmTimeChecker;
     private readonly TimeChecker2 _timeChecker2;
     private DateTime _localTime;
-    private DispatcherTimer?  _timeTimer;
+    private DispatcherTimer? _timeTimer;
     public bool UseSnap = true;
     // private Screen[] screens;
 
@@ -41,7 +41,9 @@ public partial class MainWindow : Window
         {
             _fIsTransparent = value;
             if (!_fIsTransparent)
+            {
                 Opacity = 1;
+            }
         }
         get { return _fIsTransparent; }
     }
@@ -52,9 +54,13 @@ public partial class MainWindow : Window
         {
             _fTransparentValue = value;
             if (_fIsTransparent)
+            {
                 fmMain.Opacity = _fTransparentValue;
+            }
             else
+            {
                 fmMain.Opacity = 1;
+            }
         }
         get { return _fTransparentValue; }
     }
@@ -64,22 +70,28 @@ public partial class MainWindow : Window
         init_Timer();
         read_Config();
 
-        _lstClock = new List<OsClock>();
+        _lstClock = [];
+        //
+        // _lstClock.Add(new OsClock("NYK", "Eastern Standard Time", "#FFAAAAFF", _lstClock.Count * 100));
+        // _lstClock.Add(new OsClock("LDN", "GMT Standard Time", "#FFAAFFAA", _lstClock.Count * 100));
+        // _lstClock.Add(new OsClock("KYIV", "FLE Standard Time", "#FFAAFFFF", _lstClock.Count * 100));
+        // _lstClock.Add(new OsClock("PUN", "India Standard Time", "#FF99BBBB", _lstClock.Count * 100));
+        // _lstClock.Add(new OsClock("SGP", "Singapore Standard Time", "#FFFFFFAA", _lstClock.Count * 100));
+        // _lstClock.Add(new OsClock("TKO", "Tokyo Standard Time", "#FFFFAAAA", _lstClock.Count * 100));
 
-        _lstClock.Add((new OsClock("NYK", "Eastern Standard Time", "#FFAAAAFF", _lstClock.Count * 100)));
-        _lstClock.Add((new OsClock("LDN", "GMT Standard Time", "#FFAAFFAA", _lstClock.Count * 100)));
-        _lstClock.Add((new OsClock("KYIV", "FLE Standard Time", "#FFAAFFFF", _lstClock.Count * 100)));
-        _lstClock.Add((new OsClock("PUN", "India Standard Time", "#FF99BBBB", _lstClock.Count * 100)));
-        _lstClock.Add((new OsClock("SGP", "Singapore Standard Time", "#FFFFFFAA", _lstClock.Count * 100)));
-        _lstClock.Add((new OsClock("TKO", "Tokyo Standard Time", "#FFFFAAAA", _lstClock.Count * 100)));
-
-        foreach (var item in _lstClock)
+        foreach (var timeZoneInfo in App.Settings.TimeZones)
         {
-            gdMain.Children.Add(item.OsGrid);
+            var clock = new OsClock(timeZoneInfo.Value.Label ?? timeZoneInfo.Key,
+                timeZoneInfo.Value.TimeZone,
+                timeZoneInfo.Value.Color,
+                _lstClock.Count * 100);
+            _lstClock.Add(clock);
+
+            gdMain.Children.Add(clock.OsGrid);
         }
 
         fmMain.Width = _lstClock.Count * 100 + 1;
-        _lstClock[2].IsMain = true;
+        // _lstClock[2].IsMain = true;
 
 
         //Context menu
@@ -141,8 +153,7 @@ public partial class MainWindow : Window
         App.Settings.TopMost = Topmost;
         App.Settings.IsAutoFold = IsAutoFold;
         App.Settings.UseSnap = UseSnap;
-
-        // App.Settings.Save();
+        App.Settings.Save();
     }
 
     private void init_Timer()
@@ -160,12 +171,14 @@ public partial class MainWindow : Window
         if (NewFmTimeChecker.Visibility == Visibility.Visible)
         {
             _localTime = NewFmTimeChecker.CurTime.Date;
-            _localTime = _localTime.AddMinutes(((int)NewFmTimeChecker.slTimeChecker.Value) * 5);
+            _localTime = _localTime.AddMinutes((int)NewFmTimeChecker.slTimeChecker.Value * 5);
             _timeChecker2.rwTop.Height = new GridLength(_timeChecker2.rwTop.MaxHeight *
                 NewFmTimeChecker.slTimeChecker.Value / NewFmTimeChecker.slTimeChecker.Maximum);
         }
         else
+        {
             _localTime = DateTime.Now;
+        }
 
         foreach (var item in _lstClock!)
             item.SetTime(_localTime);
@@ -199,10 +212,10 @@ public partial class MainWindow : Window
             NewFmTimeChecker.slTimeChecker.Value = _localTime.Hour * 12 + (int)(_localTime.Minute / 5);
             NewFmTimeChecker.Show();
             _timeChecker2.Show();
-            _timeTimer.Interval = TimeSpan.FromMicroseconds(100);
+            _timeTimer!.Interval = TimeSpan.FromMicroseconds(100);
         }
 
-        fmMain_MouseLeave(null, null);
+        fmMain_MouseLeave(null!, null!);
     }
 
     private void MenuItemExit_Click(object sender, RoutedEventArgs e)
@@ -212,10 +225,7 @@ public partial class MainWindow : Window
 
     private void MenuItemAbout_Click(object sender, RoutedEventArgs e)
     {
-        string version = null;
-        var assem = typeof(MainWindow).Assembly;
-        version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
-
+        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
         MessageBox.Show("Ozi clock. " + version);
     }
 
@@ -228,7 +238,10 @@ public partial class MainWindow : Window
     {
         e.Handled = true; //double click  
 
-        if (e.ClickCount > 1) MenuItemTimeChecker_Click(null, null);
+        if (e.ClickCount > 1)
+        {
+            MenuItemTimeChecker_Click(null!, null!);
+        }
 
         if (e.ChangedButton == MouseButton.Left)
         {
@@ -236,10 +249,16 @@ public partial class MainWindow : Window
         }
 
         if (e.ChangedButton == MouseButton.Middle)
+        {
             if (_isFolded)
+            {
                 UnFoldMainWindow();
+            }
             else
+            {
                 FoldMainWindow();
+            }
+        }
     }
 
     private void FoldingMainWindow()
@@ -254,9 +273,12 @@ public partial class MainWindow : Window
                     AdjustTimeCheckerPosition();
                 }
                 else
+                {
                     return;
+                }
         }
         else
+        {
             while (i >= 29)
                 if (!IsMouseOver)
                 {
@@ -264,25 +286,40 @@ public partial class MainWindow : Window
                     AdjustTimeCheckerPosition();
                 }
                 else
+                {
                     return;
+                }
+        }
     }
 
     private void fmMain_MouseEnter(object sender, MouseEventArgs e)
     {
         if (IsTransparent)
+        {
             Opacity = 1;
+        }
+
         if (IsAutoFold && _isFolded)
+        {
             FoldingMainWindow();
+        }
     }
 
     private void fmMain_MouseLeave(object sender, MouseEventArgs e)
     {
         if (IsTransparent && !(NewFmTimeChecker.Visibility == Visibility.Visible))
+        {
             Opacity = TransparentValue;
+        }
         else
+        {
             Opacity = 100;
+        }
+
         if (IsAutoFold && _isFolded)
+        {
             FoldingMainWindow();
+        }
     }
 
     private void FoldMainWindow()
@@ -314,15 +351,21 @@ public partial class MainWindow : Window
     private void fmMain_LocationChanged(object sender, EventArgs e)
     {
         if (UseSnap)
+        {
             SnapWindow();
+        }
+
         AdjustTimeCheckerPosition();
     }
 
-    private bool _isAlreadySnapped = false;
+    // private bool _isAlreadySnapped = false;
 
     private void SnapWindow()
     {
-        if (!UseSnap) return;
+        if (!UseSnap)
+        {
+            return;
+        }
 
         // Screen screenTmp = null;
         // foreach (Screen screen in screens)

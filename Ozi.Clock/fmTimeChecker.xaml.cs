@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows;
 
-namespace Ozi.Clock;
+namespace Ozi.Utilities;
 
 /// <summary>
 /// Interaction logic for fmTimeChecker.xaml

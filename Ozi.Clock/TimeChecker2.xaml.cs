@@ -5,7 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 
-namespace Ozi.Clock;
+namespace Ozi.Utilities;
 
 public class LineData
 {
@@ -29,8 +29,10 @@ public partial class TimeChecker2 : Window
     private void GridSplitter_LayoutUpdated(object sender, EventArgs e)
     {
         if (IsMouseOver)
+        {
             _fFmMain.NewFmTimeChecker.slTimeChecker.Value =
                 rwTop.Height.Value * _fFmMain.NewFmTimeChecker.slTimeChecker.Maximum / rwTop.MaxHeight;
+        }
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -139,7 +141,10 @@ public partial class TimeChecker2 : Window
 
             // wrap into [0,24)
             raw %= 24;
-            if (raw < 0) raw += 24;
+            if (raw < 0)
+            {
+                raw += 24;
+            }
 
             // split into whole hours + minutes
             var hours = (int)Math.Floor(raw);
