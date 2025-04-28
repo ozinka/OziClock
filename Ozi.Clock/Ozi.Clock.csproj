@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net9.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>false</ImplicitUsings>
+        <UseWPF>true</UseWPF>
+        <ApplicationIcon>clock.ico</ApplicationIcon>
+        <RootNamespace>Ozi.Utilities</RootNamespace>
+        <Title>Ozi.Clock</Title>
+        <Authors>Ozi</Authors>
+        <PackageId>Ozi.Clock</PackageId>
+        <PublishSingleFile>true</PublishSingleFile>
+        <SelfContained>true</SelfContained>
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+        <PublishReadyToRun>true</PublishReadyToRun>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Update="appsettings.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Resource Include="clock.ico"/>
+        <Resource Include="ClockAll.ico"/>
+    </ItemGroup>
+
+</Project>
