@@ -1,11 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net9.0-windows</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>false</ImplicitUsings>
         <UseWPF>true</UseWPF>
-        <ApplicationIcon>clock.ico</ApplicationIcon>
+        <ApplicationIcon>resources/clock.ico</ApplicationIcon>
         <RootNamespace>Ozi.Utilities</RootNamespace>
         <Title>Ozi.Clock</Title>
         <Authors>Ozi</Authors>
@@ -14,17 +15,23 @@
         <SelfContained>true</SelfContained>
         <RuntimeIdentifier>win-x64</RuntimeIdentifier>
         <PublishReadyToRun>true</PublishReadyToRun>
+        <DebugType>none</DebugType>
+        <IncludeAllContentForSelfExtract>false</IncludeAllContentForSelfExtract>
+        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+        <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+        <CopyOutputTrimmedFiles>true</CopyOutputTrimmedFiles>
     </PropertyGroup>
 
     <ItemGroup>
         <None Update="appsettings.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToPublishDirectory>Always</CopyToPublishDirectory>
         </None>
     </ItemGroup>
 
     <ItemGroup>
-        <Resource Include="clock.ico"/>
-        <Resource Include="ClockAll.ico"/>
+        <Resource Include="resources\clock.ico" />
+        <Resource Include="resources\ClockAll.ico" />
     </ItemGroup>
 
 </Project>

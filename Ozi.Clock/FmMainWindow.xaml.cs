@@ -94,26 +94,6 @@ public partial class FmMainWindow : Window
             }
         }
 
-        // string filePath = "timezones.txt";
-
-        // Write all available Time Zones IDs to the file
-        // Open a StreamWriter to write to the file
-        // using (StreamWriter writer = new StreamWriter(filePath))
-        // {
-        //     foreach (TimeZoneInfo timeZone in TimeZoneInfo.GetSystemTimeZones())
-        //     {
-        //         // Get the UTC offset for the time zone
-        //         TimeSpan offset = timeZone.BaseUtcOffset;
-        //         string sign = offset >= TimeSpan.Zero ? "+" : "-";
-        //         
-        //         // Format the UTC offset as +HH:MM or -HH:MM
-        //         string formattedOffset = $"{sign}{offset.Hours:D2}:{offset.Minutes:D2}";
-        //         
-        //         // Write the time zone ID and its UTC offset to the file
-        //         writer.WriteLine($"{timeZone.Id}: {formattedOffset}");
-        //     }
-        // }
-
         FmMain.Width = App.Settings.LstClock.Count * 100 + 1;
 
 

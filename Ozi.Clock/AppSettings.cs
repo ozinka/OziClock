@@ -47,8 +47,13 @@ public class AppSettings
 
     public void Save()
     {
-        var fileData = JsonSerializer.Serialize(this);
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true
+        };
+        var fileData = JsonSerializer.Serialize(this, options);
         var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
         File.WriteAllText(path, fileData);
     }
+
 }
