@@ -1,4 +1,4 @@
-# ozi-clock
+# Ozi.Clock
 Beautiful clock with different Time Zones
 # 🌍 WPF World Clock
 
@@ -15,6 +15,7 @@ A compact and customizable **WPF desktop clock** displaying current time in mult
     - PUN (Pune)
     - SGP (Singapore)
     - TKO (Tokyo)
+    - and other
 - 🎛️ Sliders to shift time and compare different zones.
 - 📐 Compact view for minimal screen space usage.
 - 🪟 "Always on top" mode.
@@ -26,11 +27,14 @@ A compact and customizable **WPF desktop clock** displaying current time in mult
 
 ## 📸 Screenshots
 
-### Standard View
-![Standard View](./9c1cad0d-f0fe-48ec-9792-dc56034e8627.png)
-
 ### Compact Mode
-![Compact Mode](./0736399e-f6a8-4d56-8094-80d5320ad80b.png)
+![Compact Mode](./Ozi.Clock/resources/ozi.clock.small.webp)
+
+### Standard Mode
+![Standard View](./Ozi.Clock/resources/ozi.clock.mid.webp)
+
+### Extended Mode
+![Standard View](./Ozi.Clock/resources/ozi.clock.large.webp)
 
 ---
 
@@ -38,6 +42,7 @@ A compact and customizable **WPF desktop clock** displaying current time in mult
 
 1. Clone the repository.
 2. Open the solution in Visual Studio.
+3. Install .Net 9
 3. Build and run the project.
 
 ---
@@ -46,8 +51,7 @@ A compact and customizable **WPF desktop clock** displaying current time in mult
 
 - C#
 - WPF (Windows Presentation Foundation)
-- XAML for UI
-- MVVM pattern (optional)
+- .Net 9.0
 
 ---
 
