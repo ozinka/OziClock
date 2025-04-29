@@ -15,8 +15,8 @@ public partial class FmMainWindow : Window
     private bool _fIsTransparent;
     public bool IsAutoFold;
     private bool _isFolded;
-    public readonly FmTimeChecker NewFmTimeChecker;
-    private readonly TimeChecker2 _timeChecker2;
+    public readonly FmSlider NewFmTimeChecker;
+    private readonly FmRulers _timeChecker2;
     private DateTime _localTime;
     private DispatcherTimer? _timeTimer;
 
@@ -28,8 +28,8 @@ public partial class FmMainWindow : Window
     {
         InitializeComponent();
 
-        NewFmTimeChecker = new FmTimeChecker(this);
-        _timeChecker2 = new TimeChecker2(this);
+        NewFmTimeChecker = new FmSlider(this);
+        _timeChecker2 = new FmRulers(this);
         // screens = Screen.AllScreens;
     }
 

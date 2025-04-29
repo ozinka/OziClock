@@ -6,4 +6,5 @@ public class ClockTimeZoneInfo
     public string TimeZone { get; set; }
     public string Color { get; set; }
     public bool? IsMain { get; set; }
+    public bool? Enabled { get; set; }
 }

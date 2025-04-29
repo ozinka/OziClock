@@ -6,11 +6,11 @@ using System.Windows.Media;
 
 namespace Ozi.Utilities;
 
-public partial class FmTimeChecker : Window
+public partial class FmSlider : Window
 {
     public DateTime CurTime;
 
-    public FmTimeChecker(FmMainWindow fmMain)
+    public FmSlider(FmMainWindow fmMain)
     {
         InitializeComponent();
         Left = fmMain.Left;

@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 
 namespace Ozi.Utilities;
@@ -14,11 +16,66 @@ public class LineData
     public double Y2 { get; set; }
 }
 
-public partial class TimeChecker2 : Window
+public class VerticalMagnifierEffect : ShaderEffect
+{
+    private static readonly PixelShader _shader = new PixelShader
+    {
+        // UriSource = new Uri("pack://application:,,,/YourAssemblyName;component/VerticalMagnifier.ps")
+        UriSource = new Uri("pack://application:,,,/Shaders/VerticalMagnifier.ps")
+    };
+
+    public VerticalMagnifierEffect()
+    {
+        PixelShader = _shader;
+
+        UpdateShaderValue(InputProperty);
+        UpdateShaderValue(CenterYProperty);
+        UpdateShaderValue(BandHeightProperty);
+        UpdateShaderValue(MagnificationProperty);
+    }
+
+    public static readonly DependencyProperty InputProperty =
+        ShaderEffect.RegisterPixelShaderSamplerProperty("Input", typeof(VerticalMagnifierEffect), 0);
+
+    public static readonly DependencyProperty CenterYProperty =
+        DependencyProperty.Register("CenterY", typeof(double), typeof(VerticalMagnifierEffect),
+            new UIPropertyMetadata(0.5, PixelShaderConstantCallback(0)));
+
+    public static readonly DependencyProperty BandHeightProperty =
+        DependencyProperty.Register("BandHeight", typeof(double), typeof(VerticalMagnifierEffect),
+            new UIPropertyMetadata(0.2, PixelShaderConstantCallback(1)));
+
+    public static readonly DependencyProperty MagnificationProperty =
+        DependencyProperty.Register("Magnification", typeof(double), typeof(VerticalMagnifierEffect),
+            new UIPropertyMetadata(2.0, PixelShaderConstantCallback(2)));
+
+    public double CenterY
+    {
+        get => (double)GetValue(CenterYProperty);
+        set => SetValue(CenterYProperty, value);
+    }
+
+    public double BandHeight
+    {
+        get => (double)GetValue(BandHeightProperty);
+        set => SetValue(BandHeightProperty, value);
+    }
+
+    public double Magnification
+    {
+        get => (double)GetValue(MagnificationProperty);
+        set => SetValue(MagnificationProperty, value);
+    }
+}
+
+public partial class FmRulers : Window
 {
     private readonly FmMainWindow _fFmMain;
+    private bool _isDraggingVertical = false;
+    private Point _startPointVertical;
+    private double _originalLeftWidth;
 
-    public TimeChecker2(FmMainWindow fmMain)
+    public FmRulers(FmMainWindow fmMain)
     {
         InitializeComponent();
         _fFmMain = fmMain;
@@ -26,8 +83,83 @@ public partial class TimeChecker2 : Window
         Loaded += Window_Loaded;
     }
 
+    private void VerticalSplitter_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _isDraggingVertical = true;
+        _startPointVertical = e.GetPosition(gdRulers);
+        _originalLeftWidth = colTopLeft.Width.Value;
+        Mouse.Capture((UIElement)sender);
+    }
+
+    private void VerticalSplitter_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isDraggingVertical) return;
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            _isDraggingVertical = false;
+            Mouse.Capture(null);
+            return;
+        }
+
+        Point currentPosition = e.GetPosition(gdRulers);
+        double delta = currentPosition.X - _startPointVertical.X;
+        double newWidth = _originalLeftWidth + delta;
+
+        newWidth = Math.Max(colTopLeft.MinWidth, Math.Min(newWidth, colTopLeft.MaxWidth));
+        colTopLeft.Width = new GridLength(newWidth, GridUnitType.Pixel);
+    }
+
+    private bool _isDraggingHorizontal = false;
+    private Point _startPointHorizontal;
+    private double _originalTopHeight;
+
+    private void HorizontalSplitter_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _isDraggingHorizontal = true;
+        _startPointHorizontal = e.GetPosition(gdRulers);
+        _originalTopHeight = rwTop.Height.Value;
+        Mouse.Capture((UIElement)sender);
+    }
+
+    private void HorizontalSplitter_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_isDraggingHorizontal)
+        {
+            _isDraggingHorizontal = false;
+            Mouse.Capture(null);
+        }
+    }
+
+    private void HorizontalSplitter_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isDraggingHorizontal) return;
+
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            _isDraggingHorizontal = false;
+            Mouse.Capture(null);
+            return;
+        }
+
+        Point currentPosition = e.GetPosition(gdRulers); // must be gdRullers, not sender
+        double deltaY = currentPosition.Y - _startPointHorizontal.Y;
+
+        double newHeight = _originalTopHeight + deltaY;
+        newHeight = Math.Max(0, Math.Min(newHeight, rwTop.MaxHeight));
+        rwTop.Height = new GridLength(newHeight, GridUnitType.Pixel);
+    }
+
+
     private void GridSplitter_LayoutUpdated(object sender, EventArgs e)
     {
+        var position = RulerGrid.TranslatePoint(new Point(0, 0), this);
+        
+        var brush = (VisualBrush)this.Resources["glRulersBrush"];
+        var oldViewbox = brush.Viewbox;
+        
+        // Update Y offset based on Grid position
+        brush.Viewbox = new Rect(oldViewbox.X, position.Y, oldViewbox.Width, oldViewbox.Height);
+        
         if (IsMouseOver)
         {
             _fFmMain.NewFmTimeChecker.slTimeChecker.Value =
@@ -175,14 +307,14 @@ public partial class TimeChecker2 : Window
         foreach (var timeZoneInfo in App.Settings.TimeZones)
         {
             var (grid, canvas) = CreateCityGrid(i * 100 + 1, timeZoneInfo.Value.Color);
-            glRullers.Children.Add(grid);
+            glRulers.Children.Add(grid);
             CreateLines(canvas, timeZoneInfo.Value.TimeZone);
             i++;
         }
 
         fmTimeChecker2.Width = i * 100 + 1;
-        ColumnDefinition colTopLeft = gdRullers.ColumnDefinitions[0];
-        colTopLeft.MaxWidth = (i -1) * 100;
+        ColumnDefinition colTopLeft = gdRulers.ColumnDefinitions[0];
+        colTopLeft.MaxWidth = (i - 1) * 100;
         colTopLeft.Width = new GridLength(App.Settings.MainClockIndex * 100, GridUnitType.Pixel);
     }
 

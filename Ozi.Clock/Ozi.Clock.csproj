@@ -32,6 +32,6 @@
     <ItemGroup>
         <Resource Include="resources\clock.ico" />
         <Resource Include="resources\ClockAll.ico" />
+        <Resource Include="Shaders\VerticalMagnifier.ps" />
     </ItemGroup>
-
 </Project>

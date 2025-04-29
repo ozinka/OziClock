@@ -1,0 +1,148 @@
+﻿<Window x:Name="fmTimeChecker2" x:Class="Ozi.Utilities.FmRulers"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Ozi.Utilities"
+        Title="TimeChecker" Height="453" Width="601" ResizeMode="NoResize" Topmost="True" WindowStyle="None"
+        Background="Black" ShowInTaskbar="False">
+
+    <Window.Resources>
+        <local:VerticalMagnifierEffect x:Key="VerticalMagnifierEffect"
+                                       CenterY="0.5"
+                                       BandHeight="1"
+                                       Magnification="1.3" />
+        <VisualBrush x:Key="glRulersBrush"
+                     Visual="{Binding ElementName=glRulers}"
+                     ViewboxUnits="Absolute"
+                     Viewbox="0,0,100,30"
+                     Stretch="None"
+                     AlignmentX="Left"
+                     AlignmentY="Top" />
+    </Window.Resources>
+
+    <Grid x:Name="gdMain">
+        <Grid x:Name="glRulers" Background="Black" Panel.ZIndex="0" />
+
+        <Grid x:Name="gdRulers" Panel.ZIndex="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="colTopLeft" Width="200" MaxWidth="400" MinWidth="1" />
+                <ColumnDefinition Width="99" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition x:Name="rwTop" Height="300" MaxHeight="423" />
+                <RowDefinition Height="30" MinHeight="30" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Top Left Lens -->
+            <Grid x:Name="GdLensTopLeft" Grid.Row="0" Grid.Column="0">
+                <Border Background="Black" Margin="0" BorderBrush="Maroon" BorderThickness="0,0,2,0">
+                    <Border Opacity="0.5">
+                        <Border.Effect>
+                            <BlurEffect Radius="3" />
+                        </Border.Effect>
+                        <Border.Background>
+                            <VisualBrush Visual="{Binding ElementName=glRulers}" AlignmentY="Top" Stretch="None"
+                                         AlignmentX="Left" />
+                        </Border.Background>
+                    </Border>
+                </Border>
+            </Grid>
+
+            <!-- Top Right Lens -->
+            <Grid x:Name="GdLensTopRight" Grid.Row="0" Grid.Column="2">
+                <Border Background="Black" Margin="0" BorderBrush="Maroon" BorderThickness="2,0,0,0">
+                    <Border Opacity="0.5">
+                        <Border.Effect>
+                            <BlurEffect Radius="3" />
+                        </Border.Effect>
+                        <Border.Background>
+                            <VisualBrush Visual="{Binding ElementName=glRulers}" AlignmentY="Top" Stretch="None"
+                                         AlignmentX="Right" />
+                        </Border.Background>
+                    </Border>
+                </Border>
+            </Grid>
+
+            <!-- Vertical Splitter -->
+            <Grid Grid.Column="1" Grid.RowSpan="4"
+                  Effect="{StaticResource VerticalMagnifierEffect}"
+                  Background="Transparent"
+                  MouseLeftButtonDown="VerticalSplitter_MouseLeftButtonDown"
+                  MouseMove="VerticalSplitter_MouseMove"
+                  Cursor="SizeWE" />
+
+            <!-- Horizontal Splitter -->
+            <Grid x:Name="RulerGrid"
+                  Grid.Row="1" Grid.ColumnSpan="3"
+                  Effect="{StaticResource VerticalMagnifierEffect}"
+                  MinHeight="30"
+                  Cursor="SizeNS"
+                  MouseLeftButtonDown="HorizontalSplitter_MouseLeftButtonDown"
+                  MouseMove="HorizontalSplitter_MouseMove"
+                  LayoutUpdated="GridSplitter_LayoutUpdated">
+    
+                <!-- Background content using your glRulersBrush -->
+                <Border Background="{StaticResource glRulersBrush}" />
+                <!-- Overlay gradient mask -->
+                <Rectangle>
+                    <Rectangle.OpacityMask>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <!-- Very dark at top -->
+                            <GradientStop Color="#FF000000" Offset="0.0" />
+                            <!-- Start fading earlier -->
+                            <GradientStop Color="#66000000" Offset="0.15" />
+                            <!-- Transition to full transparency -->
+                            <GradientStop Color="#00000000" Offset="0.35" />
+                            <!-- Keep a wide transparent center -->
+                            <GradientStop Color="#00000000" Offset="0.65" />
+                            <!-- Start fading back to dark -->
+                            <GradientStop Color="#66000000" Offset="0.85" />
+                            <!-- Very dark at bottom -->
+                            <GradientStop Color="#FF000000" Offset="1.0" />
+                        </LinearGradientBrush>
+                    </Rectangle.OpacityMask>
+                    <Rectangle.Fill>
+                        <SolidColorBrush Color="Black" />
+                    </Rectangle.Fill>
+                </Rectangle>
+
+
+                <!-- Border -->
+                <Border Background="Transparent" Margin="1, 2" BorderBrush="Maroon" BorderThickness="1" />
+            </Grid>
+
+
+            <!-- Bottom Left -->
+            <Grid x:Name="gdLensBottomLeft" Grid.Row="2" Grid.Column="0">
+                <Border Background="Black" Margin="0" Grid.ColumnSpan="2" BorderBrush="Maroon"
+                        BorderThickness="0,0,2,0">
+                    <Border Opacity="0.5">
+                        <Border.Effect>
+                            <BlurEffect Radius="3" />
+                        </Border.Effect>
+                        <Border.Background>
+                            <VisualBrush Visual="{Binding ElementName=glRulers}" Stretch="None" AlignmentY="Bottom"
+                                         AlignmentX="Left" />
+                        </Border.Background>
+                    </Border>
+                </Border>
+            </Grid>
+
+            <!-- Bottom Right Lens -->
+            <Grid x:Name="gdLensBottomRight" Grid.Row="2" Grid.Column="2">
+                <Border Background="Black" Margin="0" BorderBrush="Maroon" BorderThickness="2,0,0,0">
+                    <Border Opacity="0.5">
+                        <Border.Effect>
+                            <BlurEffect Radius="3" />
+                        </Border.Effect>
+                        <Border.Background>
+                            <VisualBrush Visual="{Binding ElementName=glRulers}" Stretch="None" AlignmentY="Bottom"
+                                         AlignmentX="Right" />
+                        </Border.Background>
+                    </Border>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
