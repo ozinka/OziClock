@@ -153,17 +153,17 @@ public partial class FmRulers : Window
     private void GridSplitter_LayoutUpdated(object sender, EventArgs e)
     {
         var position = RulerGrid.TranslatePoint(new Point(0, 0), this);
-        
+
         var brush = (VisualBrush)this.Resources["glRulersBrush"];
         var oldViewbox = brush.Viewbox;
-        
+
         // Update Y offset based on Grid position
         brush.Viewbox = new Rect(oldViewbox.X, position.Y, oldViewbox.Width, oldViewbox.Height);
-        
+
         if (IsMouseOver)
         {
-            _fFmMain.NewFmTimeChecker.slTimeChecker.Value =
-                rwTop.Height.Value * _fFmMain.NewFmTimeChecker.slTimeChecker.Maximum / rwTop.MaxHeight;
+            _fFmMain.NewFmSlider.slTimeChecker.Value =
+                rwTop.Height.Value * _fFmMain.NewFmSlider.slTimeChecker.Maximum / rwTop.MaxHeight;
         }
     }
 
@@ -174,21 +174,20 @@ public partial class FmRulers : Window
 
     private double GetRegionOffset(string timeZoneId)
     {
+        var nowUtc = DateTime.UtcNow;
+        
         var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId!);
 
         // Get current time in Kyiv and the region's timezone
-        var kyivNow = TimeZoneInfo.ConvertTime(DateTime.UtcNow, TimeZoneInfo.Utc,
+        var kyivNow = TimeZoneInfo.ConvertTime(nowUtc, TimeZoneInfo.Utc,
             TimeZoneInfo.FindSystemTimeZoneById(App.Settings.MainTimeZone));
-        var regionNow = TimeZoneInfo.ConvertTime(DateTime.UtcNow, TimeZoneInfo.Utc, timeZoneInfo);
+        var regionNow = TimeZoneInfo.ConvertTime(nowUtc, TimeZoneInfo.Utc, timeZoneInfo);
 
         // Calculate the offset in hours
         var timeDifference = regionNow - kyivNow;
 
         // Return the total offset in hours (including fractional hours for half-hour differences)
         return timeDifference.TotalHours;
-
-        // Default to Kyiv's time if region is not found
-        return 0;
     }
 
     private void CreateLines(Canvas canvas, string timeZoneId)

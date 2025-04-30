@@ -9,8 +9,8 @@
                 Margin="26,0,28,27" Click="btOk_Click" RenderTransformOrigin="0.5,0.5" Background="#FFA2A2A2"
                 IsDefault="True" Height="39" VerticalAlignment="Bottom" Width="245" IsCancel="True" />
         <CheckBox x:Name="cbTransparency" Content="Use transparency: " HorizontalAlignment="Left" Margin="10,41,0,0"
-                  VerticalAlignment="Top" Width="144" Checked="CheckBox_Checked" Foreground="#FFD1D1D1"
-                  Unchecked="CheckBox_Checked" />
+                  VerticalAlignment="Top" Width="144" Checked="cbTransparency_Checked" Foreground="#FFD1D1D1"
+                  Unchecked="cbTransparency_Checked" />
         <Slider x:Name="slTransparent" HorizontalAlignment="Left" Height="41" Margin="10,62,0,0"
                 VerticalAlignment="Top" Width="279" Maximum="0.9" Value="0.5" TickFrequency="0.1"
                 TickPlacement="BottomRight" IsEnabled="False" LargeChange="0.1" Minimum="0.1" />

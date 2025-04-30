@@ -16,7 +16,6 @@ public partial class FmSettings : Window
         slTransparent.IsEnabled = cbTransparency.IsChecked.Value;
         slTransparent.Value = _fFmMain.Opacity;
         cbShowInTaskBar.IsChecked = _fFmMain.ShowInTaskbar;
-        cbShowInTaskBar.IsChecked = _fFmMain.ShowInTaskbar;
         cbTopMost.IsChecked = _fFmMain.Topmost;
         cbAutoHide.IsChecked = _fFmMain.IsAutoFold;
         cbSnap.IsChecked = _fFmMain.UseSnap;
@@ -27,16 +26,22 @@ public partial class FmSettings : Window
         Close();
     }
 
-    private void CheckBox_Checked(object sender, RoutedEventArgs e)
+    private void UpdateTransparencyUI()
     {
-        _fFmMain.IsTransparent = cbTransparency.IsChecked!.Value;
-        slTransparent.IsEnabled = cbTransparency.IsChecked.Value;
+        bool isChecked = cbTransparency.IsChecked ?? false;
+        _fFmMain.IsTransparent = isChecked;
+        slTransparent.IsEnabled = isChecked;
+        cbTransparency.Content = $"Use transparency: ({(int)(slTransparent.Value * 100)}%)";
+    }
+
+    private void cbTransparency_Checked(object sender, RoutedEventArgs e)
+    {
+        UpdateTransparencyUI();
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        cbTransparency.IsChecked = _fFmMain.IsTransparent;
-        slTransparent.Value = _fFmMain.TransparentValue;
+        UpdateTransparencyUI();
     }
 
     private void Window_MouseDown(object sender, MouseButtonEventArgs e)
@@ -50,7 +55,7 @@ public partial class FmSettings : Window
     private void slTransparent_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         _fFmMain.TransparentValue = slTransparent.Value;
-        cbTransparency.Content = "Use transparency: (" + (int)(slTransparent.Value * 100) + "%)";
+        cbTransparency.Content = $"Use transparency: ({(int)(slTransparent.Value * 100)}%)";
     }
 
     private void cbShowInTaskBar_Checked(object sender, RoutedEventArgs e)

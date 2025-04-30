@@ -7,5 +7,12 @@
     SnapsToDevicePixels="True" AllowsTransparency="True" WindowStyle="None" BorderThickness="0"
     MouseEnter="fmMain_MouseEnter" MouseLeave="fmMain_MouseLeave" Icon="resources\clock.ico"
     LocationChanged="fmMain_LocationChanged">
-    <Grid x:Name="gdMain" Margin="1" MouseDown="gdMain_MouseDown" RenderTransformOrigin="0.459,0.49" />
+    <!-- Add the storyboard inside Window.Resources -->
+    <!-- <Window.Resources> -->
+    <!--     <Storyboard x:Key="FoldStoryboard"> -->
+    <!--         <DoubleAnimation Storyboard.TargetProperty="Height" To="29" Duration="0:0:0.2" /> -->
+    <!--     </Storyboard> -->
+    <!-- </Window.Resources> -->
+    <!-- https://chatgpt.com/share/681239f4-b454-8003-b7ee-f4fb0cfbe219 -->
+    <Grid x:Name="gdMain" Margin="1" MouseDown="fmMain_MouseDown" RenderTransformOrigin="0.459,0.49" />
 </Window>

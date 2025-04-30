@@ -1,36 +1,77 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Interop;
+using System.Runtime.InteropServices;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
-using System.IO;
 
 namespace Ozi.Utilities;
 
 public partial class FmMainWindow : Window
 {
     private double _fTransparentValue = 90;
+    private const int FoldedHeight = 29;
+    private const int UnfoldedHeight = 62;
     private bool _fIsTransparent;
     public bool IsAutoFold;
     private bool _isFolded;
-    public readonly FmSlider NewFmTimeChecker;
-    private readonly FmRulers _timeChecker2;
+    public readonly FmSlider NewFmSlider;
+    private readonly FmRulers _FmRulers;
     private DateTime _localTime;
     private DispatcherTimer? _timeTimer;
 
+    // Windows API constants
+    private const int HWND_TOPMOST = -1;
+    private const int HWND_NOTOPMOST = -2;
+    private const int SWP_NOMOVE = 0x0002;
+    private const int SWP_NOSIZE = 0x0001;
+    private const int SWP_NOACTIVATE = 0x0010;
+    private const int SWP_SHOWWINDOW = 0x0040;
 
     public bool UseSnap = true;
-    // private Screen[] screens;
+
+    // P/Invoke declaration for SetWindowPos
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy,
+        uint uFlags);
+
 
     public FmMainWindow()
     {
         InitializeComponent();
+        SetupWindowEvents();
 
-        NewFmTimeChecker = new FmSlider(this);
-        _timeChecker2 = new FmRulers(this);
+        NewFmSlider = new FmSlider(this);
+        _FmRulers = new FmRulers(this);
         // screens = Screen.AllScreens;
+    }
+
+    private void SetupWindowEvents()
+    {
+        // Handle when the window becomes visible after being hidden
+        this.IsVisibleChanged += (s, e) =>
+        {
+            if ((bool)e.NewValue)
+            {
+                MakeWindowAlwaysOnTop();
+            }
+        };
+    }
+
+    private void MakeWindowAlwaysOnTop()
+    {
+        if (App.Settings.TopMost)
+        {
+            WindowInteropHelper wndHelper = new WindowInteropHelper(this);
+            IntPtr hWnd = wndHelper.Handle;
+
+            // Set window to be always on top with highest Z-order
+            SetWindowPos(hWnd, new IntPtr(HWND_TOPMOST), 0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        }
     }
 
     public bool IsTransparent
@@ -104,11 +145,7 @@ public partial class FmMainWindow : Window
         {
             Header = "About"
         };
-        //item1.Icon = new System.Windows.Controls.Image
-        //{
-        //    Source = new BitmapImage(new Uri("Resources/Copy16.png", UriKind.Relative))
-        //};
-        //new BitmapImage(new Uri("Resources/pencil_16.BMP", UriKind.Relative));
+
         item1.Click += MenuItemAbout_Click;
         mainMenu.Items.Add(item1);
 
@@ -118,9 +155,6 @@ public partial class FmMainWindow : Window
         };
         item3.Click += MenuItemSettings_Click;
         mainMenu.Items.Add(item3);
-
-        //System.Windows.Controls.MenuItem item4 = new System.Windows.Controls.MenuItem();
-        //item4.Header = "TimeChecker"; item4.Click += MenuItemTimeChecker_Click; mainMenu.Items.Add(item4);
 
         mainMenu.Items.Add(new Separator());
 
@@ -165,18 +199,21 @@ public partial class FmMainWindow : Window
         {
             Interval = TimeSpan.FromSeconds(1)
         };
-        _timeTimer.Tick += TtTick!;
+        _timeTimer.Tick += TtTick;
         _timeTimer.Start();
     }
 
+
     private void TtTick(object sender, EventArgs e)
     {
-        if (NewFmTimeChecker.Visibility == Visibility.Visible)
+        MakeWindowAlwaysOnTop();
+
+        if (NewFmSlider.Visibility == Visibility.Visible)
         {
-            _localTime = NewFmTimeChecker.CurTime.Date;
-            _localTime = _localTime.AddMinutes((int)NewFmTimeChecker.slTimeChecker.Value * 5);
-            _timeChecker2.rwTop.Height = new GridLength(_timeChecker2.rwTop.MaxHeight *
-                NewFmTimeChecker.slTimeChecker.Value / NewFmTimeChecker.slTimeChecker.Maximum);
+            _localTime = NewFmSlider.CurTime.Date;
+            _localTime = _localTime.AddMinutes((int)NewFmSlider.slTimeChecker.Value * 5);
+            _FmRulers.rwTop.Height = new GridLength(_FmRulers.rwTop.MaxHeight *
+                NewFmSlider.slTimeChecker.Value / NewFmSlider.slTimeChecker.Maximum);
         }
         else
         {
@@ -195,26 +232,26 @@ public partial class FmMainWindow : Window
 
     private void AdjustTimeCheckerPosition()
     {
-        _timeChecker2.Left = Left;
-        _timeChecker2.Top = Top + Height;
-        NewFmTimeChecker.Left = Left;
-        NewFmTimeChecker.Top = Top + Height + _timeChecker2.Height;
+        _FmRulers.Left = Left;
+        _FmRulers.Top = Top + Height;
+        NewFmSlider.Left = Left;
+        NewFmSlider.Top = Top + Height + _FmRulers.Height;
     }
 
     private void MenuItemTimeChecker_Click(object sender, RoutedEventArgs e)
     {
-        if (NewFmTimeChecker.Visibility == Visibility.Visible)
+        if (NewFmSlider.Visibility == Visibility.Visible)
         {
-            NewFmTimeChecker.Hide();
-            _timeChecker2.Hide();
+            NewFmSlider.Hide();
+            _FmRulers.Hide();
             _timeTimer!.Interval = TimeSpan.FromSeconds(1);
         }
         else
         {
-            NewFmTimeChecker.CurTime = _localTime;
-            NewFmTimeChecker.slTimeChecker.Value = _localTime.Hour * 12 + (int)(_localTime.Minute / 5);
-            NewFmTimeChecker.Show();
-            _timeChecker2.Show();
+            NewFmSlider.CurTime = _localTime;
+            NewFmSlider.slTimeChecker.Value = _localTime.Hour * 12 + (int)(_localTime.Minute / 5);
+            NewFmSlider.Show();
+            _FmRulers.Show();
             _timeTimer!.Interval = TimeSpan.FromMicroseconds(100);
         }
 
@@ -237,7 +274,7 @@ public partial class FmMainWindow : Window
         save_Config();
     }
 
-    private void gdMain_MouseDown(object sender, MouseButtonEventArgs e)
+    private void fmMain_MouseDown(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true; //double click  
 
@@ -269,7 +306,7 @@ public partial class FmMainWindow : Window
         var i = (int)Height;
         if (IsMouseOver)
         {
-            while (i <= 62)
+            while (i <= UnfoldedHeight)
                 if (IsMouseOver)
                 {
                     Height = i++;
@@ -282,7 +319,7 @@ public partial class FmMainWindow : Window
         }
         else
         {
-            while (i >= 29)
+            while (i >= FoldedHeight)
                 if (!IsMouseOver)
                 {
                     Height = i--;
@@ -310,7 +347,7 @@ public partial class FmMainWindow : Window
 
     private void fmMain_MouseLeave(object sender, MouseEventArgs e)
     {
-        if (IsTransparent && !(NewFmTimeChecker.Visibility == Visibility.Visible))
+        if (IsTransparent && !(NewFmSlider.Visibility == Visibility.Visible))
         {
             Opacity = TransparentValue;
         }
@@ -328,7 +365,7 @@ public partial class FmMainWindow : Window
     private void FoldMainWindow()
     {
         {
-            for (var i = (int)Height; i > 29; i--)
+            for (var i = (int)Height; i > FoldedHeight; i--)
             {
                 FmMain.Height = i;
                 AdjustTimeCheckerPosition();
@@ -341,7 +378,7 @@ public partial class FmMainWindow : Window
     private void UnFoldMainWindow()
     {
         {
-            for (var i = (int)Height; i < 62; i++)
+            for (var i = (int)Height; i < UnfoldedHeight; i++)
             {
                 FmMain.Height = i;
                 AdjustTimeCheckerPosition();

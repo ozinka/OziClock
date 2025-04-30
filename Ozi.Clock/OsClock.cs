@@ -83,7 +83,7 @@ public class OsClock
         {
             FontFamily = fntClcCaption,
             FontSize = 16,
-            Content = caption + " :",
+            Content = caption,
             Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFB9B9B9"))
         };
 
