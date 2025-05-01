@@ -5,6 +5,8 @@ using System.Windows.Interop;
 using System.Runtime.InteropServices;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace Ozi.Utilities;
@@ -32,13 +34,13 @@ public partial class FmMainWindow : Window
 
     public bool UseSnap = true;
 
-    // P/Invoke declaration for SetWindowPos
+    // P/Invoke declaration for SetWindowPos - required for making app always on top
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy,
         uint uFlags);
 
-
+    // Constructor
     public FmMainWindow()
     {
         InitializeComponent();
@@ -46,7 +48,7 @@ public partial class FmMainWindow : Window
 
         NewFmSlider = new FmSlider(this);
         _FmRulers = new FmRulers(this);
-        // screens = Screen.AllScreens;
+        
     }
 
     private void SetupWindowEvents()
@@ -63,15 +65,22 @@ public partial class FmMainWindow : Window
 
     private void MakeWindowAlwaysOnTop()
     {
+        WindowInteropHelper wndHelper = new WindowInteropHelper(this);
+        IntPtr hWnd = wndHelper.Handle;
+
         if (App.Settings.TopMost)
         {
-            WindowInteropHelper wndHelper = new WindowInteropHelper(this);
-            IntPtr hWnd = wndHelper.Handle;
-
-            // Set window to be always on top with highest Z-order
+            // Set window to be always on top
             SetWindowPos(hWnd, new IntPtr(HWND_TOPMOST), 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
         }
+        else
+        {
+            // Remove always-on-top status
+            SetWindowPos(hWnd, new IntPtr(HWND_NOTOPMOST), 0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        }
+        Console.WriteLine(App.Settings.TopMost);
     }
 
     public bool IsTransparent

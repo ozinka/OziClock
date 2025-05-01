@@ -75,6 +75,7 @@ public partial class FmRulers : Window
     private Point _startPointVertical;
     private double _originalLeftWidth;
 
+    // constructor
     public FmRulers(FmMainWindow fmMain)
     {
         InitializeComponent();
@@ -121,15 +122,6 @@ public partial class FmRulers : Window
         Mouse.Capture((UIElement)sender);
     }
 
-    private void HorizontalSplitter_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        if (_isDraggingHorizontal)
-        {
-            _isDraggingHorizontal = false;
-            Mouse.Capture(null);
-        }
-    }
-
     private void HorizontalSplitter_MouseMove(object sender, MouseEventArgs e)
     {
         if (!_isDraggingHorizontal) return;
@@ -169,13 +161,13 @@ public partial class FmRulers : Window
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        InitializeCanvases();
+        InitializeRulers();
     }
 
     private double GetRegionOffset(string timeZoneId)
     {
         var nowUtc = DateTime.UtcNow;
-        
+
         var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId!);
 
         // Get current time in Kyiv and the region's timezone
@@ -190,12 +182,13 @@ public partial class FmRulers : Window
         return timeDifference.TotalHours;
     }
 
-    private void CreateLines(Canvas canvas, string timeZoneId)
+    private void CreateLinesAndLabels(Canvas canvas, string timeZoneId)
     {
         var lineData = new List<(double y, double x2)>();
-        double y = 10;
+        double y = 13;
         double[] pattern = { 25, 15, 15, 20, 15, 15 };
 
+        // Add LINES
         // Add line data
         for (var i = 0; i < 24; i++) // 24 hours
         {
@@ -206,11 +199,8 @@ public partial class FmRulers : Window
             }
         }
 
-        // Add one additional line with width 25
+        // Add one LAST line with width 25
         lineData.Add((y, 25));
-
-        // Clear the canvas
-        canvas.Children.Clear();
 
         // Draw the lines
         foreach (var (lineY, x2) in lineData)
@@ -240,10 +230,11 @@ public partial class FmRulers : Window
             });
         }
 
+        // Add LABELS
         // Calculate time offset for the region dynamically
         var offset = GetRegionOffset(timeZoneId);
 
-        double labelYOffset = -2; // Starting position for the first label
+        double labelYOffset = 1; // Starting position for the first label
 
         // Add time labels considering the timezone offset for the region
         for (var i = 0; i < 25; i++)
@@ -294,20 +285,19 @@ public partial class FmRulers : Window
             label.SetValue(Canvas.LeftProperty, 0.0);
             label.SetValue(Canvas.TopProperty, labelYOffset);
 
-
             // Update the Y-coordinate for the next label
             labelYOffset += 18;
         }
     }
 
-    private void InitializeCanvases()
+    private void InitializeRulers()
     {
         int i = 0;
         foreach (var timeZoneInfo in App.Settings.TimeZones)
         {
-            var (grid, canvas) = CreateCityGrid(i * 100 + 1, timeZoneInfo.Value.Color);
+            var (grid, canvas) = CreateTZGrid(i * 100 + 1, timeZoneInfo.Value.Color);
             glRulers.Children.Add(grid);
-            CreateLines(canvas, timeZoneInfo.Value.TimeZone);
+            CreateLinesAndLabels(canvas, timeZoneInfo.Value.TimeZone);
             i++;
         }
 
@@ -317,7 +307,7 @@ public partial class FmRulers : Window
         colTopLeft.Width = new GridLength(App.Settings.MainClockIndex * 100, GridUnitType.Pixel);
     }
 
-    public static (Grid grid, Canvas canvas) CreateCityGrid(double marginLeft, string gradientColor)
+    private static (Grid grid, Canvas canvas) CreateTZGrid(double marginLeft, string gradientColor)
     {
         var grid = new Grid
         {
@@ -339,7 +329,7 @@ public partial class FmRulers : Window
             EndPoint = new Point(0.5, 1)
         };
         linearGradient.GradientStops.Add(
-            new GradientStop((Color)ColorConverter.ConvertFromString(gradientColor), 0.929));
+            new GradientStop((Color)ColorConverter.ConvertFromString(gradientColor), 0.959));
         linearGradient.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString("#FF383838"), 1.0));
 
         canvas.Background = linearGradient;

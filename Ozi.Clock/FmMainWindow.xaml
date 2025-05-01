@@ -2,11 +2,11 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     x:Name="FmMain" x:Class="Ozi.Utilities.FmMainWindow"
-    Title="Ozi Clocks" Height="62" Width="708" Topmost="True" Background="Black" BorderBrush="Black"
+    Title="Ozi Clocks" Height="62" Width="708" Background="Black" BorderBrush="Black"
     ResizeMode="NoResize" ShowInTaskbar="False" Closing="fmMain_Closing" Loaded="fmMain_Loaded"
     SnapsToDevicePixels="True" AllowsTransparency="True" WindowStyle="None" BorderThickness="0"
     MouseEnter="fmMain_MouseEnter" MouseLeave="fmMain_MouseLeave" Icon="resources\clock.ico"
-    LocationChanged="fmMain_LocationChanged">
+    LocationChanged="fmMain_LocationChanged" >
     <!-- Add the storyboard inside Window.Resources -->
     <!-- <Window.Resources> -->
     <!--     <Storyboard x:Key="FoldStoryboard"> -->

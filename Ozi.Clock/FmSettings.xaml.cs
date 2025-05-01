@@ -15,8 +15,8 @@ public partial class FmSettings : Window
         cbTransparency.IsChecked = _fFmMain.IsTransparent;
         slTransparent.IsEnabled = cbTransparency.IsChecked.Value;
         slTransparent.Value = _fFmMain.Opacity;
-        cbShowInTaskBar.IsChecked = _fFmMain.ShowInTaskbar;
-        cbTopMost.IsChecked = _fFmMain.Topmost;
+        cbShowInTaskBar.IsChecked = App.Settings.ShowInTaskBar;
+        cbTopMost.IsChecked = App.Settings.TopMost;
         cbAutoHide.IsChecked = _fFmMain.IsAutoFold;
         cbSnap.IsChecked = _fFmMain.UseSnap;
     }
@@ -60,12 +60,12 @@ public partial class FmSettings : Window
 
     private void cbShowInTaskBar_Checked(object sender, RoutedEventArgs e)
     {
-        _fFmMain.ShowInTaskbar = cbShowInTaskBar.IsChecked!.Value;
+        App.Settings.ShowInTaskBar = cbShowInTaskBar.IsChecked!.Value;
     }
 
     private void cbTopMost_Checked(object sender, RoutedEventArgs e)
     {
-        _fFmMain.Topmost = cbTopMost.IsChecked!.Value;
+        App.Settings.TopMost = cbTopMost.IsChecked!.Value;
     }
 
     private void cbAutoHide_Checked(object sender, RoutedEventArgs e)
