@@ -23,8 +23,8 @@
                   VerticalAlignment="Top" Foreground="#FFD1D1D1" Checked="cbShowInTaskBar_Checked"
                   Unchecked="cbShowInTaskBar_Checked" />
         <CheckBox x:Name="cbTopMost" Content="Always on top" HorizontalAlignment="Left" Margin="10,138,0,0"
-                  VerticalAlignment="Top" Foreground="#FFD1D1D1" Checked="cbTopMost_Checked"
-                  Unchecked="cbTopMost_Checked" />
+                  VerticalAlignment="Top" Foreground="#FFD1D1D1"
+                  IsChecked="{Binding TopMost, Source={StaticResource AppSettings}, Mode=TwoWay}"/>
         <CheckBox x:Name="cbAutoHide" Content="Auto show" HorizontalAlignment="Left" Margin="10,169,0,0"
                   VerticalAlignment="Top" Foreground="#FFD1D1D1" Checked="cbAutoHide_Checked"
                   Unchecked="cbAutoHide_Checked" />

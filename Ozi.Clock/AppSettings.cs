@@ -55,5 +55,4 @@ public class AppSettings
         var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
         File.WriteAllText(path, fileData);
     }
-
 }

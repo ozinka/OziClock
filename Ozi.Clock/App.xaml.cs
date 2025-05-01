@@ -9,6 +9,7 @@ public partial class App
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        Resources["AppSettings"] = Settings;
         Settings.Load();
     }
 

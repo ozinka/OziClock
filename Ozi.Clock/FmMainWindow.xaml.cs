@@ -48,7 +48,6 @@ public partial class FmMainWindow : Window
 
         NewFmSlider = new FmSlider(this);
         _FmRulers = new FmRulers(this);
-        
     }
 
     private void SetupWindowEvents()
@@ -67,19 +66,22 @@ public partial class FmMainWindow : Window
     {
         WindowInteropHelper wndHelper = new WindowInteropHelper(this);
         IntPtr hWnd = wndHelper.Handle;
-
-        if (App.Settings.TopMost)
-        {
-            // Set window to be always on top
-            SetWindowPos(hWnd, new IntPtr(HWND_TOPMOST), 0, 0, 0, 0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-        }
-        else
-        {
-            // Remove always-on-top status
-            SetWindowPos(hWnd, new IntPtr(HWND_NOTOPMOST), 0, 0, 0, 0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-        }
+        // Topmost = App.Settings.TopMost;
+        
+        // if ()
+        // {
+        //     
+        //     // Set window to be always on top
+        //     // SetWindowPos(hWnd, new IntPtr(HWND_TOPMOST), 0, 0, 0, 0,
+        //     //     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        // }
+        // else
+        // {
+        //     Topmost = false;
+        //     // Remove always-on-top status
+        // //     SetWindowPos(hWnd, new IntPtr(HWND_NOTOPMOST), 0, 0, 0, 0,
+        // //         SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        // }
         Console.WriteLine(App.Settings.TopMost);
     }
 
@@ -215,7 +217,7 @@ public partial class FmMainWindow : Window
 
     private void TtTick(object sender, EventArgs e)
     {
-        MakeWindowAlwaysOnTop();
+        // MakeWindowAlwaysOnTop();
 
         if (NewFmSlider.Visibility == Visibility.Visible)
         {
