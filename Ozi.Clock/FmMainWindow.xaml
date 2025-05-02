@@ -1,24 +1,27 @@
 ﻿<Window
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    x:Name="FmMain" 
+    x:Name="FmMain"
     x:Class="Ozi.Utilities.FmMainWindow"
-    Title="Ozi Clocks" 
-    Height="62" Width="708" 
-    Background="Black" 
+    Title="Ozi Clocks"
+    Height="62" Width="708"
+    Background="Black"
     BorderBrush="Black"
-    ResizeMode="NoResize" 
-    ShowInTaskbar="{Binding ShowInTaskBar, Source={StaticResource AppSettings}, Mode=OneWay}"
+    ResizeMode="NoResize"
+    ShowInTaskbar="{Binding ShowInTaskBar, 
+    Source={StaticResource AppSettings}, Mode=OneWay}"
     Loaded="fmMain_Loaded"
-    SnapsToDevicePixels="True" 
+    SnapsToDevicePixels="True"
     AllowsTransparency="True"
-    WindowStyle="None" 
+    WindowStyle="None"
     Topmost="{Binding TopMost, Source={StaticResource AppSettings}, Mode=OneWay}"
+    Top="{Binding MainWndTop, Source={StaticResource AppSettings}, Mode=TwoWay}"
+    Left="{Binding MainWndLeft, Source={StaticResource AppSettings}, Mode=TwoWay}"
     BorderThickness="0"
-    MouseEnter="fmMain_MouseEnter" 
-    MouseLeave="fmMain_MouseLeave" 
+    MouseEnter="fmMain_MouseEnter"
+    MouseLeave="fmMain_MouseLeave"
     LocationChanged="fmMain_LocationChanged"
-    Icon="resources\clock.ico" >
+    Icon="resources\clock.ico">
     <!-- Add the storyboard inside Window.Resources -->
     <!-- <Window.Resources> -->
     <!--     <Storyboard x:Key="FoldStoryboard"> -->

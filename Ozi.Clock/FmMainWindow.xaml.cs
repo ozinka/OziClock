@@ -34,7 +34,7 @@ public partial class FmMainWindow : Window
     public FmMainWindow()
     {
         InitializeComponent();
-
+        // CommonTimeZones.ShowTimeZones();
         fmSlider = new FmSlider(this);
         fmRulers = new FmRulers(this);
         
