@@ -19,7 +19,6 @@ public class OsClock
     private readonly Label _lbDateH;
     private readonly Label _lbDateM;
     private readonly Label _lbDateS;
-    // private bool IsMain;
 
     public bool IsMain
     {

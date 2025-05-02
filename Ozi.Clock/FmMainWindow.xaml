@@ -8,16 +8,17 @@
     Background="Black" 
     BorderBrush="Black"
     ResizeMode="NoResize" 
-    ShowInTaskbar="False" Closing="fmMain_Closing" Loaded="fmMain_Loaded"
+    ShowInTaskbar="{Binding ShowInTaskBar, Source={StaticResource AppSettings}, Mode=OneWay}"
+    Loaded="fmMain_Loaded"
     SnapsToDevicePixels="True" 
-    AllowsTransparency="True" 
+    AllowsTransparency="True"
     WindowStyle="None" 
-    Topmost="{Binding TopMost, Source={StaticResource AppSettings}, Mode=TwoWay}"
+    Topmost="{Binding TopMost, Source={StaticResource AppSettings}, Mode=OneWay}"
     BorderThickness="0"
     MouseEnter="fmMain_MouseEnter" 
     MouseLeave="fmMain_MouseLeave" 
-    Icon="resources\clock.ico"
-    LocationChanged="fmMain_LocationChanged" >
+    LocationChanged="fmMain_LocationChanged"
+    Icon="resources\clock.ico" >
     <!-- Add the storyboard inside Window.Resources -->
     <!-- <Window.Resources> -->
     <!--     <Storyboard x:Key="FoldStoryboard"> -->

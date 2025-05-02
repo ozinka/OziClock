@@ -154,8 +154,8 @@ public partial class FmRulers : Window
 
         if (IsMouseOver)
         {
-            _fFmMain.NewFmSlider.slTimeChecker.Value =
-                rwTop.Height.Value * _fFmMain.NewFmSlider.slTimeChecker.Maximum / rwTop.MaxHeight;
+            _fFmMain.fmSlider.slTimeChecker.Value =
+                rwTop.Height.Value * _fFmMain.fmSlider.slTimeChecker.Maximum / rwTop.MaxHeight;
         }
     }
 
@@ -164,19 +164,19 @@ public partial class FmRulers : Window
         InitializeRulers();
     }
 
-    private double GetRegionOffset(string timeZoneId)
+    public double GetRegionOffset(string timeZoneId)
     {
         var nowUtc = DateTime.UtcNow;
 
         var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId!);
 
         // Get current time in Kyiv and the region's timezone
-        var kyivNow = TimeZoneInfo.ConvertTime(nowUtc, TimeZoneInfo.Utc,
+        var mainNow = TimeZoneInfo.ConvertTime(nowUtc, TimeZoneInfo.Utc,
             TimeZoneInfo.FindSystemTimeZoneById(App.Settings.MainTimeZone));
         var regionNow = TimeZoneInfo.ConvertTime(nowUtc, TimeZoneInfo.Utc, timeZoneInfo);
 
         // Calculate the offset in hours
-        var timeDifference = regionNow - kyivNow;
+        var timeDifference = regionNow - mainNow;
 
         // Return the total offset in hours (including fractional hours for half-hour differences)
         return timeDifference.TotalHours;

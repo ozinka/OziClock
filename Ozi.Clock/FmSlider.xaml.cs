@@ -93,7 +93,5 @@ public partial class FmSlider : Window
             // Move to the next tick position
             currentLeft += delta;
         }
-
     }
-    
 }

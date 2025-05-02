@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Runtime.InteropServices;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -13,26 +14,15 @@ namespace Ozi.Utilities;
 
 public partial class FmMainWindow : Window
 {
-    private double _fTransparentValue = 90;
     private const int FoldedHeight = 29;
     private const int UnfoldedHeight = 62;
-    private bool _fIsTransparent;
     public bool IsAutoFold;
     private bool _isFolded;
-    public readonly FmSlider NewFmSlider;
-    private readonly FmRulers _FmRulers;
+    public readonly FmSlider fmSlider;
+    private readonly FmRulers fmRulers;
     private DateTime _localTime;
     private DispatcherTimer? _timeTimer;
-
-    // Windows API constants
-    private const int HWND_TOPMOST = -1;
-    private const int HWND_NOTOPMOST = -2;
-    private const int SWP_NOMOVE = 0x0002;
-    private const int SWP_NOSIZE = 0x0001;
-    private const int SWP_NOACTIVATE = 0x0010;
-    private const int SWP_SHOWWINDOW = 0x0040;
-
-    public bool UseSnap = true;
+    private bool isMouseOver = false;
 
     // P/Invoke declaration for SetWindowPos - required for making app always on top
     [DllImport("user32.dll")]
@@ -44,75 +34,29 @@ public partial class FmMainWindow : Window
     public FmMainWindow()
     {
         InitializeComponent();
-        SetupWindowEvents();
 
-        NewFmSlider = new FmSlider(this);
-        _FmRulers = new FmRulers(this);
-    }
-
-    private void SetupWindowEvents()
-    {
-        // Handle when the window becomes visible after being hidden
-        this.IsVisibleChanged += (s, e) =>
+        fmSlider = new FmSlider(this);
+        fmRulers = new FmRulers(this);
+        
+        // Subscribe to changes in the App.Settings.Opacity
+        App.Settings.PropertyChanged += (s, e) =>
         {
-            if ((bool)e.NewValue)
+            if (e.PropertyName == nameof(App.Settings.Opacity) && !isMouseOver)
             {
-                MakeWindowAlwaysOnTop();
+                this.Opacity = App.Settings.Opacity;
             }
         };
+
+        // Initial opacity from settings
+        this.Opacity = App.Settings.Opacity;
     }
 
-    private void MakeWindowAlwaysOnTop()
+    private void fmMain_LocationChanged(object sender, EventArgs e)
     {
-        WindowInteropHelper wndHelper = new WindowInteropHelper(this);
-        IntPtr hWnd = wndHelper.Handle;
-        // Topmost = App.Settings.TopMost;
-        
-        // if ()
-        // {
-        //     
-        //     // Set window to be always on top
-        //     // SetWindowPos(hWnd, new IntPtr(HWND_TOPMOST), 0, 0, 0, 0,
-        //     //     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-        // }
-        // else
-        // {
-        //     Topmost = false;
-        //     // Remove always-on-top status
-        // //     SetWindowPos(hWnd, new IntPtr(HWND_NOTOPMOST), 0, 0, 0, 0,
-        // //         SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-        // }
-        Console.WriteLine(App.Settings.TopMost);
-    }
-
-    public bool IsTransparent
-    {
-        set
-        {
-            _fIsTransparent = value;
-            if (!_fIsTransparent)
-            {
-                Opacity = 1;
-            }
-        }
-        get { return _fIsTransparent; }
-    }
-
-    public double TransparentValue
-    {
-        set
-        {
-            _fTransparentValue = value;
-            if (_fIsTransparent)
-            {
-                FmMain.Opacity = _fTransparentValue;
-            }
-            else
-            {
-                FmMain.Opacity = 1;
-            }
-        }
-        get { return _fTransparentValue; }
+        fmRulers.Left = Left;
+        fmRulers.Top = Top + Height;
+        fmSlider.Left = Left;
+        fmSlider.Top = Top + Height + fmRulers.Height;
     }
 
     private void fmMain_Loaded(object sender, RoutedEventArgs e)
@@ -140,9 +84,7 @@ public partial class FmMainWindow : Window
             if (timeZoneInfo.Value.IsMain ?? false)
             {
                 App.Settings.MainClockIndex = gdMain.Children.Count - 1;
-                Console.WriteLine(App.Settings.MainClockIndex);
                 App.Settings.MainTimeZone = timeZoneInfo.Value.TimeZone;
-                Console.WriteLine(App.Settings.MainTimeZone);
             }
         }
 
@@ -183,25 +125,7 @@ public partial class FmMainWindow : Window
     {
         Left = App.Settings.MainWndLeft;
         Top = App.Settings.MainWndTop;
-        IsTransparent = App.Settings.IsTransparent;
-        TransparentValue = App.Settings.TransparentValue;
-        ShowInTaskbar = App.Settings.ShowInTaskBar;
-        Topmost = App.Settings.TopMost;
         IsAutoFold = App.Settings.IsAutoFold;
-        UseSnap = App.Settings.UseSnap;
-    }
-
-    private void save_Config()
-    {
-        App.Settings.MainWndLeft = Left;
-        App.Settings.MainWndTop = Top;
-        App.Settings.IsTransparent = IsTransparent;
-        App.Settings.TransparentValue = TransparentValue;
-        App.Settings.ShowInTaskBar = ShowInTaskbar;
-        App.Settings.TopMost = Topmost;
-        App.Settings.IsAutoFold = IsAutoFold;
-        App.Settings.UseSnap = UseSnap;
-        App.Settings.Save();
     }
 
     private void init_Timer()
@@ -217,14 +141,18 @@ public partial class FmMainWindow : Window
 
     private void TtTick(object sender, EventArgs e)
     {
-        // MakeWindowAlwaysOnTop();
-
-        if (NewFmSlider.Visibility == Visibility.Visible)
+        if (fmSlider.Visibility == Visibility.Visible)
         {
-            _localTime = NewFmSlider.CurTime.Date;
-            _localTime = _localTime.AddMinutes((int)NewFmSlider.slTimeChecker.Value * 5);
-            _FmRulers.rwTop.Height = new GridLength(_FmRulers.rwTop.MaxHeight *
-                NewFmSlider.slTimeChecker.Value / NewFmSlider.slTimeChecker.Maximum);
+            var utcNow = DateTime.UtcNow;
+
+            var localOffset = TimeZoneInfo.Local.GetUtcOffset(utcNow);
+            var targetOffset = TimeZoneInfo.FindSystemTimeZoneById(App.Settings.MainTimeZone).GetUtcOffset(utcNow);
+
+            _localTime = fmSlider.CurTime.Date + (localOffset - targetOffset);
+            
+            _localTime = _localTime.AddMinutes((int)fmSlider.slTimeChecker.Value * 5);
+            fmRulers.rwTop.Height = new GridLength(fmRulers.rwTop.MaxHeight *
+                fmSlider.slTimeChecker.Value / fmSlider.slTimeChecker.Maximum);
         }
         else
         {
@@ -243,26 +171,26 @@ public partial class FmMainWindow : Window
 
     private void AdjustTimeCheckerPosition()
     {
-        _FmRulers.Left = Left;
-        _FmRulers.Top = Top + Height;
-        NewFmSlider.Left = Left;
-        NewFmSlider.Top = Top + Height + _FmRulers.Height;
+        fmRulers.Left = Left;
+        fmRulers.Top = Top + Height;
+        fmSlider.Left = Left;
+        fmSlider.Top = Top + Height + fmRulers.Height;
     }
 
     private void MenuItemTimeChecker_Click(object sender, RoutedEventArgs e)
     {
-        if (NewFmSlider.Visibility == Visibility.Visible)
+        if (fmSlider.Visibility == Visibility.Visible)
         {
-            NewFmSlider.Hide();
-            _FmRulers.Hide();
+            fmSlider.Hide();
+            fmRulers.Hide();
             _timeTimer!.Interval = TimeSpan.FromSeconds(1);
         }
         else
         {
-            NewFmSlider.CurTime = _localTime;
-            NewFmSlider.slTimeChecker.Value = _localTime.Hour * 12 + (int)(_localTime.Minute / 5);
-            NewFmSlider.Show();
-            _FmRulers.Show();
+            fmSlider.CurTime = _localTime;
+            fmSlider.slTimeChecker.Value = _localTime.Hour * 12 + (int)(_localTime.Minute / 5);
+            fmSlider.Show();
+            fmRulers.Show();
             _timeTimer!.Interval = TimeSpan.FromMicroseconds(100);
         }
 
@@ -280,10 +208,6 @@ public partial class FmMainWindow : Window
         MessageBox.Show("Ozi clock. " + version);
     }
 
-    private void fmMain_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-    {
-        save_Config();
-    }
 
     private void fmMain_MouseDown(object sender, MouseButtonEventArgs e)
     {
@@ -345,32 +269,14 @@ public partial class FmMainWindow : Window
 
     private void fmMain_MouseEnter(object sender, MouseEventArgs e)
     {
-        if (IsTransparent)
-        {
-            Opacity = 1;
-        }
-
-        if (IsAutoFold && _isFolded)
-        {
-            FoldingMainWindow();
-        }
+        isMouseOver = true;
+        this.Opacity = 1;
     }
 
     private void fmMain_MouseLeave(object sender, MouseEventArgs e)
     {
-        if (IsTransparent && !(NewFmSlider.Visibility == Visibility.Visible))
-        {
-            Opacity = TransparentValue;
-        }
-        else
-        {
-            Opacity = 100;
-        }
-
-        if (IsAutoFold && _isFolded)
-        {
-            FoldingMainWindow();
-        }
+        isMouseOver = false;
+        this.Opacity = App.Settings.Opacity;
     }
 
     private void FoldMainWindow()
@@ -397,67 +303,5 @@ public partial class FmMainWindow : Window
 
             _isFolded = false;
         }
-    }
-
-    private void fmMain_LocationChanged(object sender, EventArgs e)
-    {
-        if (UseSnap)
-        {
-            SnapWindow();
-        }
-
-        AdjustTimeCheckerPosition();
-    }
-
-    // private bool _isAlreadySnapped = false;
-
-    private void SnapWindow()
-    {
-        if (!UseSnap)
-        {
-            return;
-        }
-
-        // Screen screenTmp = null;
-        // foreach (Screen screen in screens)
-        //     if (screen.WorkingArea.Contains((int)(this.Left + this.Width / 2), (int)(this.Top + this.Height / 2)))
-        //         screenTmp = screen;
-
-        // if (screenTmp == null) return;
-        //
-        // if (Math.Abs(screenTmp.WorkingArea.Left - this.Left) <= 20)
-        // {
-        //     this.Left = screenTmp.WorkingArea.Left;
-        // }
-        //
-        // int borderLim = 0;
-        // if (!isAlreadySnapped)
-        // {
-        //     borderLim = 20;
-        // }
-        // else
-        // {
-        //     borderLim = 45;
-        // }
-        //
-        // if (Math.Abs(screenTmp.WorkingArea.Top - this.Top) <= borderLim && !isAlreadySnapped)
-        // {
-        //     this.Top = screenTmp.WorkingArea.Top;
-        //     isAlreadySnapped = true;
-        // }
-        // else
-        // {
-        //     isAlreadySnapped = false;
-        // }
-        //
-        // if (Math.Abs(screenTmp.WorkingArea.Right - (this.Left + this.Width)) <= 20)
-        // {
-        //     this.Left = screenTmp.WorkingArea.Right - this.Width;
-        // }
-        //
-        // if (Math.Abs(screenTmp.WorkingArea.Bottom - (this.Top + this.Height)) <= 20)
-        // {
-        //     this.Top = screenTmp.WorkingArea.Bottom - this.Height;
-        // }
     }
 }
