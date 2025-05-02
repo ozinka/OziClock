@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Linq;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Interop;
@@ -44,12 +45,12 @@ public partial class FmMainWindow : Window
         {
             if (e.PropertyName == nameof(App.Settings.Opacity) && !isMouseOver)
             {
-                this.Opacity = App.Settings.Opacity;
+                Opacity = App.Settings.Opacity;
             }
         };
 
         // Initial opacity from settings
-        this.Opacity = App.Settings.Opacity;
+        Opacity = App.Settings.Opacity;
     }
 
     private void fmMain_LocationChanged(object sender, EventArgs e)
@@ -82,25 +83,28 @@ public partial class FmMainWindow : Window
             }
         }
 
-        FmMain.Width = App.Settings.LstClock.Count * 100 + 1;
-
         CreateContextMenu();
     }
 
     private void CreateContextMenu()
     {
         var mainMenu = new ContextMenu();
+        mainMenu.Opened += ContextMenu_Opened;
 
         var itemClock = new MenuItem { Header = "Clock" };
         mainMenu.Items.Add(itemClock);
 
-        var itemRename = new MenuItem { Header = "Rename" };
+        var itemMoveLeft = new MenuItem { Header = "Move Left" };
+        itemMoveLeft.Click += ItemMoveLeftOnClick;
+        itemClock.Items.Add(itemMoveLeft);
+
+        var itemMoveRight = new MenuItem { Header = "Move Right" };
+        itemMoveRight.Click += ItemMoveRightOnClick;
+        itemClock.Items.Add(itemMoveRight);
+
+        var itemRename = new MenuItem { Header = "Edit" };
         itemRename.Click += MenuItemRename_Click;
         itemClock.Items.Add(itemRename);
-
-        var itemChangeTimeZone = new MenuItem { Header = "Change Time Zone" };
-        itemChangeTimeZone.Click += MenuItemChangeTimeZone_Click;
-        itemClock.Items.Add(itemChangeTimeZone);
 
         var itemRemove = new MenuItem { Header = "Remove" };
         itemRemove.Click += MenuItemRemove_Click;
@@ -124,6 +128,36 @@ public partial class FmMainWindow : Window
         FmMain.ContextMenu = mainMenu;
     }
 
+    private void ItemMoveRightOnClick(object sender, RoutedEventArgs e)
+    {
+        throw new NotImplementedException();
+    }
+
+    private void ItemMoveLeftOnClick(object sender, RoutedEventArgs e)
+    {
+        throw new NotImplementedException();
+    }
+
+    private UIElement? _lastRightClickedClock;
+
+    private void ContextMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        Point pos = Mouse.GetPosition(gdMain); // relative to the grid
+        HitTestResult result = VisualTreeHelper.HitTest(gdMain, pos);
+
+        if (result != null)
+        {
+            // Traverse up the tree to find the OsClock/Grid you added
+            DependencyObject current = result.VisualHit;
+            while (current != null && !(current is Grid && gdMain.Children.Contains((UIElement)current)))
+            {
+                current = VisualTreeHelper.GetParent(current);
+            }
+
+            _lastRightClickedClock = current as UIElement;
+        }
+    }
+
     private void MenuItemChangeTimeZone_Click(object sender, RoutedEventArgs e)
     {
         throw new NotImplementedException();
@@ -137,8 +171,35 @@ public partial class FmMainWindow : Window
 
     private void MenuItemRemove_Click(object sender, RoutedEventArgs e)
     {
-        fmSlider.Size -= 1;
+        if (_lastRightClickedClock != null)
+        {
+            // Prevent removing the last clock
+            if (App.Settings.LstClock.Count <= 1)
+            {
+                MessageBox.Show("Cannot remove the last clock.", "Warning", MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var clockToRemove = App.Settings.LstClock
+                .FirstOrDefault(c => c.OsGrid == _lastRightClickedClock);
+
+            if (clockToRemove != null)
+            {
+                gdMain.Children.Remove(clockToRemove.OsGrid);
+                App.Settings.LstClock.Remove(clockToRemove);
+
+                // Adjust main clock index if needed
+                if (App.Settings.MainClockIndex >= App.Settings.LstClock.Count)
+                    App.Settings.MainClockIndex = 0;
+
+                fmSlider.Size -= 1;
+            }
+
+            _lastRightClickedClock = null;
+        }
     }
+
 
     private void read_Config()
     {

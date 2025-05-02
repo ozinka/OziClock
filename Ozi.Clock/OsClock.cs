@@ -60,7 +60,7 @@ public class OsClock
             Width = 99,
             Height = 60,
             HorizontalAlignment = HorizontalAlignment.Left,
-            Margin = new Thickness(position*100, 0, 0, 0)
+            Margin = new Thickness(0, 0, 1, 0)
         };
 
         var br = new LinearGradientBrush

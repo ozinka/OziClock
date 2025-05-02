@@ -4,7 +4,7 @@
     x:Name="FmMain"
     x:Class="Ozi.Utilities.FmMainWindow"
     Title="Ozi Clocks"
-    Height="62" Width="708"
+    Height="60" Width="708"
     Background="Black"
     BorderBrush="Black"
     ResizeMode="NoResize"
@@ -21,7 +21,16 @@
     MouseEnter="fmMain_MouseEnter"
     MouseLeave="fmMain_MouseLeave"
     LocationChanged="fmMain_LocationChanged"
-    Icon="resources\clock.ico">
+    Icon="resources\clock.ico"
+    SizeToContent="Width">
+    <WrapPanel x:Name="gdMain"
+               Orientation="Horizontal"
+               Margin="1, 1,0,1"
+               MouseDown="fmMain_MouseDown"
+               />
+</Window>
+
+
     <!-- Add the storyboard inside Window.Resources -->
     <!-- <Window.Resources> -->
     <!--     <Storyboard x:Key="FoldStoryboard"> -->
@@ -29,5 +38,3 @@
     <!--     </Storyboard> -->
     <!-- </Window.Resources> -->
     <!-- https://chatgpt.com/share/681239f4-b454-8003-b7ee-f4fb0cfbe219 -->
-    <Grid x:Name="gdMain" Margin="1" MouseDown="fmMain_MouseDown" RenderTransformOrigin="0.459,0.49" />
-</Window>
