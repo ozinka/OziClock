@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Windows.Media.Animation;
 
 namespace Ozi.Utilities;
 
@@ -362,32 +363,31 @@ public partial class FmMainWindow : Window
 
     private void FoldMainWindow()
     {
-        {
-            for (var i = (int)Height; i > FoldedHeight; i--)
-            {
-                FmMain.Height = i;
-                AdjustTimeCheckerPosition();
-            }
-
-            _isFolded = true;
-        }
+        AnimateWindowHeight(FoldedHeight);
+        _isFolded = true;
     }
 
     private void UnFoldMainWindow()
     {
-        {
-            for (var i = (int)Height; i < UnfoldedHeight; i++)
-            {
-                FmMain.Height = i;
-                AdjustTimeCheckerPosition();
-            }
-
-            _isFolded = false;
-        }
+        AnimateWindowHeight(UnfoldedHeight);
+        _isFolded = false;
     }
+
+    private void AnimateWindowHeight(double toHeight)
+    {
+        var animation = new DoubleAnimation
+        {
+            To = toHeight,
+            Duration = TimeSpan.FromMilliseconds(200), // adjust speed
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+        };
+
+        animation.Completed += (s, e) => AdjustTimeCheckerPosition();
+
+        BeginAnimation(HeightProperty, animation);
+    }
+
 }
-
-
 // _lstClock.Add(new OsClock("NYK", "Eastern Standard Time", "#FFAAAAFF", _lstClock.Count * 100));
 // _lstClock.Add(new OsClock("LDN", "GMT Standard Time", "#FFAAFFAA", _lstClock.Count * 100));
 // _lstClock.Add(new OsClock("KYIV", "FLE Standard Time", "#FFAAFFFF", _lstClock.Count * 100));
