@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -9,6 +10,13 @@ namespace Ozi.Utilities;
 public partial class FmSlider : Window
 {
     public DateTime CurTime;
+    private int _size = 1;
+
+    public int Size
+    {
+        get => _size;
+        set => SetSize(value);
+    }
 
     public FmSlider(FmMainWindow fmMain)
     {
@@ -21,18 +29,26 @@ public partial class FmSlider : Window
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        InitGui(App.Settings.LstClock.Count);
+        Size = App.Settings.LstClock.Count;
     }
 
-    private void InitGui(int count)
+    private void SetSize(int value)
     {
-        this.Width = count * 100 + 1;
+
+        _size = Math.Max(1, value);
+        Console.WriteLine(_size);
+        // Clear Labels
+        foreach (var label in gdMain.Children.OfType<Label>().ToList())
+        {
+            gdMain.Children.Remove(label);
+        }
+        Width = _size * 100 + 1;
         double currentLeft = 5; // Start position
         double marginTop = 39;
         List<string> lst = new List<string>();
 
         // Define the list of labels based on the count
-        switch (count)
+        switch (_size)
         {
             case 1:
                 slTimeChecker.TickFrequency = 144;

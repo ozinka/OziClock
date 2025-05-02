@@ -17,7 +17,7 @@
         <PublishReadyToRun>true</PublishReadyToRun>
         <DebugType>none</DebugType>
         <IncludeAllContentForSelfExtract>false</IncludeAllContentForSelfExtract>
-        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+        <EnableCompressionInSingleFile>False</EnableCompressionInSingleFile>
         <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
         <CopyOutputTrimmedFiles>true</CopyOutputTrimmedFiles>
     </PropertyGroup>
