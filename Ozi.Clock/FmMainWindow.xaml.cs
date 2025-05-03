@@ -83,7 +83,14 @@ public partial class FmMainWindow : Window
                 App.Settings.MainTimeZone = timeZoneInfo.Value.TimeZone;
             }
         }
-
+        
+        App.Settings.PropertyChanged += (sender, e) =>
+        {
+            if (e.PropertyName == nameof(App.Settings.Opacity) && !isMouseOver)
+            {
+                AnimateOpacity(App.Settings.Opacity);
+            }
+        };
         CreateContextMenu();
     }
 
@@ -116,6 +123,10 @@ public partial class FmMainWindow : Window
         itemAbout.Click += MenuItemAbout_Click;
         mainMenu.Items.Add(itemAbout);
 
+        var itemFold = new MenuItem { Header = "Fold/Unfold (Mouse middle click)" };
+        itemFold.Click += MenuItemFold_Click;
+        mainMenu.Items.Add(itemFold);
+
         var itemSettings = new MenuItem { Header = "Settings" };
         itemSettings.Click += MenuItemSettings_Click;
         mainMenu.Items.Add(itemSettings);
@@ -127,6 +138,18 @@ public partial class FmMainWindow : Window
         mainMenu.Items.Add(itemExit);
 
         FmMain.ContextMenu = mainMenu;
+    }
+
+    private void MenuItemFold_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isFolded)
+        {
+            UnFoldMainWindow();
+        }
+        else
+        {
+            FoldMainWindow();
+        }
     }
 
     private void ItemMoveRightOnClick(object sender, RoutedEventArgs e)
@@ -206,7 +229,6 @@ public partial class FmMainWindow : Window
     {
         Left = App.Settings.MainWndLeft;
         Top = App.Settings.MainWndTop;
-        IsAutoFold = App.Settings.IsAutoFold;
     }
 
     private void init_Timer()
@@ -318,47 +340,29 @@ public partial class FmMainWindow : Window
         }
     }
 
-    private void FoldingMainWindow()
-    {
-        var i = (int)Height;
-        if (IsMouseOver)
-        {
-            while (i <= UnfoldedHeight)
-                if (IsMouseOver)
-                {
-                    Height = i++;
-                    AdjustTimeCheckerPosition();
-                }
-                else
-                {
-                    return;
-                }
-        }
-        else
-        {
-            while (i >= FoldedHeight)
-                if (!IsMouseOver)
-                {
-                    Height = i--;
-                    AdjustTimeCheckerPosition();
-                }
-                else
-                {
-                    return;
-                }
-        }
-    }
 
     private void fmMain_MouseEnter(object sender, MouseEventArgs e)
     {
         isMouseOver = true;
-        Opacity = 1;
+        AnimateOpacity(1.0); // Fully visible
     }
 
     private void fmMain_MouseLeave(object sender, MouseEventArgs e)
     {
         isMouseOver = false;
-        Opacity = App.Settings.Opacity;
+        AnimateOpacity(App.Settings.Opacity);
+    }
+
+    private void AnimateOpacity(double toOpacity)
+    {
+        var animation = new DoubleAnimation
+        {
+            To = toOpacity,
+            Duration = TimeSpan.FromMilliseconds(300), // adjust speed as needed
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+        };
+
+        BeginAnimation(Window.OpacityProperty, animation);
     }
 
     private void FoldMainWindow()
@@ -378,15 +382,26 @@ public partial class FmMainWindow : Window
         var animation = new DoubleAnimation
         {
             To = toHeight,
-            Duration = TimeSpan.FromMilliseconds(200), // adjust speed
+            Duration = TimeSpan.FromMilliseconds(200),
             EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
         };
 
         animation.Completed += (s, e) => AdjustTimeCheckerPosition();
 
-        BeginAnimation(HeightProperty, animation);
-    }
+        // Create a clock to track the animation frame-by-frame
+        var animClock = animation.CreateClock();
+        ApplyAnimationClock(HeightProperty, animClock);
 
+        animClock.CurrentTimeInvalidated += (s, e) =>
+        {
+            // Each tick of the animation, update attached windows
+            fmRulers.Left = Left;
+            fmRulers.Top = Top + Height;
+
+            fmSlider.Left = Left;
+            fmSlider.Top = Top + Height + fmRulers.Height;
+        };
+    }
 }
 // _lstClock.Add(new OsClock("NYK", "Eastern Standard Time", "#FFAAAAFF", _lstClock.Count * 100));
 // _lstClock.Add(new OsClock("LDN", "GMT Standard Time", "#FFAAFFAA", _lstClock.Count * 100));
@@ -394,3 +409,5 @@ public partial class FmMainWindow : Window
 // _lstClock.Add(new OsClock("PUN", "India Standard Time", "#FF99BBBB", _lstClock.Count * 100));
 // _lstClock.Add(new OsClock("SGP", "Singapore Standard Time", "#FFFFFFAA", _lstClock.Count * 100));
 // _lstClock.Add(new OsClock("TKO", "Tokyo Standard Time", "#FFFFAAAA", _lstClock.Count * 100));
+
+//I have another two window which are attached (connected to bottom side) to the main window. Now  folding is applied to the main window and once it's finished, attached windows change their position. Is it possible to move attached

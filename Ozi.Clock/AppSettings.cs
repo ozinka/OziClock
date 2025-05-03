@@ -55,13 +55,6 @@ namespace Ozi.Utilities
             set => SetField(ref _showInTaskBar, value);
         }
 
-        private bool _isAutoFold;
-        public bool IsAutoFold
-        {
-            get => _isAutoFold;
-            set => SetField(ref _isAutoFold, value);
-        }
-
         private bool _useSnap;
         public bool UseSnap
         {
@@ -93,7 +86,6 @@ namespace Ozi.Utilities
                 Opacity = settings.Opacity;
                 TopMost = settings.TopMost;
                 ShowInTaskBar = settings.ShowInTaskBar;
-                IsAutoFold = settings.IsAutoFold;
                 UseSnap = settings.UseSnap;
                 TimeZones = settings.TimeZones;
             }

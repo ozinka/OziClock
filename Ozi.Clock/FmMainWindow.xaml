@@ -19,6 +19,7 @@
     Left="{Binding MainWndLeft, Source={StaticResource AppSettings}, Mode=TwoWay}"
     BorderThickness="0"
     MouseEnter="fmMain_MouseEnter"
+    MouseMove="fmMain_MouseEnter"
     MouseLeave="fmMain_MouseLeave"
     LocationChanged="fmMain_LocationChanged"
     Icon="resources\clock.ico"

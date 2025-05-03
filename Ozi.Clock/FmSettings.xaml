@@ -8,10 +8,10 @@
         
         <Label x:Name="lbOpacity" Content="Opacity: 100%" Margin="5,30,0,0" Foreground="#FFD1D1D1"/>
         <Slider x:Name="slTransparent" HorizontalAlignment="Left" Height="41" Margin="10,62,0,0"
-                VerticalAlignment="Top" Width="279" Maximum="1" TickFrequency="0.1"
+                VerticalAlignment="Top" Width="279" Maximum="1" Minimum="0.02"  TickFrequency="0.1"
                 TickPlacement="BottomRight" 
                 Value="{Binding Opacity, Source={StaticResource AppSettings}, Mode=TwoWay}" 
-                LargeChange="0.1" Minimum="0.1" 
+                LargeChange="0.1"
                 ValueChanged="SlTransparent_ValueChanged"/>
         <Grid HorizontalAlignment="Center" Width="300" Background="#FF232323" Height="27" VerticalAlignment="Top"
               Margin="-1,0,0,0">
@@ -24,8 +24,6 @@
         <CheckBox x:Name="cbTopMost" Content="Always on top" HorizontalAlignment="Left" Margin="10,138,0,0"
                   VerticalAlignment="Top" Foreground="#FFD1D1D1"
                   IsChecked="{Binding TopMost, Source={StaticResource AppSettings}, Mode=TwoWay}" />
-        <CheckBox x:Name="cbAutoHide" Content="Auto show" HorizontalAlignment="Left" Margin="10,169,0,0"
-                  VerticalAlignment="Top" Foreground="#FFD1D1D1"/>
         <CheckBox x:Name="cbSnap" Content="Snap to screen" HorizontalAlignment="Left" Margin="10,201,0,0"
                   VerticalAlignment="Top" Foreground="#FFD1D1D1" Visibility="Hidden" />
         <Button x:Name="btOk" Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}" Content="Ok"
