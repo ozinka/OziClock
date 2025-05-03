@@ -292,50 +292,14 @@ public partial class FmRulers : Window
 
     private void InitializeRulers()
     {
-        int i = 0;
-        foreach (var timeZoneInfo in App.Settings.TimeZones)
+        foreach (var clock in App.Settings.LstClock)
         {
-            var (grid, canvas) = CreateTZGrid(i * 100 + 1, timeZoneInfo.Value.Color);
-            glRulers.Children.Add(grid);
-            CreateLinesAndLabels(canvas, timeZoneInfo.Value.TimeZone);
-            i++;
+            glRulers.Children.Add(clock.RulerGrid);
+            CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.timeZone);
         }
 
-        fmTimeChecker2.Width = i * 100 + 1;
         ColumnDefinition colTopLeft = gdRulers.ColumnDefinitions[0];
-        colTopLeft.MaxWidth = (i - 1) * 100;
+        colTopLeft.MaxWidth = (App.Settings.LstClock.Count - 1) * 100;
         colTopLeft.Width = new GridLength(App.Settings.MainClockIndex * 100, GridUnitType.Pixel);
-    }
-
-    private static (Grid grid, Canvas canvas) CreateTZGrid(double marginLeft, string gradientColor)
-    {
-        var grid = new Grid
-        {
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Margin = new Thickness(marginLeft, 0, 0, 0),
-            Width = 99
-        };
-
-        var canvas = new Canvas
-        {
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Width = 99,
-            UseLayoutRounding = true
-        };
-
-        var linearGradient = new LinearGradientBrush
-        {
-            StartPoint = new Point(0.5, 0),
-            EndPoint = new Point(0.5, 1)
-        };
-        linearGradient.GradientStops.Add(
-            new GradientStop((Color)ColorConverter.ConvertFromString(gradientColor), 0.959));
-        linearGradient.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString("#FF383838"), 1.0));
-
-        canvas.Background = linearGradient;
-
-        grid.Children.Add(canvas);
-
-        return (grid, canvas);
     }
 }

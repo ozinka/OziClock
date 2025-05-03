@@ -8,10 +8,12 @@ namespace Ozi.Utilities;
 public class OsClock
 {
     public string Caption;
-    private readonly string _timeZone;
+    public string timeZone;
 
     private string BkColor;
     public readonly Grid OsGrid;
+
+    public Grid RulerGrid { get; set; }
 
     private readonly Label _lbCapt;
     private readonly Label _lbDateMm;
@@ -40,7 +42,7 @@ public class OsClock
 
     public void SetTime(DateTime curTime)
     {
-        var tmzTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(curTime, _timeZone);
+        var tmzTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(curTime, timeZone);
         _lbDateMm.Content = tmzTime.ToString("MM/");
         _lbDateDd.Content = tmzTime.ToString("dd");
         _lbDateH.Content = tmzTime.ToString("HH");
@@ -52,10 +54,10 @@ public class OsClock
     public OsClock(string caption, string timeZone, string bkColor, int position, bool IsMain)
     {
         Caption = caption;
-        _timeZone = timeZone;
+        this.timeZone = timeZone;
         BkColor = bkColor;
 
-        var newGrid = new Grid
+        OsGrid = new Grid
         {
             Width = 99,
             Height = 60,
@@ -68,13 +70,12 @@ public class OsClock
             StartPoint = new Point(0.5, -0.05),
             EndPoint = new Point(0.5, 1)
         };
-        br.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString("#FF383838"),
-            0.453)); //"#FF383838"
+        br.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString("#FF383838"), 0.453));
         br.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(BkColor), 0.776));
-        newGrid.Background = br;
-        newGrid.VerticalAlignment = VerticalAlignment.Bottom;
-        OsGrid = newGrid;
-        _timeZone = timeZone;
+        OsGrid.Background = br;
+        OsGrid.VerticalAlignment = VerticalAlignment.Bottom;
+        
+        this.timeZone = timeZone;
 
         var fntClcCaption = new FontFamily("Calibry");
 
@@ -87,7 +88,7 @@ public class OsClock
         };
 
 
-        newGrid.Children.Add(_lbCapt);
+        OsGrid.Children.Add(_lbCapt);
 
         _lbDateMm = new Label
         {
@@ -97,7 +98,7 @@ public class OsClock
             Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFB9B9B9")),
             Margin = new Thickness(45, 0, 0, 0)
         };
-        newGrid.Children.Add(_lbDateMm);
+        OsGrid.Children.Add(_lbDateMm);
 
         _lbDateDd = new Label
         {
@@ -108,7 +109,7 @@ public class OsClock
             Foreground = new SolidColorBrush(Colors.White),
             Margin = new Thickness(70, 0, 0, 0)
         };
-        newGrid.Children.Add(_lbDateDd);
+        OsGrid.Children.Add(_lbDateDd);
 
         var lbDateDelim = new Label
         {
@@ -119,7 +120,7 @@ public class OsClock
             //lbDateDelim.Foreground = new SolidColorBrush(Colors.White);
             Margin = new Thickness(0, 35, 0, 0)
         };
-        newGrid.Children.Add(lbDateDelim);
+        OsGrid.Children.Add(lbDateDelim);
 
         _lbDateH = new Label
         {
@@ -129,7 +130,7 @@ public class OsClock
             Content = "00",
             Margin = new Thickness(2, 30, 0, 0)
         };
-        newGrid.Children.Add(_lbDateH);
+        OsGrid.Children.Add(_lbDateH);
 
         _lbDateM = new Label
         {
@@ -138,7 +139,7 @@ public class OsClock
             Content = "00",
             Margin = new Thickness(38, 30, 0, 0)
         };
-        newGrid.Children.Add(_lbDateM);
+        OsGrid.Children.Add(_lbDateM);
 
         _lbDateS = new Label
         {
@@ -147,16 +148,34 @@ public class OsClock
             Content = "00",
             Margin = new Thickness(72, 36, 0, 0)
         };
-        newGrid.Children.Add(_lbDateS);
+        OsGrid.Children.Add(_lbDateS);
 
         this.IsMain = IsMain;
 
-        //ContextMenu clcMenu = new ContextMenu();
 
-        //MenuItem item1 = new MenuItem();
-        //item1.Header = "Exit";
-        //clcMenu.Items.Add(item1);
+        RulerGrid = new Grid
+        {
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Height = 460,
+            Margin = new Thickness(0, 0, 1, 0),
+            Width = 99
+        };
+        var canvas = new Canvas
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            UseLayoutRounding = true
+        };
+        var linearGradient = new LinearGradientBrush
+        {
+            StartPoint = new Point(0.5, 0),
+            EndPoint = new Point(0.5, 1)
+        };
+        linearGradient.GradientStops.Add(
+            new GradientStop((Color)ColorConverter.ConvertFromString(BkColor), 0.959));
+        linearGradient.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString("#FF383838"), 1.0));
 
-        //newGrid.ContextMenu = clcMenu;
+        canvas.Background = linearGradient;
+
+        RulerGrid.Children.Add(canvas);
     }
 }
