@@ -110,14 +110,13 @@ public partial class FmMainWindow : Window
         itemMoveRight.Click += ItemMoveRightOnClick;
         itemClock.Items.Add(itemMoveRight);
 
-        var itemRename = new MenuItem { Header = "Edit" };
-        itemRename.Click += MenuItemRename_Click;
-        itemClock.Items.Add(itemRename);
+        var itemMakeMain = new MenuItem { Header = "Make as Main" };
+        itemMakeMain.Click += ItemMakeMainOnClick;
+        itemClock.Items.Add(itemMakeMain);
 
         var itemRemove = new MenuItem { Header = "Remove" };
         itemRemove.Click += MenuItemRemove_Click;
         itemClock.Items.Add(itemRemove);
-
 
         var itemAbout = new MenuItem { Header = "About" };
         itemAbout.Click += MenuItemAbout_Click;
@@ -142,6 +141,19 @@ public partial class FmMainWindow : Window
         mainMenu.Items.Add(itemExit);
 
         FmMain.ContextMenu = mainMenu;
+    }
+
+    private void ItemMakeMainOnClick(object sender, RoutedEventArgs e)
+    {
+        int index = gdMain.Children.IndexOf(_lastRightClickedClock);
+        if (_lastRightClickedClock != null)
+        {
+           App.Settings.LstClock[App.Settings.MainClockIndex].IsMain = false;
+           App.Settings.MainClockIndex = index;
+           App.Settings.LstClock[index].IsMain = true;
+           App.Settings.MainTimeZone = App.Settings.LstClock[index].timeZone;
+        }
+        fmRulers.UpdateRulers();
     }
 
     private void MenuItemShowRulers_Click(object sender, RoutedEventArgs e)

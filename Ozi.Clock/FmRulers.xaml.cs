@@ -186,9 +186,10 @@ public partial class FmRulers : Window
     private void CreateLinesAndLabels(Canvas canvas, string timeZoneId)
     {
         var lineData = new List<(double y, double x2)>();
-        double y = 13;
+        double y = 15;
         double[] pattern = { 25, 15, 15, 20, 15, 15 };
 
+        canvas.Children.Clear();
         // Add LINES
         // Add line data
         for (var i = 0; i < 24; i++) // 24 hours
@@ -235,7 +236,7 @@ public partial class FmRulers : Window
         // Calculate time offset for the region dynamically
         var offset = GetRegionOffset(timeZoneId);
 
-        double labelYOffset = 1; // Starting position for the first label
+        double labelYOffset = 2; // Starting position for the first label
 
         // Add time labels considering the timezone offset for the region
         for (var i = 0; i < 25; i++)
@@ -292,6 +293,21 @@ public partial class FmRulers : Window
     }
 
     private bool _isInitialized = false;
+
+    public void UpdateRulers()
+    {
+        // Update the rulers
+        if (_isInitialized)
+        {
+            foreach (var clock in App.Settings.LstClock)
+            {
+                Console.WriteLine(clock.timeZone);
+                CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.timeZone);
+            }
+            colTopLeft.Width = new GridLength(App.Settings.MainClockIndex * 100, GridUnitType.Pixel);
+        }
+        
+    }
 
     public void InitializeRulers()
     {

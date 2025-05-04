@@ -160,7 +160,7 @@ public class OsClock
         RulerGrid = new Grid
         {
             HorizontalAlignment = HorizontalAlignment.Left,
-            Height = 460,
+            Height = 463,
             Margin = new Thickness(0, 0, 1, 0),
             Width = 99
         };
