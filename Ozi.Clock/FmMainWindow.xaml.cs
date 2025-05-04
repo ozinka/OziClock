@@ -83,7 +83,7 @@ public partial class FmMainWindow : Window
                 App.Settings.MainTimeZone = timeZoneInfo.Value.TimeZone;
             }
         }
-        
+
         App.Settings.PropertyChanged += (sender, e) =>
         {
             if (e.PropertyName == nameof(App.Settings.Opacity) && !isMouseOver)
@@ -123,9 +123,13 @@ public partial class FmMainWindow : Window
         itemAbout.Click += MenuItemAbout_Click;
         mainMenu.Items.Add(itemAbout);
 
-        var itemFold = new MenuItem { Header = "Fold/Unfold (Mouse middle click)" };
+        var itemFold = new MenuItem { Header = "Fold/Unfold" };
         itemFold.Click += MenuItemFold_Click;
         mainMenu.Items.Add(itemFold);
+
+        var itemShowRulers = new MenuItem { Header = "Show/hide rulers" };
+        itemShowRulers.Click += MenuItemShowRulers_Click;
+        mainMenu.Items.Add(itemShowRulers);
 
         var itemSettings = new MenuItem { Header = "Settings" };
         itemSettings.Click += MenuItemSettings_Click;
@@ -138,6 +142,27 @@ public partial class FmMainWindow : Window
         mainMenu.Items.Add(itemExit);
 
         FmMain.ContextMenu = mainMenu;
+    }
+
+    private void MenuItemShowRulers_Click(object sender, RoutedEventArgs e)
+    {
+        if (fmSlider.Visibility == Visibility.Visible)
+        {
+            fmSlider.Hide();
+            fmRulers.Hide();
+            _timeTimer!.Interval = TimeSpan.FromSeconds(1);
+        }
+        else
+        {
+            var curTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(_localTime, App.Settings.MainTimeZone);
+            fmSlider.CurTime = curTime;
+            fmSlider.slTimeChecker.Value = curTime.Hour * 12 + (int)(curTime.Minute / 5);
+            fmSlider.Show();
+            fmRulers.Show();
+            _timeTimer!.Interval = TimeSpan.FromMicroseconds(100);
+        }
+
+        fmMain_MouseLeave(null!, null!);
     }
 
     private void MenuItemFold_Click(object sender, RoutedEventArgs e)
@@ -207,15 +232,23 @@ public partial class FmMainWindow : Window
 
             var clockToRemove = App.Settings.LstClock
                 .FirstOrDefault(c => c.OsGrid == _lastRightClickedClock);
+            if (clockToRemove.IsMain)
+            {
+                MessageBox.Show("Cannot remove Main clock.", "Warning", MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
 
             if (clockToRemove != null)
             {
-                gdMain.Children.Remove(clockToRemove.OsGrid);
-                App.Settings.LstClock.Remove(clockToRemove);
+                if (fmRulers.IsLoaded)
+                {
+                    fmRulers.glRulers.Children.Remove(clockToRemove.RulerGrid);
+                    fmRulers.InitializeRulers();
+                }
 
-                // Adjust main clock index if needed
-                if (App.Settings.MainClockIndex >= App.Settings.LstClock.Count)
-                    App.Settings.MainClockIndex = 0;
+                App.Settings.LstClock.Remove(clockToRemove);
+                gdMain.Children.Remove(clockToRemove.OsGrid);
 
                 fmSlider.Size -= 1;
             }
@@ -240,7 +273,6 @@ public partial class FmMainWindow : Window
         _timeTimer.Tick += TtTick;
         _timeTimer.Start();
     }
-
 
     private void TtTick(object sender, EventArgs e)
     {
@@ -279,27 +311,6 @@ public partial class FmMainWindow : Window
         fmSlider.Top = Top + Height + fmRulers.Height;
     }
 
-    private void MenuItemTimeChecker_Click(object sender, RoutedEventArgs e)
-    {
-        if (fmSlider.Visibility == Visibility.Visible)
-        {
-            fmSlider.Hide();
-            fmRulers.Hide();
-            _timeTimer!.Interval = TimeSpan.FromSeconds(1);
-        }
-        else
-        {
-            var _curTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(_localTime, App.Settings.MainTimeZone);
-            fmSlider.CurTime = _curTime;
-            fmSlider.slTimeChecker.Value = _curTime.Hour * 12 + (int)(_curTime.Minute / 5);
-            fmSlider.Show();
-            fmRulers.Show();
-            _timeTimer!.Interval = TimeSpan.FromMicroseconds(100);
-        }
-
-        fmMain_MouseLeave(null!, null!);
-    }
-
     private void MenuItemExit_Click(object sender, RoutedEventArgs e)
     {
         Application.Current.Shutdown();
@@ -317,7 +328,7 @@ public partial class FmMainWindow : Window
         e.Handled = true; //double click  
         if (e.ClickCount > 1)
         {
-            MenuItemTimeChecker_Click(null!, null!);
+            MenuItemShowRulers_Click(this, null!);
         }
 
         // fmSlider.Size = fmSlider.Size - 1;

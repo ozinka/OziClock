@@ -21,14 +21,18 @@ public class OsClock
     private readonly Label _lbDateH;
     private readonly Label _lbDateM;
     private readonly Label _lbDateS;
+    
+    private bool _isMain;
 
     public bool IsMain
     {
+        get => _isMain;
         set
         {
-            if (value == true)
+            _isMain = value;
+
+            if (value)
             {
-                //this.isMain = value;
                 _lbCapt.FontWeight = FontWeights.DemiBold;
                 _lbCapt.Foreground = new SolidColorBrush(Colors.White);
             }

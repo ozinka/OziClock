@@ -162,6 +162,7 @@ public partial class FmRulers : Window
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         InitializeRulers();
+        _isInitialized = true;
     }
 
     public double GetRegionOffset(string timeZoneId)
@@ -290,16 +291,30 @@ public partial class FmRulers : Window
         }
     }
 
-    private void InitializeRulers()
-    {
-        foreach (var clock in App.Settings.LstClock)
-        {
-            glRulers.Children.Add(clock.RulerGrid);
-            CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.timeZone);
-        }
+    private bool _isInitialized = false;
 
+    public void InitializeRulers()
+    {
         ColumnDefinition colTopLeft = gdRulers.ColumnDefinitions[0];
-        colTopLeft.MaxWidth = (App.Settings.LstClock.Count - 1) * 100;
-        colTopLeft.Width = new GridLength(App.Settings.MainClockIndex * 100, GridUnitType.Pixel);
+
+        if (!_isInitialized)
+        {
+            foreach (var clock in App.Settings.LstClock)
+            {
+                glRulers.Children.Add(clock.RulerGrid);
+                CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.timeZone);
+            }
+
+            colTopLeft.MaxWidth = (this.glRulers.Children.Count - 1) * 100;
+            colTopLeft.Width = new GridLength(App.Settings.MainClockIndex * 100, GridUnitType.Pixel);
+        }
+        else
+        {
+            double max = (this.glRulers.Children.Count - 1) * 100;
+            colTopLeft.MaxWidth = max;
+
+            double currentWidth = colTopLeft.Width.Value;
+            colTopLeft.Width = new GridLength(Math.Min(max, currentWidth), GridUnitType.Pixel);
+        }
     }
 }
