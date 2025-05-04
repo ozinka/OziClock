@@ -94,27 +94,33 @@ public partial class FmMainWindow : Window
         CreateContextMenu();
     }
 
+    private MenuItem itemMoveLeft;
+    private MenuItem itemMoveRight;
+    private MenuItem itemMakeMain;
+    private MenuItem itemRemove;
+
     private void CreateContextMenu()
     {
         var mainMenu = new ContextMenu();
         mainMenu.Opened += ContextMenu_Opened;
+        mainMenu.Style = (Style)FindResource("DarkContextMenu");
 
         var itemClock = new MenuItem { Header = "Clock" };
         mainMenu.Items.Add(itemClock);
 
-        var itemMoveLeft = new MenuItem { Header = "Move Left" };
+        itemMoveLeft = new MenuItem { Header = "Move Left" };
         itemMoveLeft.Click += ItemMoveLeftOnClick;
         itemClock.Items.Add(itemMoveLeft);
 
-        var itemMoveRight = new MenuItem { Header = "Move Right" };
+        itemMoveRight = new MenuItem { Header = "Move Right" };
         itemMoveRight.Click += ItemMoveRightOnClick;
         itemClock.Items.Add(itemMoveRight);
 
-        var itemMakeMain = new MenuItem { Header = "Make as Main" };
+        itemMakeMain = new MenuItem { Header = "Make as Main" };
         itemMakeMain.Click += ItemMakeMainOnClick;
         itemClock.Items.Add(itemMakeMain);
 
-        var itemRemove = new MenuItem { Header = "Remove" };
+        itemRemove = new MenuItem { Header = "Remove" };
         itemRemove.Click += MenuItemRemove_Click;
         itemClock.Items.Add(itemRemove);
 
@@ -148,11 +154,12 @@ public partial class FmMainWindow : Window
         int index = gdMain.Children.IndexOf(_lastRightClickedClock);
         if (_lastRightClickedClock != null)
         {
-           App.Settings.LstClock[App.Settings.MainClockIndex].IsMain = false;
-           App.Settings.MainClockIndex = index;
-           App.Settings.LstClock[index].IsMain = true;
-           App.Settings.MainTimeZone = App.Settings.LstClock[index].timeZone;
+            App.Settings.LstClock[App.Settings.MainClockIndex].IsMain = false;
+            App.Settings.MainClockIndex = index;
+            App.Settings.LstClock[index].IsMain = true;
+            App.Settings.MainTimeZone = App.Settings.LstClock[index].timeZone;
         }
+
         fmRulers.UpdateRulers();
     }
 
@@ -206,6 +213,7 @@ public partial class FmMainWindow : Window
         Point pos = Mouse.GetPosition(gdMain); // relative to the grid
         HitTestResult result = VisualTreeHelper.HitTest(gdMain, pos);
 
+
         if (result != null)
         {
             // Traverse up the tree to find the OsClock/Grid you added
@@ -216,6 +224,20 @@ public partial class FmMainWindow : Window
             }
 
             _lastRightClickedClock = current as UIElement;
+            int index = gdMain.Children.IndexOf(_lastRightClickedClock);
+
+            if (App.Settings.LstClock[index].IsMain)
+            {
+                itemMakeMain.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                itemMakeMain.Visibility = Visibility.Visible;
+            }
+
+            itemMoveLeft.IsEnabled = (index == 0) ? false : true;
+            itemMoveRight.IsEnabled = (index == App.Settings.LstClock.Count - 1) ? false : true;
+            itemRemove.IsEnabled = (App.Settings.LstClock.Count == 1) ? false : true;
         }
     }
 
@@ -250,6 +272,9 @@ public partial class FmMainWindow : Window
                     MessageBoxImage.Warning);
                 return;
             }
+            if (MessageBox.Show("Are you sure you want to delete this clock?", "Confirm Deletion",
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return;
 
             if (clockToRemove != null)
             {
