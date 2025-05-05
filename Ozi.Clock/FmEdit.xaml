@@ -1,0 +1,41 @@
+<Window x:Class="Ozi.Utilities.FmEdit"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:local="clr-namespace:Ozi.Utilities"
+        mc:Ignorable="d"  ResizeMode="NoResize"
+        Topmost="True"
+        MouseDown="Window_MouseDown"
+        WindowStyle="None" Background="#FF383838"
+        Title="FmEdit" Height="250" Width="400">
+    <Grid>
+        <Grid HorizontalAlignment="Center" Width="400" Background="#FF232323" Height="27" VerticalAlignment="Top"
+              Margin="-1,0,0,0">
+            <Label x:Name="lbWindowCaption" Content="Edit" HorizontalAlignment="Right" Margin="241,0,5,0"
+                   VerticalAlignment="Top" Foreground="#FFA6A6A6" />
+        </Grid>
+
+        <!-- TextBox for Clock Name -->
+        <TextBox x:Name="tbClockName" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,50,0,0"
+                 Width="380" Height="30" Foreground="#FFD1D1D1" Background="#FF383838"
+                 Text="{Binding ClockName}" /> 
+        
+        <!-- ComboBox for Timezone Selection -->
+        <ComboBox x:Name="cbTimeZones" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,100,0,0"
+                  Width="380" Height="30" Foreground="#FFD1D1D1" Background="#FF383838"
+                  ItemsSource="{Binding TimeZones}" DisplayMemberPath="DisplayName" SelectedValuePath="Id"
+                  SelectedValue="{Binding SelectedTimeZoneId}" />
+
+
+        <!-- Color Picker for Clock Background -->
+        <Label Content="Clock Background:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,150,0,0"
+               Foreground="#FFD1D1D1" />
+        <Button x:Name="btnColorPicker" Content="Select Color" HorizontalAlignment="Left" VerticalAlignment="Top"
+                Margin="150,145,0,0" Width="100" Height="30" Click="BtnColorPicker_Click" />
+        <Button x:Name="btnOk" Content="Ok" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="100,0,0,10"
+                Width="80" Height="30" Click="BtnOk_Click" IsDefault="True"/>
+        <Button x:Name="btnCancel" Content="Cancel" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,100,10"
+                Width="80" Height="30" Click="BtnCancel_Click" IsCancel="True"/>
+    </Grid>
+</Window>

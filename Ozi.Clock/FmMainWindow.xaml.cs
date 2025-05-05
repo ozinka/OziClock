@@ -19,7 +19,6 @@ public partial class FmMainWindow : Window
 {
     private const int FoldedHeight = 29;
     private const int UnfoldedHeight = 62;
-    public bool IsAutoFold;
     private bool _isFolded;
     public readonly FmSlider fmSlider;
     private readonly FmRulers fmRulers;
@@ -40,7 +39,7 @@ public partial class FmMainWindow : Window
         // CommonTimeZones.ShowTimeZones();
         fmSlider = new FmSlider(this);
         fmRulers = new FmRulers(this);
-
+        
         // Subscribe to changes in the App.Settings.Opacity
         App.Settings.PropertyChanged += (s, e) =>
         {
@@ -107,6 +106,10 @@ public partial class FmMainWindow : Window
         var itemClock = new MenuItem { Header = "Clock" };
         mainMenu.Items.Add(itemClock);
 
+        var itemEdit = new MenuItem { Header = "Edit" };
+        itemEdit.Click += ItemEditClick;
+        itemClock.Items.Add(itemEdit);
+
         itemMoveLeft = new MenuItem { Header = "Move Left" };
         itemMoveLeft.Click += ItemMoveLeftOnClick;
         itemClock.Items.Add(itemMoveLeft);
@@ -146,6 +149,12 @@ public partial class FmMainWindow : Window
         mainMenu.Items.Add(itemExit);
 
         FmMain.ContextMenu = mainMenu;
+    }
+
+    private void ItemEditClick(object sender, RoutedEventArgs e)
+    {
+        var fmEdit = new FmEdit();
+        fmEdit.ShowDialog();
     }
 
     private void ItemMakeMainOnClick(object sender, RoutedEventArgs e)
