@@ -103,7 +103,6 @@ public partial class FmMainWindow : Window
     {
         var mainMenu = new ContextMenu();
         mainMenu.Opened += ContextMenu_Opened;
-        mainMenu.Style = (Style)FindResource("DarkContextMenu");
 
         var itemClock = new MenuItem { Header = "Clock" };
         mainMenu.Items.Add(itemClock);

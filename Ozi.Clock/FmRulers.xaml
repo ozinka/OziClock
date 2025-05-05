@@ -36,7 +36,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-                <RowDefinition x:Name="rwTop" Height="300" MaxHeight="431" />
+                <RowDefinition x:Name="rwTop" Height="300" MaxHeight="433" />
                 <RowDefinition Height="30" MinHeight="30" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>

@@ -11,7 +11,6 @@
     ShowInTaskbar="{Binding ShowInTaskBar, 
     Source={StaticResource AppSettings}, Mode=OneWay}"
     Loaded="fmMain_Loaded"
-    SnapsToDevicePixels="True"
     AllowsTransparency="True"
     WindowStyle="None"
     Topmost="{Binding TopMost, Source={StaticResource AppSettings}, Mode=OneWay}"
@@ -23,28 +22,14 @@
     MouseLeave="fmMain_MouseLeave"
     LocationChanged="fmMain_LocationChanged"
     Icon="resources\clock.ico"
-    SizeToContent="Width">
+    SizeToContent="Width"
+    UseLayoutRounding="True"
+    SnapsToDevicePixels="True">
     <WrapPanel x:Name="gdMain"
                Orientation="Horizontal"
                Margin="1, 1,0,1"
                MouseDown="fmMain_MouseDown"
-               />
-    <Window.Resources>
-        <Style TargetType="ContextMenu" x:Key="DarkContextMenu">
-            <Setter Property="Background" Value="#333" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderBrush" Value="Gray" />
-        </Style>
-
-        <Style TargetType="MenuItem">
-            <Setter Property="Background" Value="#333" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="Padding" Value="5" />
-            <Setter Property="Margin" Value="2" />
-            <Setter Property="FontSize" Value="13" />
-        </Style>
-    </Window.Resources>
+    />
 </Window>
 
 
