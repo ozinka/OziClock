@@ -5,7 +5,7 @@
         Background="Black" ShowInTaskbar="False">
     <Grid x:Name="gdMain" Background="#FF383838" Margin="1,0,1,1">
         <Slider x:Name="slTimeChecker" Height="37" Margin="5,10,9,0" VerticalAlignment="Top" Maximum="288"
-                SmallChange="1" TickPlacement="Both" TickFrequency="12" LargeChange="288" />
+                SmallChange="1" TickPlacement="Both" TickFrequency="12" LargeChange="60" />
     </Grid>
 
 </Window>

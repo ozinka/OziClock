@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Metadata;
 using System.Windows;
 using System.Windows.Interop;
 using System.Runtime.InteropServices;
@@ -17,6 +18,12 @@ namespace Ozi.Utilities;
 
 public partial class FmMainWindow : Window
 {
+    //Params related to force to topmost
+    private const int HWND_TOPMOST = -1;
+    private const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_NOMOVE = 0x0002;
+    private const uint SWP_NOACTIVATE = 0x0010;
+
     private const int FoldedHeight = 29;
     private const int UnfoldedHeight = 62;
     private bool _isFolded;
@@ -25,12 +32,14 @@ public partial class FmMainWindow : Window
     private DateTime _localTime;
     private DispatcherTimer? _timeTimer;
     private bool isMouseOver = false;
+    private bool isWindowFocused = false;
 
     // P/Invoke declaration for SetWindowPos - required for making app always on top
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy,
         uint uFlags);
+
 
     // Constructor
     public FmMainWindow()
@@ -39,7 +48,7 @@ public partial class FmMainWindow : Window
         // CommonTimeZones.ShowTimeZones();
         fmSlider = new FmSlider(this);
         fmRulers = new FmRulers(this);
-        
+
         // Subscribe to changes in the App.Settings.Opacity
         App.Settings.PropertyChanged += (s, e) =>
         {
@@ -91,6 +100,17 @@ public partial class FmMainWindow : Window
             }
         };
         CreateContextMenu();
+        this.Activated += (s, e) =>
+        {
+            isWindowFocused = true;
+            UpdateOpacity();
+        };
+
+        this.Deactivated += (s, e) =>
+        {
+            isWindowFocused = false;
+            UpdateOpacity();
+        };
     }
 
     private MenuItem itemMoveLeft;
@@ -182,11 +202,15 @@ public partial class FmMainWindow : Window
         else
         {
             var curTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(_localTime, App.Settings.MainTimeZone);
+            // Round to nearest hour
+            if (curTime.Minute >= 30)
+                curTime = curTime.AddHours(1);
+            curTime = new DateTime(curTime.Year, curTime.Month, curTime.Day, curTime.Hour, 0, 0);
             fmSlider.CurTime = curTime;
-            fmSlider.slTimeChecker.Value = curTime.Hour * 12 + (int)(curTime.Minute / 5);
+            fmSlider.slTimeChecker.Value = curTime.Hour * 12; // + (int)(curTime.Minute / 5);
             fmSlider.Show();
             fmRulers.Show();
-            _timeTimer!.Interval = TimeSpan.FromMicroseconds(100);
+            // _timeTimer!.Interval = TimeSpan.FromMicroseconds(100);
         }
 
         fmMain_MouseLeave(null!, null!);
@@ -280,6 +304,7 @@ public partial class FmMainWindow : Window
                     MessageBoxImage.Warning);
                 return;
             }
+
             if (MessageBox.Show("Are you sure you want to delete this clock?", "Confirm Deletion",
                     MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
                 return;
@@ -340,6 +365,8 @@ public partial class FmMainWindow : Window
 
         foreach (var item in App.Settings.LstClock!)
             item.SetTime(_localTime);
+
+        ForceToTopmost();
     }
 
     private void MenuItemSettings_Click(object sender, RoutedEventArgs e)
@@ -396,6 +423,13 @@ public partial class FmMainWindow : Window
         }
     }
 
+    private void UpdateOpacity()
+    {
+        if (isMouseOver || isWindowFocused)
+            AnimateOpacity(1.0); // Fully visible
+        else
+            AnimateOpacity(App.Settings.Opacity); // Use custom opacity
+    }
 
     private void fmMain_MouseEnter(object sender, MouseEventArgs e)
     {
@@ -406,7 +440,7 @@ public partial class FmMainWindow : Window
     private void fmMain_MouseLeave(object sender, MouseEventArgs e)
     {
         isMouseOver = false;
-        AnimateOpacity(App.Settings.Opacity);
+        UpdateOpacity();
     }
 
     private void AnimateOpacity(double toOpacity)
@@ -457,6 +491,23 @@ public partial class FmMainWindow : Window
             fmSlider.Left = Left;
             fmSlider.Top = Top + Height + fmRulers.Height;
         };
+    }
+
+    private void ForceToTopmost()
+    {
+        // Get the window handle
+        IntPtr windowHandle = new WindowInteropHelper(this).Handle;
+
+        // Set window to topmost position without activating it
+        SetWindowPos(windowHandle,
+            (IntPtr)HWND_TOPMOST,
+            0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+
+    private void FmMainWindow_OnLostFocus(object sender, RoutedEventArgs e)
+    {
+        AnimateOpacity(App.Settings.Opacity);
     }
 }
 // _lstClock.Add(new OsClock("NYK", "Eastern Standard Time", "#FFAAAAFF", _lstClock.Count * 100));

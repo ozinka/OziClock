@@ -20,6 +20,7 @@
     MouseEnter="fmMain_MouseEnter"
     MouseMove="fmMain_MouseEnter"
     MouseLeave="fmMain_MouseLeave"
+    LostFocus="FmMainWindow_OnLostFocus"
     LocationChanged="fmMain_LocationChanged"
     Icon="resources\clock.ico"
     SizeToContent="Width"
