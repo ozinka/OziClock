@@ -23,6 +23,7 @@ public partial class FmMainWindow : Window
     private const uint SWP_NOSIZE = 0x0001;
     private const uint SWP_NOMOVE = 0x0002;
     private const uint SWP_NOACTIVATE = 0x0010;
+    private const int HWND_NOTOPMOST = -2;
 
     private const int FoldedHeight = 29;
     private const int UnfoldedHeight = 62;
@@ -173,8 +174,23 @@ public partial class FmMainWindow : Window
 
     private void ItemEditClick(object sender, RoutedEventArgs e)
     {
-        var fmEdit = new FmEdit();
+        // Remove topmost
+        IntPtr windowHandle = new WindowInteropHelper(this).Handle;
+        SetWindowPos(windowHandle, 
+            (IntPtr)HWND_NOTOPMOST, 
+            0, 0, 0, 0, 
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
+        var fmEdit = new FmEdit()
+        {
+            Owner = this,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        fmEdit.Owner = this;
         fmEdit.ShowDialog();
+
+        // Restore topmost
+        ForceToTopmost();
     }
 
     private void ItemMakeMainOnClick(object sender, RoutedEventArgs e)
@@ -371,8 +387,22 @@ public partial class FmMainWindow : Window
 
     private void MenuItemSettings_Click(object sender, RoutedEventArgs e)
     {
-        var newFmSettings = new FmSettings(this);
-        newFmSettings.ShowDialog();
+        // Remove topmost
+        IntPtr windowHandle = new WindowInteropHelper(this).Handle;
+        SetWindowPos(windowHandle, 
+            (IntPtr)HWND_NOTOPMOST, 
+            0, 0, 0, 0, 
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
+        var fmFmSettings = new FmSettings(this)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        fmFmSettings.Owner = this;
+        fmFmSettings.ShowDialog();
+
+        // Restore topmost
+        ForceToTopmost();
     }
 
     private void AdjustTimeCheckerPosition()
