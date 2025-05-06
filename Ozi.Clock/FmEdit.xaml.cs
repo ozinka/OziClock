@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
+using Ozi.Utilities.Common;
 
 namespace Ozi.Utilities;
 
@@ -8,6 +9,7 @@ public partial class FmEdit : Window
     public FmEdit()
     {
         InitializeComponent();
+        cbTimeZones.ItemsSource = CommonTimeZones.TimeZones2;
     }
 
     private void BtnColorPicker_Click(object sender, RoutedEventArgs e)

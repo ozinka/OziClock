@@ -3,13 +3,18 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:local="clr-namespace:Ozi.Utilities"
         mc:Ignorable="d"  ResizeMode="NoResize"
         Topmost="True"
         MouseDown="Window_MouseDown"
         WindowStyle="None" Background="#FF383838"
         Title="FmEdit" Height="250" Width="400">
-    <Grid>
+        <Window.Resources>
+               
+        </Window.Resources>
+
+        <Grid>
         <Grid HorizontalAlignment="Center" Width="400" Background="#FF232323" Height="27" VerticalAlignment="Top"
               Margin="-1,0,0,0">
             <Label x:Name="lbWindowCaption" Content="Edit" HorizontalAlignment="Right" Margin="241,0,5,0"
@@ -23,9 +28,12 @@
         
         <!-- ComboBox for Timezone Selection -->
         <ComboBox x:Name="cbTimeZones" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,100,0,0"
-                  Width="380" Height="30" Foreground="#FFD1D1D1" Background="#FF383838"
-                  ItemsSource="{Binding TimeZones}" DisplayMemberPath="DisplayName" SelectedValuePath="Id"
-                  SelectedValue="{Binding SelectedTimeZoneId}" />
+                  Width="380" Height="30" 
+                  ItemsSource="{Binding TimeZones}" SelectedValuePath="Id"
+                  SelectedValue="{Binding SelectedTimeZoneId}"
+                  IsTextSearchEnabled="True"
+                  IsEditable="False"
+                  DisplayMemberPath="DisplayName"/>
 
 
         <!-- Color Picker for Clock Background -->
