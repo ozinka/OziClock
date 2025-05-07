@@ -1,4 +1,6 @@
+using System;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using Ozi.Utilities.Common;
 
@@ -33,5 +35,10 @@ public partial class FmEdit : Window
         {
             DragMove();
         }
+    }
+
+    private void CbTimeZones_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        Console.WriteLine($"TZ: {cbTimeZones.SelectedItem}");
     }
 }

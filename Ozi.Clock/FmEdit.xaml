@@ -33,7 +33,8 @@
                   SelectedValue="{Binding SelectedTimeZoneId}"
                   IsTextSearchEnabled="True"
                   IsEditable="False"
-                  DisplayMemberPath="DisplayName"/>
+                  DisplayMemberPath="DisplayName"
+                  SelectionChanged="CbTimeZones_OnSelectionChanged"/>
 
 
         <!-- Color Picker for Clock Background -->

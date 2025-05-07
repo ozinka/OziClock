@@ -109,8 +109,11 @@ public partial class FmMainWindow : Window
 
         this.Deactivated += (s, e) =>
         {
-            isWindowFocused = false;
-            UpdateOpacity();
+            if (!fmRulers.IsVisible)
+            {
+                isWindowFocused = false;
+                UpdateOpacity();
+            }
         };
     }
 
@@ -176,9 +179,9 @@ public partial class FmMainWindow : Window
     {
         // Remove topmost
         IntPtr windowHandle = new WindowInteropHelper(this).Handle;
-        SetWindowPos(windowHandle, 
-            (IntPtr)HWND_NOTOPMOST, 
-            0, 0, 0, 0, 
+        SetWindowPos(windowHandle,
+            (IntPtr)HWND_NOTOPMOST,
+            0, 0, 0, 0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
         var fmEdit = new FmEdit()
@@ -389,9 +392,9 @@ public partial class FmMainWindow : Window
     {
         // Remove topmost
         IntPtr windowHandle = new WindowInteropHelper(this).Handle;
-        SetWindowPos(windowHandle, 
-            (IntPtr)HWND_NOTOPMOST, 
-            0, 0, 0, 0, 
+        SetWindowPos(windowHandle,
+            (IntPtr)HWND_NOTOPMOST,
+            0, 0, 0, 0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
         var fmFmSettings = new FmSettings(this)
