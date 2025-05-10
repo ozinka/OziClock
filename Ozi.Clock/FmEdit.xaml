@@ -8,8 +8,9 @@
         mc:Ignorable="d"  ResizeMode="NoResize"
         Topmost="True"
         MouseDown="Window_MouseDown"
+        Loaded="FmEdit_OnLoaded"
         WindowStyle="None" Background="#FF383838"
-        Title="FmEdit" Height="250" Width="400">
+        Title="FmEdit" Height="200" Width="400">
         <Window.Resources>
                
         </Window.Resources>
@@ -23,7 +24,7 @@
 
         <!-- TextBox for Clock Name -->
         <TextBox x:Name="tbClockName" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,50,0,0"
-                 Width="380" Height="30" Foreground="#FFD1D1D1" Background="#FF383838"
+                 Width="100" Height="30" Foreground="#FFD1D1D1" Background="#FF383838"
                  Text="{Binding ClockName}" /> 
         
         <!-- ComboBox for Timezone Selection -->
@@ -34,16 +35,13 @@
                   IsTextSearchEnabled="True"
                   IsEditable="False"
                   DisplayMemberPath="DisplayName"/>
-
+            
 
         <!-- Color Picker for Clock Background -->
-        <Label Content="Clock Background:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,150,0,0"
+        <Label Content="Color:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="200,50,0,0"
                Foreground="#FFD1D1D1" />
-        <Button x:Name="btnColorPicker" Content="Select Color" HorizontalAlignment="Left" VerticalAlignment="Top"
-                Margin="150,145,0,0" Width="100" Height="30" Click="BtnColorPicker_Click" />
-        <Button x:Name="btnOk" Content="Ok" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="100,0,0,10"
-                Width="80" Height="30" Click="BtnOk_Click" IsDefault="True"/>
-        <Button x:Name="btnCancel" Content="Cancel" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,100,10"
-                Width="80" Height="30" Click="BtnCancel_Click" IsCancel="True"/>
+        <Grid x:Name="colorPicker" Width="50" Height="30" Margin="200,-69,0,0" Background="Beige" MouseLeftButtonDown="ColorPicker_OnMouseLeftButtonDown"/>
+        <Button x:Name="btnOk" Content="Ok" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="135,0,0,10"
+                Width="140" Height="30" Click="BtnOk_Click" IsDefault="True"/>
     </Grid>
 </Window>

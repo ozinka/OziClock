@@ -7,10 +7,62 @@ namespace Ozi.Utilities;
 
 public class OsClock
 {
-    public string Caption;
-    public string timeZone;
+    private string _caption;
 
-    private string BkColor;
+    public string Caption
+    {
+        get => _caption;
+        set
+        {
+            _caption = value;
+            if (_lbCapt != null)
+            {
+                _lbCapt.Content = value;
+            }
+        }
+    }
+
+    public string TimeZoneId;
+
+    private string _color;
+
+    public string Color
+    {
+        get => _color;
+        set
+        {
+            _color = value;
+
+            // Only apply brushes if UI elements are already created
+            if (OsGrid != null)
+            {
+                var br = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0.5, -0.05),
+                    EndPoint = new Point(0.5, 1)
+                };
+                br.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString("#FF383838"), 0.453));
+                br.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(_color), 0.776));
+                OsGrid.Background = br;
+            }
+
+            if (RulerGrid?.Children.Count > 0 && RulerGrid.Children[0] is Canvas canvas)
+            {
+                var linearGradient = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0.5, 0),
+                    EndPoint = new Point(0.5, 1)
+                };
+                linearGradient.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(_color),
+                    0.959));
+                linearGradient.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString("#FF383838"),
+                    1.0));
+
+                canvas.Background = linearGradient;
+            }
+        }
+    }
+
     public readonly Grid OsGrid;
 
     public Grid RulerGrid { get; set; }
@@ -21,7 +73,7 @@ public class OsClock
     private readonly Label _lbDateH;
     private readonly Label _lbDateM;
     private readonly Label _lbDateS;
-    
+
     private bool _isMain;
 
     public bool IsMain
@@ -44,22 +96,12 @@ public class OsClock
         }
     }
 
-    public void SetTime(DateTime curTime)
-    {
-        var tmzTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(curTime, timeZone);
-        _lbDateMm.Content = tmzTime.ToString("MM/");
-        _lbDateDd.Content = tmzTime.ToString("dd");
-        _lbDateH.Content = tmzTime.ToString("HH");
-        _lbDateM.Content = tmzTime.ToString("mm");
-        _lbDateS.Content = tmzTime.ToString("ss");
-    }
-
     //constructor
-    public OsClock(string caption, string timeZone, string bkColor, int position, bool IsMain)
+    public OsClock(string caption, string timeZoneId, string color, int position, bool IsMain)
     {
         Caption = caption;
-        this.timeZone = timeZone;
-        BkColor = bkColor;
+        this.TimeZoneId = timeZoneId;
+        _color = color;
 
         OsGrid = new Grid
         {
@@ -75,11 +117,11 @@ public class OsClock
             EndPoint = new Point(0.5, 1)
         };
         br.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString("#FF383838"), 0.453));
-        br.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(BkColor), 0.776));
+        br.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(_color), 0.776));
         OsGrid.Background = br;
         OsGrid.VerticalAlignment = VerticalAlignment.Bottom;
-        
-        this.timeZone = timeZone;
+
+        this.TimeZoneId = timeZoneId;
 
         var fntClcCaption = new FontFamily("Calibry");
 
@@ -88,6 +130,7 @@ public class OsClock
             FontFamily = fntClcCaption,
             FontSize = 16,
             Content = caption,
+            SnapsToDevicePixels = true,
             Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFB9B9B9"))
         };
 
@@ -100,7 +143,7 @@ public class OsClock
             FontSize = 16,
             Content = "11/",
             Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFB9B9B9")),
-            Margin = new Thickness(45, 0, 0, 0)
+            Margin = new Thickness(50, 0, 0, 0)
         };
         OsGrid.Children.Add(_lbDateMm);
 
@@ -110,8 +153,8 @@ public class OsClock
             FontSize = 16,
             FontWeight = FontWeights.DemiBold,
             Content = "11",
-            Foreground = new SolidColorBrush(Colors.White),
-            Margin = new Thickness(70, 0, 0, 0)
+            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFB9B9B9")),
+            Margin = new Thickness(75, 0, 0, 0)
         };
         OsGrid.Children.Add(_lbDateDd);
 
@@ -120,11 +163,22 @@ public class OsClock
             FontFamily = fntClcCaption,
             FontSize = 16,
             FontWeight = FontWeights.DemiBold,
-            Content = "       :       :",
+            Content = ":",
             //lbDateDelim.Foreground = new SolidColorBrush(Colors.White);
-            Margin = new Thickness(0, 35, 0, 0)
+            Margin = new Thickness(29, 35, 0, 0)
         };
         OsGrid.Children.Add(lbDateDelim);
+
+        var lbDateDelim2 = new Label
+        {
+            FontFamily = fntClcCaption,
+            FontSize = 16,
+            FontWeight = FontWeights.DemiBold,
+            Content = ":",
+            //lbDateDelim.Foreground = new SolidColorBrush(Colors.White);
+            Margin = new Thickness(65, 35, 0, 0)
+        };
+        OsGrid.Children.Add(lbDateDelim2);
 
         _lbDateH = new Label
         {
@@ -132,7 +186,9 @@ public class OsClock
             FontSize = 22,
             FontWeight = FontWeights.DemiBold,
             Content = "00",
-            Margin = new Thickness(2, 30, 0, 0)
+            Margin = new Thickness(5, 35, 0, 0),
+            Padding = new Thickness(0, 0, 0, 2),
+            SnapsToDevicePixels = true
         };
         OsGrid.Children.Add(_lbDateH);
 
@@ -141,7 +197,9 @@ public class OsClock
             FontFamily = fntClcCaption,
             FontSize = 22,
             Content = "00",
-            Margin = new Thickness(38, 30, 0, 0)
+            Margin = new Thickness(42, 35, 0, 0),
+            Padding = new Thickness(0, 0, 0, 2),
+            SnapsToDevicePixels = true
         };
         OsGrid.Children.Add(_lbDateM);
 
@@ -175,11 +233,23 @@ public class OsClock
             EndPoint = new Point(0.5, 1)
         };
         linearGradient.GradientStops.Add(
-            new GradientStop((Color)ColorConverter.ConvertFromString(BkColor), 0.959));
+            new GradientStop((Color)ColorConverter.ConvertFromString(_color), 0.959));
         linearGradient.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString("#FF383838"), 1.0));
 
         canvas.Background = linearGradient;
 
+        Color = _color;
+
         RulerGrid.Children.Add(canvas);
+    }
+
+    public void SetTime(DateTime curTime)
+    {
+        var tmzTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(curTime, TimeZoneId);
+        _lbDateMm.Content = tmzTime.ToString("MM'/'");
+        _lbDateDd.Content = tmzTime.ToString("dd");
+        _lbDateH.Content = tmzTime.ToString("HH");
+        _lbDateM.Content = tmzTime.ToString("mm");
+        _lbDateS.Content = tmzTime.ToString("ss");
     }
 }

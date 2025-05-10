@@ -301,8 +301,7 @@ public partial class FmRulers : Window
         {
             foreach (var clock in App.Settings.LstClock)
             {
-                Console.WriteLine(clock.timeZone);
-                CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.timeZone);
+                CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.TimeZoneId);
             }
             colTopLeft.Width = new GridLength(App.Settings.MainClockIndex * 100, GridUnitType.Pixel);
         }
@@ -318,7 +317,7 @@ public partial class FmRulers : Window
             foreach (var clock in App.Settings.LstClock)
             {
                 glRulers.Children.Add(clock.RulerGrid);
-                CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.timeZone);
+                CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.TimeZoneId);
             }
 
             colTopLeft.MaxWidth = (this.glRulers.Children.Count - 1) * 100;

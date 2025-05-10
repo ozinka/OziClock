@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
 
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
@@ -20,9 +20,11 @@
         <EnableCompressionInSingleFile>False</EnableCompressionInSingleFile>
         <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
         <CopyOutputTrimmedFiles>true</CopyOutputTrimmedFiles>
+        <UseWindowsForms>true</UseWindowsForms>
     </PropertyGroup>
 
     <ItemGroup>
+        <Reference Include="System.Windows.Forms" />
         <None Update="appsettings.json">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
             <CopyToPublishDirectory>Always</CopyToPublishDirectory>

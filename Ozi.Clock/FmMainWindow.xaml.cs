@@ -176,18 +176,23 @@ public partial class FmMainWindow : Window
     {
         // Remove topmost
         IntPtr windowHandle = new WindowInteropHelper(this).Handle;
-        SetWindowPos(windowHandle, 
-            (IntPtr)HWND_NOTOPMOST, 
-            0, 0, 0, 0, 
+        SetWindowPos(windowHandle,
+            (IntPtr)HWND_NOTOPMOST,
+            0, 0, 0, 0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
-        var fmEdit = new FmEdit()
+        int index = gdMain.Children.IndexOf(_lastRightClickedClock);
+        if (_lastRightClickedClock != null)
         {
-            Owner = this,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner
-        };
-        fmEdit.Owner = this;
-        fmEdit.ShowDialog();
+            var fmEdit = new FmEdit(App.Settings.LstClock[index])
+            {
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            fmEdit.Owner = this;
+            fmEdit.ShowDialog();
+        }
+
 
         // Restore topmost
         ForceToTopmost();
@@ -201,7 +206,7 @@ public partial class FmMainWindow : Window
             App.Settings.LstClock[App.Settings.MainClockIndex].IsMain = false;
             App.Settings.MainClockIndex = index;
             App.Settings.LstClock[index].IsMain = true;
-            App.Settings.MainTimeZone = App.Settings.LstClock[index].timeZone;
+            App.Settings.MainTimeZone = App.Settings.LstClock[index].TimeZoneId;
         }
 
         fmRulers.UpdateRulers();
@@ -389,9 +394,9 @@ public partial class FmMainWindow : Window
     {
         // Remove topmost
         IntPtr windowHandle = new WindowInteropHelper(this).Handle;
-        SetWindowPos(windowHandle, 
-            (IntPtr)HWND_NOTOPMOST, 
-            0, 0, 0, 0, 
+        SetWindowPos(windowHandle,
+            (IntPtr)HWND_NOTOPMOST,
+            0, 0, 0, 0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
         var fmFmSettings = new FmSettings(this)
