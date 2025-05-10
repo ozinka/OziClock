@@ -16,6 +16,8 @@ using System.Windows.Media.Animation;
 
 namespace Ozi.Utilities;
 
+// TODO: fix Always on top
+
 public partial class FmMainWindow : Window
 {
     //Params related to force to topmost
@@ -121,6 +123,8 @@ public partial class FmMainWindow : Window
     private MenuItem itemMoveRight;
     private MenuItem itemMakeMain;
     private MenuItem itemRemove;
+    private MenuItem itemFold;
+    private MenuItem itemShowRulers;
 
     private void CreateContextMenu()
     {
@@ -128,47 +132,56 @@ public partial class FmMainWindow : Window
         mainMenu.Opened += ContextMenu_Opened;
 
         var itemClock = new MenuItem { Header = "Clock" };
+        itemClock.Icon = new TextBlock() { Text = "🕒"};
         mainMenu.Items.Add(itemClock);
 
         var itemEdit = new MenuItem { Header = "Edit" };
+        itemEdit.Icon = new TextBlock() { Text = "📝"};
         itemEdit.Click += ItemEditClick;
         itemClock.Items.Add(itemEdit);
 
         itemMoveLeft = new MenuItem { Header = "Move Left" };
+        itemMoveLeft.Icon = new TextBlock() { Text = "⬅️"};
         itemMoveLeft.Click += ItemMoveLeftOnClick;
         itemClock.Items.Add(itemMoveLeft);
 
         itemMoveRight = new MenuItem { Header = "Move Right" };
+        itemMoveRight.Icon = new TextBlock() { Text = "➡️"};
         itemMoveRight.Click += ItemMoveRightOnClick;
         itemClock.Items.Add(itemMoveRight);
 
         itemMakeMain = new MenuItem { Header = "Make as Main" };
+        itemMakeMain.Icon = new TextBlock() { Text = "❗"};
         itemMakeMain.Click += ItemMakeMainOnClick;
         itemClock.Items.Add(itemMakeMain);
 
         itemRemove = new MenuItem { Header = "Remove" };
+        itemRemove.Icon = new TextBlock() { Text = "🗑️"};
         itemRemove.Click += MenuItemRemove_Click;
         itemClock.Items.Add(itemRemove);
 
         var itemAbout = new MenuItem { Header = "About" };
+        itemAbout.Icon = new TextBlock() { Text = "❓️"};
         itemAbout.Click += MenuItemAbout_Click;
         mainMenu.Items.Add(itemAbout);
 
-        var itemFold = new MenuItem { Header = "Fold/Unfold" };
+        itemFold = new MenuItem { Header = "Fold" };
         itemFold.Click += MenuItemFold_Click;
         mainMenu.Items.Add(itemFold);
 
-        var itemShowRulers = new MenuItem { Header = "Show/hide rulers" };
+        itemShowRulers = new MenuItem { Header = "Show rulers" };
         itemShowRulers.Click += MenuItemShowRulers_Click;
         mainMenu.Items.Add(itemShowRulers);
 
         var itemSettings = new MenuItem { Header = "Settings" };
+        itemSettings.Icon = new TextBlock() { Text = "⚙️"};
         itemSettings.Click += MenuItemSettings_Click;
         mainMenu.Items.Add(itemSettings);
 
         mainMenu.Items.Add(new Separator());
 
         var itemExit = new MenuItem { Header = "Exit" };
+        itemExit.Icon = new TextBlock() { Text = "❌"};
         itemExit.Click += MenuItemExit_Click;
         mainMenu.Items.Add(itemExit);
 
@@ -254,12 +267,12 @@ public partial class FmMainWindow : Window
 
     private void ItemMoveRightOnClick(object sender, RoutedEventArgs e)
     {
-        throw new NotImplementedException();
+        throw new NotImplementedException(); // TODO: Implement this
     }
 
     private void ItemMoveLeftOnClick(object sender, RoutedEventArgs e)
     {
-        throw new NotImplementedException();
+        throw new NotImplementedException();  // TODO: Implement this
     }
 
     private UIElement? _lastRightClickedClock;
@@ -294,6 +307,8 @@ public partial class FmMainWindow : Window
             itemMoveLeft.IsEnabled = (index == 0) ? false : true;
             itemMoveRight.IsEnabled = (index == App.Settings.LstClock.Count - 1) ? false : true;
             itemRemove.IsEnabled = (App.Settings.LstClock.Count == 1) ? false : true;
+            itemFold.Header = _isFolded ? "Unfold" : "Fold";
+            itemShowRulers.Header = fmRulers.IsVisible ? "Hide Rulers" : "Show Rulers";
         }
     }
 
