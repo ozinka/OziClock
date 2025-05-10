@@ -109,8 +109,11 @@ public partial class FmMainWindow : Window
 
         this.Deactivated += (s, e) =>
         {
-            isWindowFocused = false;
-            UpdateOpacity();
+            if (!fmRulers.IsVisible)
+            {
+                isWindowFocused = false;
+                UpdateOpacity();
+            }
         };
     }
 

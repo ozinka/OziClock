@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -54,5 +55,10 @@ public partial class FmEdit : Window
             _viewModel.ClockColor = Color.FromArgb(dlg.Color.A, dlg.Color.R, dlg.Color.G, dlg.Color.B);
             colorPicker.Background = new SolidColorBrush(_viewModel.ClockColor);
         }
+    }
+
+    private void CbTimeZones_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        Console.WriteLine($"TZ: {cbTimeZones.SelectedItem}");
     }
 }
