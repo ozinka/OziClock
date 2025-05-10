@@ -5,6 +5,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using Ozi.Utilities.Common;
 using System.Windows.Forms;
+using System.Windows.Input; // For Key and KeyEventArgs
+using System.Windows;
 
 namespace Ozi.Utilities;
 
@@ -32,6 +34,7 @@ public partial class FmEdit : Window
         Close();
     }
 
+    
     private void Window_MouseDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ChangedButton == MouseButton.Left && e.OriginalSource is not Grid colorPickerGrid && e.OriginalSource as Grid != colorPicker) 
