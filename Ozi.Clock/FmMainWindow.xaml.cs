@@ -166,10 +166,12 @@ public partial class FmMainWindow : Window
         mainMenu.Items.Add(itemAbout);
 
         itemFold = new MenuItem { Header = "Fold" };
+        itemFold.Icon = new TextBlock() { Text = "📂"};
         itemFold.Click += MenuItemFold_Click;
         mainMenu.Items.Add(itemFold);
 
         itemShowRulers = new MenuItem { Header = "Show rulers" };
+        itemShowRulers.Icon = new TextBlock() { Text = "📏"};
         itemShowRulers.Click += MenuItemShowRulers_Click;
         mainMenu.Items.Add(itemShowRulers);
 

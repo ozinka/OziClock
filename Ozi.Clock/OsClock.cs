@@ -20,10 +20,11 @@ public class OsClock
             _caption = value;
             if (_lbCapt != null)
             {
-                _lbCapt.Content = value;
+                _lbCapt.Text = value;
             }
         }
     }
+
     public string Color
     {
         get => _color;
@@ -60,14 +61,15 @@ public class OsClock
             }
         }
     }
+
     public Grid RulerGrid { get; set; }
 
-    private readonly Label _lbCapt;
-    private readonly Label _lbDateMm;
-    private readonly Label _lbDateDd;
-    private readonly Label _lbDateH;
-    private readonly Label _lbDateM;
-    private readonly Label _lbDateS;
+    private readonly TextBlock _lbCapt;
+    private readonly TextBlock _lbDateMm;
+    private readonly TextBlock _lbDateDd;
+    private readonly TextBlock _lbDateH;
+    private readonly TextBlock _lbDateM;
+    private readonly TextBlock _lbDateS;
     private bool _isMain;
 
     public bool IsMain
@@ -119,95 +121,130 @@ public class OsClock
 
         var fntClcCaption = new FontFamily("Calibry");
 
-        _lbCapt = new Label
+
+        _lbCapt = new TextBlock
         {
             FontFamily = fntClcCaption,
             FontSize = 16,
-            Content = caption,
-            SnapsToDevicePixels = true,
-            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFB9B9B9"))
+            FontWeight = FontWeights.DemiBold,
+            Text = caption,
+            Margin = new Thickness(4, 5, 0, 0),
+            Width = 48,
+            TextTrimming = TextTrimming.None,
+            VerticalAlignment = VerticalAlignment.Top,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            TextAlignment = TextAlignment.Left,
+            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFB9B9B9")),
         };
 
 
         OsGrid.Children.Add(_lbCapt);
 
-        _lbDateMm = new Label
+        _lbDateMm = new TextBlock
         {
             FontFamily = fntClcCaption,
             FontSize = 16,
-            Content = "11/",
+            FontWeight = FontWeights.DemiBold,
+            Text = "11/",
+            Margin = new Thickness(51, 5, 0, 0),
+            Width = 28,
+            TextTrimming = TextTrimming.None,
+            VerticalAlignment = VerticalAlignment.Top,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            TextAlignment = TextAlignment.Right,
             Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFB9B9B9")),
-            Margin = new Thickness(50, 0, 0, 0)
         };
         OsGrid.Children.Add(_lbDateMm);
 
-        _lbDateDd = new Label
+        _lbDateDd = new TextBlock
         {
             FontFamily = fntClcCaption,
             FontSize = 16,
             FontWeight = FontWeights.DemiBold,
-            Content = "11",
+            Text = "11",
+            Margin = new Thickness(80, 5, 0, 0),
+            Width = 18,
+            TextTrimming = TextTrimming.None,
+            VerticalAlignment = VerticalAlignment.Top,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            TextAlignment = TextAlignment.Left,
             Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFB9B9B9")),
-            Margin = new Thickness(75, 0, 0, 0)
         };
         OsGrid.Children.Add(_lbDateDd);
 
-        var lbDateDelim = new Label
+        var lbDateDelim = new TextBlock
         {
             FontFamily = fntClcCaption,
             FontSize = 16,
             FontWeight = FontWeights.DemiBold,
-            Content = ":",
-            //lbDateDelim.Foreground = new SolidColorBrush(Colors.White);
-            Margin = new Thickness(29, 35, 0, 0)
+            Text = ":",
+            Margin = new Thickness(30, 41, 0, 0),
+            Width = 9,
+            TextTrimming = TextTrimming.None,
+            VerticalAlignment = VerticalAlignment.Top,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            TextAlignment = TextAlignment.Center,
         };
         OsGrid.Children.Add(lbDateDelim);
 
-        var lbDateDelim2 = new Label
+        var lbDateDelim2 = new TextBlock
         {
             FontFamily = fntClcCaption,
             FontSize = 16,
             FontWeight = FontWeights.DemiBold,
-            Content = ":",
-            //lbDateDelim.Foreground = new SolidColorBrush(Colors.White);
-            Margin = new Thickness(65, 35, 0, 0)
+            Text = ":",
+            Margin = new Thickness(67, 41, 0, 0),
+            Width = 9,
+            TextTrimming = TextTrimming.None,
+            VerticalAlignment = VerticalAlignment.Top,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            TextAlignment = TextAlignment.Center,
         };
         OsGrid.Children.Add(lbDateDelim2);
 
-        _lbDateH = new Label
+        _lbDateH = new TextBlock
         {
             FontFamily = fntClcCaption,
             FontSize = 22,
             FontWeight = FontWeights.DemiBold,
-            Content = "00",
-            Margin = new Thickness(5, 35, 0, 0),
-            Padding = new Thickness(0, 0, 0, 2),
-            SnapsToDevicePixels = true
+            Text = "00",
+            Margin = new Thickness(0, 35, 0, 0),
+            Width = 28,
+            TextTrimming = TextTrimming.None,
+            VerticalAlignment = VerticalAlignment.Top,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            TextAlignment = TextAlignment.Right,
         };
         OsGrid.Children.Add(_lbDateH);
 
-        _lbDateM = new Label
+        _lbDateM = new TextBlock
         {
             FontFamily = fntClcCaption,
             FontSize = 22,
-            Content = "00",
-            Margin = new Thickness(42, 35, 0, 0),
-            Padding = new Thickness(0, 0, 0, 2),
-            SnapsToDevicePixels = true
+            Text = "00",
+            Margin = new Thickness(34, 35, 0, 0),
+            Width = 38,
+            TextTrimming = TextTrimming.None,
+            VerticalAlignment = VerticalAlignment.Top,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            TextAlignment = TextAlignment.Center,
         };
         OsGrid.Children.Add(_lbDateM);
 
-        _lbDateS = new Label
+        _lbDateS = new TextBlock
         {
             FontFamily = fntClcCaption,
             FontSize = 16,
-            Content = "00",
-            Margin = new Thickness(72, 36, 0, 0)
+            Text = "00",
+            Margin = new Thickness(67, 41, 0, 0),
+            Width = 38,
+            // Background = Brushes.White,
+            TextTrimming = TextTrimming.None,
+            TextAlignment = TextAlignment.Center,
         };
         OsGrid.Children.Add(_lbDateS);
 
         this.IsMain = IsMain;
-
 
         RulerGrid = new Grid
         {
@@ -240,10 +277,10 @@ public class OsClock
     public void SetTime(DateTime curTime)
     {
         var tmzTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(curTime, TimeZoneId);
-        _lbDateMm.Content = tmzTime.ToString("MM'/'");
-        _lbDateDd.Content = tmzTime.ToString("dd");
-        _lbDateH.Content = tmzTime.ToString("HH");
-        _lbDateM.Content = tmzTime.ToString("mm");
-        _lbDateS.Content = tmzTime.ToString("ss");
+        _lbDateMm.Text = tmzTime.ToString("MM'/'");
+        _lbDateDd.Text = tmzTime.ToString("dd");
+        _lbDateH.Text = tmzTime.ToString("HH");
+        _lbDateM.Text = tmzTime.ToString("mm");
+        _lbDateS.Text = tmzTime.ToString("ss");
     }
 }
