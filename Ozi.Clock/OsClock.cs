@@ -8,6 +8,9 @@ namespace Ozi.Utilities;
 public class OsClock
 {
     private string _caption;
+    private string _color;
+    public string TimeZoneId;
+    public readonly Grid OsGrid;
 
     public string Caption
     {
@@ -21,11 +24,6 @@ public class OsClock
             }
         }
     }
-
-    public string TimeZoneId;
-
-    private string _color;
-
     public string Color
     {
         get => _color;
@@ -62,9 +60,6 @@ public class OsClock
             }
         }
     }
-
-    public readonly Grid OsGrid;
-
     public Grid RulerGrid { get; set; }
 
     private readonly Label _lbCapt;
@@ -73,7 +68,6 @@ public class OsClock
     private readonly Label _lbDateH;
     private readonly Label _lbDateM;
     private readonly Label _lbDateS;
-
     private bool _isMain;
 
     public bool IsMain

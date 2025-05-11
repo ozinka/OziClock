@@ -4,6 +4,7 @@ using System.ComponentModel; // Required for INotifyPropertyChanged
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Ozi.Utilities
 {
@@ -72,36 +73,15 @@ namespace Ozi.Utilities
             set => SetField(ref _timeZones, value);
         }
 
-        public void Load()
-        {
-            var settingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-
-            if (File.Exists(settingsPath))
-            {
-                var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(settingsPath)) ??
-                               throw new InvalidOperationException();
-
-                MainWndLeft = settings.MainWndLeft;
-                MainWndTop = settings.MainWndTop;
-                Opacity = settings.Opacity;
-                TopMost = settings.TopMost;
-                ShowInTaskBar = settings.ShowInTaskBar;
-                UseSnap = settings.UseSnap;
-                TimeZones = settings.TimeZones;
-            }
-            else
-            {
-                throw new FileNotFoundException("appsettings.json not found", settingsPath);
-            }
-        }
-
         public void Save()
         {
             var options = new JsonSerializerOptions
             {
-                WriteIndented = true
+                WriteIndented = true,
+                // ReferenceHandler = ReferenceHandler.Preserve - ? 
             };
             var fileData = JsonSerializer.Serialize(this, options);
+
             var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
             File.WriteAllText(path, fileData);
         }
