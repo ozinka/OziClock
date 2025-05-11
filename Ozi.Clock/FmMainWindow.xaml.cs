@@ -248,7 +248,7 @@ public partial class FmMainWindow : Window
             fmSlider.slTimeChecker.Value = curTime.Hour * 12; // + (int)(curTime.Minute / 5);
             fmRulers.Show();
             fmSlider.Show();
-            // _timeTimer!.Interval = TimeSpan.FromMicroseconds(100);
+            _timeTimer!.Interval = TimeSpan.FromMilliseconds(20); // Time reaction to the slider change
         }
 
         fmMain_MouseLeave(null!, null!);
