@@ -210,10 +210,9 @@ public partial class FmMainWindow : Window
             fmEdit.Owner = this;
             fmEdit.ShowDialog();
         }
-
-
+ 
         // Restore topmost
-        ForceToTopmost();
+       ForceToTopmost();
     }
 
     private void ItemMakeMainOnClick(object sender, RoutedEventArgs e)
@@ -247,8 +246,8 @@ public partial class FmMainWindow : Window
             curTime = new DateTime(curTime.Year, curTime.Month, curTime.Day, curTime.Hour, 0, 0);
             fmSlider.CurTime = curTime;
             fmSlider.slTimeChecker.Value = curTime.Hour * 12; // + (int)(curTime.Minute / 5);
-            fmSlider.Show();
             fmRulers.Show();
+            fmSlider.Show();
             // _timeTimer!.Interval = TimeSpan.FromMicroseconds(100);
         }
 

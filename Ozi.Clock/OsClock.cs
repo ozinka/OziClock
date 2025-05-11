@@ -135,6 +135,7 @@ public class OsClock
             HorizontalAlignment = HorizontalAlignment.Left,
             TextAlignment = TextAlignment.Left,
             Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFB9B9B9")),
+            // Background = Brushes.White,
         };
 
 

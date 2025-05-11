@@ -236,7 +236,7 @@ public partial class FmRulers : Window
         // Calculate time offset for the region dynamically
         var offset = GetRegionOffset(timeZoneId);
 
-        double labelYOffset = 2; // Starting position for the first label
+        double labelYOffset = 6; // Starting position for the first label
 
         // Add time labels considering the timezone offset for the region
         for (var i = 0; i < 25; i++)
@@ -274,12 +274,13 @@ public partial class FmRulers : Window
             }
 
             // Create the label for the adjusted time
-            var label = new Label
+            var label = new TextBlock()
             {
-                Content = timeLabel,
+                Text = timeLabel,
                 FontWeight = FontWeights.Bold,
-                HorizontalContentAlignment = HorizontalAlignment.Center,
-                Width = 99
+                TextAlignment = TextAlignment.Center,
+                Width = 99,
+                // Background = Brushes.White,
             };
 
             // Add the label to the canvas
