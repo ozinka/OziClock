@@ -8,76 +8,21 @@ using System.Text.Json;
 
 namespace Ozi.Utilities
 {
-    public class AppSettings : INotifyPropertyChanged
+    public class AppSettings
     {
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public double MainWndLeft { get; set; }
+        public double MainWndTop { get; set; }
 
-        private double _mainWndLeft;
+        public bool IsTransparent { get; set; }
+        public double Opacity { get; set; }
+        public bool TopMost { get; set; }
+        public bool ShowInTaskBar { get; set; }
 
-        public double MainWndLeft
-        {
-            get => _mainWndLeft;
-            set => SetField(ref _mainWndLeft, value);
-        }
-
-        private double _mainWndTop;
-
-        public double MainWndTop
-        {
-            get => _mainWndTop;
-            set => SetField(ref _mainWndTop, value);
-        }
-
-        private bool _isTransparent;
-
-        public bool IsTransparent
-        {
-            get => _isTransparent;
-            set => SetField(ref _isTransparent, value);
-        }
-
-        private double _opacity;
-
-        public double Opacity
-        {
-            get => _opacity;
-            set => SetField(ref _opacity, value);
-        }
-
-        private bool _topMost;
-
-        public bool TopMost
-        {
-            get => _topMost;
-            set => SetField(ref _topMost, value);
-        }
-
-        private bool _showInTaskBar;
-
-        public bool ShowInTaskBar
-        {
-            get => _showInTaskBar;
-            set => SetField(ref _showInTaskBar, value);
-        }
-
-        private bool _useSnap;
-
-        public bool UseSnap
-        {
-            get => _useSnap;
-            set => SetField(ref _useSnap, value);
-        }
+        public bool UseSnap { get; set; }
 
         public int MainClockIndex = 0;
         public string MainTimeZone = "";
-
-        private Dictionary<string, ClockSettings> _clocksSettings = new();
-
-        public Dictionary<string, ClockSettings> ClocksSettings
-        {
-            get => _clocksSettings;
-            set => SetField(ref _clocksSettings, value);
-        }
+        public Dictionary<string, ClockSettings> ClocksSettings { get; set; } = [];
 
         public void Save()
         {
@@ -98,25 +43,11 @@ namespace Ozi.Utilities
                 })
                 .ToDictionary(x => x.Label, x => x);
 
-            _clocksSettings = actualSettings;
+            ClocksSettings = actualSettings;
             var fileData = JsonSerializer.Serialize(this, options);
 
             var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
             File.WriteAllText(path, fileData);
-        }
-
-        protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
-        protected bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-        {
-            if (EqualityComparer<T>.Default.Equals(field, value))
-                return false;
-            field = value;
-            OnPropertyChanged(propertyName);
-            return true;
         }
     }
 }

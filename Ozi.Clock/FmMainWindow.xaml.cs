@@ -48,15 +48,6 @@ public partial class FmMainWindow : Window
         fmSlider = new FmSlider(this);
         fmRulers = new FmRulers(this);
 
-        // Subscribe to changes in the App.Settings.Opacity
-        App.Settings.PropertyChanged += (s, e) =>
-        {
-            if (e.PropertyName == nameof(App.Settings.Opacity) && !isMouseOver)
-            {
-                Opacity = App.Settings.Opacity;
-            }
-        };
-
         // Initial opacity from settings
         Opacity = App.Settings.Opacity;
     }
@@ -76,13 +67,6 @@ public partial class FmMainWindow : Window
 
         App.Clocks.ForEach(clock => gdMain.Children.Add(clock.OsGrid));
 
-        App.Settings.PropertyChanged += (sender, e) =>
-        {
-            if (e.PropertyName == nameof(App.Settings.Opacity) && !isMouseOver)
-            {
-                AnimateOpacity(App.Settings.Opacity);
-            }
-        };
         CreateContextMenu();
         this.Activated += (s, e) =>
         {
