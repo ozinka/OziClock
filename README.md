@@ -28,13 +28,13 @@ A compact and customizable **WPF desktop clock** displaying current time in mult
 ## 📸 Screenshots
 
 ### Compact Mode
-![Compact Mode](./Ozi.Clock/resources/ozi.clock.small.webp)
+![Compact Mode](./Ozi.Clock/Assets/ozi.clock.small.webp)
 
 ### Standard Mode
-![Standard View](./Ozi.Clock/resources/ozi.clock.mid.webp)
+![Standard View](./Ozi.Clock/Assets/ozi.clock.mid.webp)
 
 ### Extended Mode
-![Standard View](./Ozi.Clock/resources/ozi.clock.large.webp)
+![Standard View](./Ozi.Clock/Assets/ozi.clock.large.webp)
 
 ---
 
