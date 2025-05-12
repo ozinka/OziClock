@@ -35,7 +35,7 @@ public partial class FmEdit : Window
     
     private void Window_MouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton == MouseButton.Left && e.OriginalSource is not Grid colorPickerGrid && e.OriginalSource as Grid != colorPicker) 
+        if (e.ChangedButton == MouseButton.Left &&  e.OriginalSource as Grid != colorPicker) 
         { 
             DragMove(); 
         } 
