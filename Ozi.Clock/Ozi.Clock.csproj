@@ -37,14 +37,18 @@
 
     <ItemGroup>
         <Resource Include="Assets\clock.ico"/>
+        <Resource Include="Assets\edit2.ico"/>
+        <Resource Include="Assets\left.ico"/>
+        <Resource Include="Assets\right.ico"/>
+        <Resource Include="Assets\main4.ico"/>
+        <Resource Include="Assets\remove.ico"/>
+        <Resource Include="Assets\fold.ico"/>
+        <Resource Include="Assets\ruler.ico"/>
+        <Resource Include="Assets\settings.ico"/>
+        <Resource Include="Assets\about.ico"/>
+        <Resource Include="Assets\exit.ico"/>
         <Resource Include="Assets\ClockAll.ico"/>
         <Resource Include="Shaders\VerticalMagnifier.ps"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Folder Include="Common\" />
-        <Folder Include="Models\"/>
-        <Folder Include="Resources\"/>
     </ItemGroup>
 
     <ItemGroup>

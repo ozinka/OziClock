@@ -8,6 +8,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace Ozi.Utilities.Views;
@@ -96,58 +97,104 @@ public partial class FmMainWindow
         mainMenu.Opened += ContextMenu_Opened;
 
         var itemClock = new MenuItem { Header = "Clock" };
-        itemClock.Icon = new TextBlock() { Text = "🕒" };
+        var imageClock = new Image
+        {
+            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/clock.ico", UriKind.Absolute)),
+        };
+        itemClock.Icon = imageClock;
         mainMenu.Items.Add(itemClock);
 
         var itemEdit = new MenuItem { Header = "Edit" };
-        itemEdit.Icon = new TextBlock() { Text = "📝" };
+        var imageEdit = new Image
+        {
+            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/edit2.ico", UriKind.Absolute)),
+        };
+        itemEdit.Icon = imageEdit;
         itemEdit.Click += ItemEditClick;
         itemClock.Items.Add(itemEdit);
 
         _itemMoveLeft = new MenuItem { Header = "Move Left" };
-        _itemMoveLeft.Icon = new TextBlock() { Text = "⬅️" };
+        var imageLeft = new Image
+        {
+            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/left.ico", UriKind.Absolute)),
+        };
+        _itemMoveLeft.Icon = imageLeft;
         _itemMoveLeft.Click += ItemMoveLeftOnClick;
         itemClock.Items.Add(_itemMoveLeft);
 
         _itemMoveRight = new MenuItem { Header = "Move Right" };
-        _itemMoveRight.Icon = new TextBlock() { Text = "➡️" };
+        var imageRight = new Image
+        {
+            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/right.ico", UriKind.Absolute)),
+        };
+        _itemMoveRight.Icon = imageRight;
         _itemMoveRight.Click += ItemMoveRightOnClick;
         itemClock.Items.Add(_itemMoveRight);
 
-        _itemMakeMain = new MenuItem { Header = "Make as Main" };
-        _itemMakeMain.Icon = new TextBlock() { Text = "❗" };
+        _itemMakeMain = new MenuItem { Header = "Make Main" };
+        var imageMain = new Image
+        {
+            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/main4.ico", UriKind.Absolute)),
+        };
+        _itemMakeMain.Icon = imageMain;
         _itemMakeMain.Click += ItemMakeMainOnClick;
         itemClock.Items.Add(_itemMakeMain);
-
+        
+        itemClock.Items.Add(new Separator());
+        
         _itemRemove = new MenuItem { Header = "Remove" };
-        _itemRemove.Icon = new TextBlock() { Text = "🗑️" };
+        var imageRemove = new Image
+        {
+            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/remove.ico", UriKind.Absolute)),
+        };
+        _itemRemove.Icon = imageRemove;
         _itemRemove.Click += MenuItemRemove_Click;
         itemClock.Items.Add(_itemRemove);
 
-        var itemAbout = new MenuItem { Header = "About" };
-        itemAbout.Icon = new TextBlock() { Text = "❓️" };
-        itemAbout.Click += MenuItemAbout_Click;
-        mainMenu.Items.Add(itemAbout);
+        var itemSettings = new MenuItem { Header = "Settings" };
+        var imageSettings = new Image
+        {
+            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/settings.ico", UriKind.Absolute)),
+        };
+        itemSettings.Icon = imageSettings;
+        itemSettings.Click += MenuItemSettings_Click;
+        mainMenu.Items.Add(itemSettings);
 
         _itemFold = new MenuItem { Header = "Fold" };
-        _itemFold.Icon = new TextBlock() { Text = "📂" };
+        var imageFold = new Image
+        {
+            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/fold.ico", UriKind.Absolute)),
+        };
+        _itemFold.Icon = imageFold;
         _itemFold.Click += MenuItemFold_Click;
         mainMenu.Items.Add(_itemFold);
 
         _itemShowRulers = new MenuItem { Header = "Show rulers" };
-        _itemShowRulers.Icon = new TextBlock() { Text = "📏" };
+        var imageRuler = new Image
+        {
+            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/ruler.ico", UriKind.Absolute)),
+        };
+        _itemShowRulers.Icon = imageRuler;
         _itemShowRulers.Click += MenuItemShowRulers_Click;
         mainMenu.Items.Add(_itemShowRulers);
 
-        var itemSettings = new MenuItem { Header = "Settings" };
-        itemSettings.Icon = new TextBlock() { Text = "⚙️" };
-        itemSettings.Click += MenuItemSettings_Click;
-        mainMenu.Items.Add(itemSettings);
+        var itemAbout = new MenuItem { Header = "About" };
+        var imageAbout = new Image
+        {
+            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/about.ico", UriKind.Absolute)),
+        };
+        itemAbout.Icon = imageAbout;
+        itemAbout.Click += MenuItemAbout_Click;
+        mainMenu.Items.Add(itemAbout);
 
         mainMenu.Items.Add(new Separator());
 
         var itemExit = new MenuItem { Header = "Exit" };
-        itemExit.Icon = new TextBlock() { Text = "❌" };
+        var imageExit = new Image
+        {
+            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/exit.ico", UriKind.Absolute)),
+        };
+        itemExit.Icon = imageExit;
         itemExit.Click += MenuItemExit_Click;
         mainMenu.Items.Add(itemExit);
 
