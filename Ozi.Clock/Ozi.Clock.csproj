@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>false</ImplicitUsings>
         <UseWPF>true</UseWPF>
-        <ApplicationIcon>resources/clock.ico</ApplicationIcon>
+        <ApplicationIcon>Assets/clock.ico</ApplicationIcon>
         <RootNamespace>Ozi.Utilities</RootNamespace>
         <Title>Ozi.Clock</Title>
         <Authors>Ozi</Authors>
@@ -24,24 +24,60 @@
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-      <DebugType>portable</DebugType>
+        <DebugType>portable</DebugType>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-      <DebugType>portable</DebugType>
+        <DebugType>portable</DebugType>
     </PropertyGroup>
 
     <ItemGroup>
-        <Reference Include="System.Windows.Forms" />
-        <None Update="appsettings.json">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-            <CopyToPublishDirectory>Always</CopyToPublishDirectory>
-        </None>
+        <Reference Include="System.Windows.Forms"/>
     </ItemGroup>
 
     <ItemGroup>
-        <Resource Include="resources\clock.ico" />
-        <Resource Include="resources\ClockAll.ico" />
-        <Resource Include="Shaders\VerticalMagnifier.ps" />
+        <Resource Include="Assets\clock.ico"/>
+        <Resource Include="Assets\ClockAll.ico"/>
+        <Resource Include="Shaders\VerticalMagnifier.ps"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="Helpers\"/>
+        <Folder Include="Models\"/>
+        <Folder Include="Resources\"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Page Update="Views\Main.xaml">
+            <Generator>MSBuild:Compile</Generator>
+            <XamlRuntime>Wpf</XamlRuntime>
+            <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Views\Edit.xaml">
+            <Generator>MSBuild:Compile</Generator>
+            <XamlRuntime>Wpf</XamlRuntime>
+            <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Views\Rulers.xaml">
+            <Generator>MSBuild:Compile</Generator>
+            <XamlRuntime>Wpf</XamlRuntime>
+            <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Views\Settings.xaml">
+            <Generator>MSBuild:Compile</Generator>
+            <XamlRuntime>Wpf</XamlRuntime>
+            <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Views\Slider.xaml">
+            <Generator>MSBuild:Compile</Generator>
+            <XamlRuntime>Wpf</XamlRuntime>
+            <SubType>Designer</SubType>
+        </Page>
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="appsettings.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 </Project>

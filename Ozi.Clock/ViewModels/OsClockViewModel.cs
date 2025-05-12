@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
 
-namespace Ozi.Utilities
+namespace Ozi.Utilities.ViewModels
 {
     public class OsClockViewModel : INotifyPropertyChanged
     {

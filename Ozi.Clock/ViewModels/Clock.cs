@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
-namespace Ozi.Utilities;
+namespace Ozi.Utilities.ViewModels;
 
 public class Clock
 {
@@ -18,10 +18,7 @@ public class Clock
         set
         {
             _caption = value;
-            if (_lbCapt != null)
-            {
-                _lbCapt.Text = value;
-            }
+            _lbCapt.Text ??= value;
         }
     }
 
@@ -93,12 +90,8 @@ public class Clock
     }
 
     //constructor
-    public Clock(string caption, string timeZoneId, string color, int position, bool IsMain)
+    public Clock(string caption, string timeZoneId, string color, int position, bool isMain)
     {
-        Caption = caption;
-        this.TimeZoneId = timeZoneId;
-        _color = color;
-
         OsGrid = new Grid
         {
             Width = 99,
@@ -113,14 +106,13 @@ public class Clock
             EndPoint = new Point(0.5, 1)
         };
         br.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString("#FF383838"), 0.453));
-        br.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(_color), 0.776));
+        br.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(color), 0.776));
         OsGrid.Background = br;
         OsGrid.VerticalAlignment = VerticalAlignment.Bottom;
 
-        this.TimeZoneId = timeZoneId;
+        TimeZoneId = timeZoneId;
 
         var fntClcCaption = new FontFamily("Calibry");
-
 
         _lbCapt = new TextBlock
         {
@@ -137,8 +129,6 @@ public class Clock
             Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFB9B9B9")),
             // Background = Brushes.White,
         };
-
-
         OsGrid.Children.Add(_lbCapt);
 
         _lbDateMm = new TextBlock
@@ -245,7 +235,10 @@ public class Clock
         };
         OsGrid.Children.Add(_lbDateS);
 
-        this.IsMain = IsMain;
+        IsMain = isMain;
+        Caption = caption;
+        TimeZoneId = timeZoneId;
+        _color = color;
 
         RulerGrid = new Grid
         {

@@ -1,52 +1,51 @@
 ﻿using System;
 using System.Linq;
 using System.Reflection;
-using System.Windows;
-using System.Windows.Interop;
 using System.Runtime.InteropServices;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Threading;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 
-namespace Ozi.Utilities;
+namespace Ozi.Utilities.Views;
 
 // TODO: fix Always on top
 
-public partial class FmMainWindow : Window
+public partial class FmMainWindow
 {
     //Params related to force to topmost
-    private const int HWND_TOPMOST = -1;
-    private const uint SWP_NOSIZE = 0x0001;
-    private const uint SWP_NOMOVE = 0x0002;
-    private const uint SWP_NOACTIVATE = 0x0010;
-    private const int HWND_NOTOPMOST = -2;
+    private const int HwndTopmost = -1;
+    private const uint SwpNosize = 0x0001;
+    private const uint SwpNomove = 0x0002;
+    private const uint SwpNoactivate = 0x0010;
+    private const int HwndNotopmost = -2;
 
     private const int FoldedHeight = 29;
     private const int UnfoldedHeight = 62;
     private bool _isFolded;
-    public readonly FmSlider fmSlider;
-    private readonly FmRulers fmRulers;
+    public readonly Slider Slider;
+    private readonly Rulers _rulers;
     private DateTime _localTime;
     private DispatcherTimer? _timeTimer;
-    private bool isMouseOver = false;
-    private bool isWindowFocused = false;
+    private bool _isMouseOver;
+    private bool _isWindowFocused;
 
     // P/Invoke declaration for SetWindowPos - required for making app always on top
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy,
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy,
         uint uFlags);
-
 
     // Constructor
     public FmMainWindow()
     {
         InitializeComponent();
         // CommonTimeZones.ShowTimeZones();
-        fmSlider = new FmSlider(this);
-        fmRulers = new FmRulers(this);
+        Slider = new Slider(this);
+        _rulers = new Rulers(this);
 
         // Initial opacity from settings
         Opacity = App.Settings.Opacity;
@@ -54,10 +53,10 @@ public partial class FmMainWindow : Window
 
     private void fmMain_LocationChanged(object sender, EventArgs e)
     {
-        fmRulers.Left = Left;
-        fmRulers.Top = Top + Height;
-        fmSlider.Left = Left;
-        fmSlider.Top = Top + Height + fmRulers.Height;
+        _rulers.Left = Left;
+        _rulers.Top = Top + Height;
+        Slider.Left = Left;
+        Slider.Top = Top + Height + _rulers.Height;
     }
 
     private void fmMain_Loaded(object sender, RoutedEventArgs e)
@@ -65,31 +64,31 @@ public partial class FmMainWindow : Window
         init_Timer();
         read_Config();
 
-        App.Clocks.ForEach(clock => gdMain.Children.Add(clock.OsGrid));
+        App.Clocks.ForEach(clock => GdMain.Children.Add(clock.OsGrid));
 
         CreateContextMenu();
-        this.Activated += (s, e) =>
+        Activated += (s, e) =>
         {
-            isWindowFocused = true;
+            _isWindowFocused = true;
             UpdateOpacity();
         };
 
-        this.Deactivated += (s, e) =>
+        Deactivated += (s, e) =>
         {
-            if (!fmRulers.IsVisible)
+            if (!_rulers.IsVisible)
             {
-                isWindowFocused = false;
+                _isWindowFocused = false;
                 UpdateOpacity();
             }
         };
     }
 
-    private MenuItem itemMoveLeft;
-    private MenuItem itemMoveRight;
-    private MenuItem itemMakeMain;
-    private MenuItem itemRemove;
-    private MenuItem itemFold;
-    private MenuItem itemShowRulers;
+    private MenuItem _itemMoveLeft;
+    private MenuItem _itemMoveRight;
+    private MenuItem _itemMakeMain;
+    private MenuItem _itemRemove;
+    private MenuItem _itemFold;
+    private MenuItem _itemShowRulers;
 
     private void CreateContextMenu()
     {
@@ -105,40 +104,40 @@ public partial class FmMainWindow : Window
         itemEdit.Click += ItemEditClick;
         itemClock.Items.Add(itemEdit);
 
-        itemMoveLeft = new MenuItem { Header = "Move Left" };
-        itemMoveLeft.Icon = new TextBlock() { Text = "⬅️" };
-        itemMoveLeft.Click += ItemMoveLeftOnClick;
-        itemClock.Items.Add(itemMoveLeft);
+        _itemMoveLeft = new MenuItem { Header = "Move Left" };
+        _itemMoveLeft.Icon = new TextBlock() { Text = "⬅️" };
+        _itemMoveLeft.Click += ItemMoveLeftOnClick;
+        itemClock.Items.Add(_itemMoveLeft);
 
-        itemMoveRight = new MenuItem { Header = "Move Right" };
-        itemMoveRight.Icon = new TextBlock() { Text = "➡️" };
-        itemMoveRight.Click += ItemMoveRightOnClick;
-        itemClock.Items.Add(itemMoveRight);
+        _itemMoveRight = new MenuItem { Header = "Move Right" };
+        _itemMoveRight.Icon = new TextBlock() { Text = "➡️" };
+        _itemMoveRight.Click += ItemMoveRightOnClick;
+        itemClock.Items.Add(_itemMoveRight);
 
-        itemMakeMain = new MenuItem { Header = "Make as Main" };
-        itemMakeMain.Icon = new TextBlock() { Text = "❗" };
-        itemMakeMain.Click += ItemMakeMainOnClick;
-        itemClock.Items.Add(itemMakeMain);
+        _itemMakeMain = new MenuItem { Header = "Make as Main" };
+        _itemMakeMain.Icon = new TextBlock() { Text = "❗" };
+        _itemMakeMain.Click += ItemMakeMainOnClick;
+        itemClock.Items.Add(_itemMakeMain);
 
-        itemRemove = new MenuItem { Header = "Remove" };
-        itemRemove.Icon = new TextBlock() { Text = "🗑️" };
-        itemRemove.Click += MenuItemRemove_Click;
-        itemClock.Items.Add(itemRemove);
+        _itemRemove = new MenuItem { Header = "Remove" };
+        _itemRemove.Icon = new TextBlock() { Text = "🗑️" };
+        _itemRemove.Click += MenuItemRemove_Click;
+        itemClock.Items.Add(_itemRemove);
 
         var itemAbout = new MenuItem { Header = "About" };
         itemAbout.Icon = new TextBlock() { Text = "❓️" };
         itemAbout.Click += MenuItemAbout_Click;
         mainMenu.Items.Add(itemAbout);
 
-        itemFold = new MenuItem { Header = "Fold" };
-        itemFold.Icon = new TextBlock() { Text = "📂" };
-        itemFold.Click += MenuItemFold_Click;
-        mainMenu.Items.Add(itemFold);
+        _itemFold = new MenuItem { Header = "Fold" };
+        _itemFold.Icon = new TextBlock() { Text = "📂" };
+        _itemFold.Click += MenuItemFold_Click;
+        mainMenu.Items.Add(_itemFold);
 
-        itemShowRulers = new MenuItem { Header = "Show rulers" };
-        itemShowRulers.Icon = new TextBlock() { Text = "📏" };
-        itemShowRulers.Click += MenuItemShowRulers_Click;
-        mainMenu.Items.Add(itemShowRulers);
+        _itemShowRulers = new MenuItem { Header = "Show rulers" };
+        _itemShowRulers.Icon = new TextBlock() { Text = "📏" };
+        _itemShowRulers.Click += MenuItemShowRulers_Click;
+        mainMenu.Items.Add(_itemShowRulers);
 
         var itemSettings = new MenuItem { Header = "Settings" };
         itemSettings.Icon = new TextBlock() { Text = "⚙️" };
@@ -158,13 +157,13 @@ public partial class FmMainWindow : Window
     private void ItemEditClick(object sender, RoutedEventArgs e)
     {
         // Remove topmost
-        IntPtr windowHandle = new WindowInteropHelper(this).Handle;
+        var windowHandle = new WindowInteropHelper(this).Handle;
         SetWindowPos(windowHandle,
-            (IntPtr)HWND_NOTOPMOST,
+            (IntPtr)HwndNotopmost,
             0, 0, 0, 0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            SwpNomove | SwpNosize | SwpNoactivate);
 
-        int index = gdMain.Children.IndexOf(_lastRightClickedClock);
+        var index = GdMain.Children.IndexOf(_lastRightClickedClock);
         if (_lastRightClickedClock != null)
         {
             var fmEdit = new FmEdit(App.Clocks[index])
@@ -182,7 +181,7 @@ public partial class FmMainWindow : Window
 
     private void ItemMakeMainOnClick(object sender, RoutedEventArgs e)
     {
-        int index = gdMain.Children.IndexOf(_lastRightClickedClock);
+        var index = GdMain.Children.IndexOf(_lastRightClickedClock);
         if (_lastRightClickedClock != null)
         {
             App.Clocks[App.Settings.MainClockIndex].IsMain = false;
@@ -191,15 +190,15 @@ public partial class FmMainWindow : Window
             App.Settings.MainTimeZone = App.Clocks[index].TimeZoneId;
         }
 
-        fmRulers.UpdateRulers();
+        _rulers.UpdateRulers();
     }
 
     private void MenuItemShowRulers_Click(object sender, RoutedEventArgs e)
     {
-        if (fmSlider.Visibility == Visibility.Visible)
+        if (Slider.Visibility == Visibility.Visible)
         {
-            fmSlider.Hide();
-            fmRulers.Hide();
+            Slider.Hide();
+            _rulers.Hide();
             _timeTimer!.Interval = TimeSpan.FromSeconds(1);
         }
         else
@@ -209,10 +208,10 @@ public partial class FmMainWindow : Window
             if (curTime.Minute >= 30)
                 curTime = curTime.AddHours(1);
             curTime = new DateTime(curTime.Year, curTime.Month, curTime.Day, curTime.Hour, 0, 0);
-            fmSlider.CurTime = curTime;
-            fmSlider.slTimeChecker.Value = curTime.Hour * 12; // + (int)(curTime.Minute / 5);
-            fmRulers.Show();
-            fmSlider.Show();
+            Slider.CurTime = curTime;
+            Slider.SlTimeChecker.Value = curTime.Hour * 12; // + (int)(curTime.Minute / 5);
+            _rulers.Show();
+            Slider.Show();
             _timeTimer!.Interval = TimeSpan.FromMilliseconds(20); // Time reaction to the slider change
         }
 
@@ -245,36 +244,36 @@ public partial class FmMainWindow : Window
 
     private void ContextMenu_Opened(object sender, RoutedEventArgs e)
     {
-        Point pos = Mouse.GetPosition(gdMain); // relative to the grid
-        HitTestResult result = VisualTreeHelper.HitTest(gdMain, pos);
+        var pos = Mouse.GetPosition(GdMain); // relative to the grid
+        var result = VisualTreeHelper.HitTest(GdMain, pos);
 
 
         if (result != null)
         {
             // Traverse up the tree to find the OsClock/Grid you added
-            DependencyObject current = result.VisualHit;
-            while (current != null && !(current is Grid && gdMain.Children.Contains((UIElement)current)))
+            var current = result.VisualHit;
+            while (current != null && !(current is Grid && GdMain.Children.Contains((UIElement)current)))
             {
                 current = VisualTreeHelper.GetParent(current);
             }
 
             _lastRightClickedClock = current as UIElement;
-            int index = gdMain.Children.IndexOf(_lastRightClickedClock);
+            var index = GdMain.Children.IndexOf(_lastRightClickedClock);
 
             if (App.Clocks[index].IsMain)
             {
-                itemMakeMain.Visibility = Visibility.Collapsed;
+                _itemMakeMain.Visibility = Visibility.Collapsed;
             }
             else
             {
-                itemMakeMain.Visibility = Visibility.Visible;
+                _itemMakeMain.Visibility = Visibility.Visible;
             }
 
-            itemMoveLeft.IsEnabled = (index == 0) ? false : true;
-            itemMoveRight.IsEnabled = (index == App.Clocks.Count - 1) ? false : true;
-            itemRemove.IsEnabled = (App.Clocks.Count == 1) ? false : true;
-            itemFold.Header = _isFolded ? "Unfold" : "Fold";
-            itemShowRulers.Header = fmRulers.IsVisible ? "Hide Rulers" : "Show Rulers";
+            _itemMoveLeft.IsEnabled = (index == 0) ? false : true;
+            _itemMoveRight.IsEnabled = (index == App.Clocks.Count - 1) ? false : true;
+            _itemRemove.IsEnabled = (App.Clocks.Count == 1) ? false : true;
+            _itemFold.Header = _isFolded ? "Unfold" : "Fold";
+            _itemShowRulers.Header = _rulers.IsVisible ? "Hide Rulers" : "Show Rulers";
         }
     }
 
@@ -316,16 +315,16 @@ public partial class FmMainWindow : Window
 
             if (clockToRemove != null)
             {
-                if (fmRulers.IsLoaded)
+                if (_rulers.IsLoaded)
                 {
-                    fmRulers.glRulers.Children.Remove(clockToRemove.RulerGrid);
-                    fmRulers.InitializeRulers();
+                    _rulers.GlRulers.Children.Remove(clockToRemove.RulerGrid);
+                    _rulers.InitializeRulers();
                 }
 
                 App.Clocks.Remove(clockToRemove);
-                gdMain.Children.Remove(clockToRemove.OsGrid);
+                GdMain.Children.Remove(clockToRemove.OsGrid);
 
-                fmSlider.Size -= 1;
+                Slider.Size -= 1;
             }
 
             _lastRightClickedClock = null;
@@ -352,16 +351,16 @@ public partial class FmMainWindow : Window
     private void TtTick(object sender, EventArgs e)
     {
         var utcNow = DateTime.UtcNow;
-        if (fmSlider.Visibility == Visibility.Visible)
+        if (Slider.Visibility == Visibility.Visible)
         {
             var localOffset = TimeZoneInfo.Local.GetUtcOffset(utcNow);
             var targetOffset = TimeZoneInfo.FindSystemTimeZoneById(App.Settings.MainTimeZone).GetUtcOffset(utcNow);
 
-            _localTime = fmSlider.CurTime.Date + (localOffset - targetOffset);
+            _localTime = Slider.CurTime.Date + (localOffset - targetOffset);
 
-            _localTime = _localTime.AddMinutes((int)fmSlider.slTimeChecker.Value * 5);
-            fmRulers.rwTop.Height = new GridLength(fmRulers.rwTop.MaxHeight *
-                fmSlider.slTimeChecker.Value / fmSlider.slTimeChecker.Maximum);
+            _localTime = _localTime.AddMinutes((int)Slider.SlTimeChecker.Value * 5);
+            _rulers.RwTop.Height = new GridLength(_rulers.RwTop.MaxHeight *
+                Slider.SlTimeChecker.Value / Slider.SlTimeChecker.Maximum);
         }
         else
         {
@@ -377,17 +376,16 @@ public partial class FmMainWindow : Window
     private void MenuItemSettings_Click(object sender, RoutedEventArgs e)
     {
         // Remove topmost
-        IntPtr windowHandle = new WindowInteropHelper(this).Handle;
+        var windowHandle = new WindowInteropHelper(this).Handle;
         SetWindowPos(windowHandle,
-            (IntPtr)HWND_NOTOPMOST,
+            (IntPtr)HwndNotopmost,
             0, 0, 0, 0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            SwpNomove | SwpNosize | SwpNoactivate);
 
-        var fmFmSettings = new FmSettings(this)
+        var fmFmSettings = new Settings(this)
         {
-            WindowStartupLocation = WindowStartupLocation.CenterOwner
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
-        fmFmSettings.Owner = this;
         fmFmSettings.ShowDialog();
 
         // Restore topmost
@@ -396,10 +394,10 @@ public partial class FmMainWindow : Window
 
     private void AdjustTimeCheckerPosition()
     {
-        fmRulers.Left = Left;
-        fmRulers.Top = Top + Height;
-        fmSlider.Left = Left;
-        fmSlider.Top = Top + Height + fmRulers.Height;
+        _rulers.Left = Left;
+        _rulers.Top = Top + Height;
+        Slider.Left = Left;
+        Slider.Top = Top + Height + _rulers.Height;
     }
 
     private void MenuItemExit_Click(object sender, RoutedEventArgs e)
@@ -444,7 +442,7 @@ public partial class FmMainWindow : Window
 
     private void UpdateOpacity()
     {
-        if (isMouseOver || isWindowFocused)
+        if (_isMouseOver || _isWindowFocused)
             AnimateOpacity(1.0); // Fully visible
         else
             AnimateOpacity(App.Settings.Opacity); // Use custom opacity
@@ -452,13 +450,13 @@ public partial class FmMainWindow : Window
 
     private void fmMain_MouseEnter(object sender, MouseEventArgs e)
     {
-        isMouseOver = true;
+        _isMouseOver = true;
         AnimateOpacity(1.0); // Fully visible
     }
 
     private void fmMain_MouseLeave(object sender, MouseEventArgs e)
     {
-        isMouseOver = false;
+        _isMouseOver = false;
         UpdateOpacity();
     }
 
@@ -471,7 +469,7 @@ public partial class FmMainWindow : Window
             EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
         };
 
-        BeginAnimation(Window.OpacityProperty, animation);
+        BeginAnimation(OpacityProperty, animation);
     }
 
     private void FoldMainWindow()
@@ -504,24 +502,24 @@ public partial class FmMainWindow : Window
         animClock.CurrentTimeInvalidated += (s, e) =>
         {
             // Each tick of the animation, update attached windows
-            fmRulers.Left = Left;
-            fmRulers.Top = Top + Height;
+            _rulers.Left = Left;
+            _rulers.Top = Top + Height;
 
-            fmSlider.Left = Left;
-            fmSlider.Top = Top + Height + fmRulers.Height;
+            Slider.Left = Left;
+            Slider.Top = Top + Height + _rulers.Height;
         };
     }
 
     private void ForceToTopmost()
     {
         // Get the window handle
-        IntPtr windowHandle = new WindowInteropHelper(this).Handle;
+        var windowHandle = new WindowInteropHelper(this).Handle;
 
         // Set window to topmost position without activating it
         SetWindowPos(windowHandle,
-            (IntPtr)HWND_TOPMOST,
+            (IntPtr)HwndTopmost,
             0, 0, 0, 0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            SwpNomove | SwpNosize | SwpNoactivate);
     }
 
     private void FmMainWindow_OnLostFocus(object sender, RoutedEventArgs e)

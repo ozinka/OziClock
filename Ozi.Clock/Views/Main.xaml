@@ -2,7 +2,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     x:Name="FmMain"
-    x:Class="Ozi.Utilities.FmMainWindow"
+    x:Class="Ozi.Utilities.Views.FmMainWindow"
     Title="Ozi Clocks"
     Height="60" Width="708"
     Background="Black"
@@ -22,22 +22,21 @@
     MouseLeave="fmMain_MouseLeave"
     LostFocus="FmMainWindow_OnLostFocus"
     LocationChanged="fmMain_LocationChanged"
-    Icon="resources\clock.ico"
+    Icon="/Assets/clock.ico"
     SizeToContent="Width"
     UseLayoutRounding="True"
     SnapsToDevicePixels="True">
-    <WrapPanel x:Name="gdMain"
+    <WrapPanel x:Name="GdMain"
                Orientation="Horizontal"
                Margin="1, 1,0,1"
-               MouseDown="fmMain_MouseDown"
-    />
+               MouseDown="fmMain_MouseDown" />
 </Window>
 
 
-    <!-- Add the storyboard inside Window.Resources -->
-    <!-- <Window.Resources> -->
-    <!--     <Storyboard x:Key="FoldStoryboard"> -->
-    <!--         <DoubleAnimation Storyboard.TargetProperty="Height" To="29" Duration="0:0:0.2" /> -->
-    <!--     </Storyboard> -->
-    <!-- </Window.Resources> -->
-    <!-- https://chatgpt.com/share/681239f4-b454-8003-b7ee-f4fb0cfbe219 -->
+<!-- Add the storyboard inside Window.Resources -->
+<!-- <Window.Resources> -->
+<!--     <Storyboard x:Key="FoldStoryboard"> -->
+<!--         <DoubleAnimation Storyboard.TargetProperty="Height" To="29" Duration="0:0:0.2" /> -->
+<!--     </Storyboard> -->
+<!-- </Window.Resources> -->
+<!-- https://chatgpt.com/share/681239f4-b454-8003-b7ee-f4fb0cfbe219 -->

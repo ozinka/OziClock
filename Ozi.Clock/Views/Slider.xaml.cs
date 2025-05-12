@@ -5,9 +5,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
-namespace Ozi.Utilities;
+namespace Ozi.Utilities.Views;
 
-public partial class FmSlider : Window
+public partial class Slider
 {
     public DateTime CurTime;
     private int _size = 1;
@@ -19,7 +19,7 @@ public partial class FmSlider : Window
     }
 
     // Constructor
-    public FmSlider(FmMainWindow fmMain)
+    public Slider(FmMainWindow fmMain)
     {
         InitializeComponent();
         Left = fmMain.Left;
@@ -41,37 +41,37 @@ public partial class FmSlider : Window
             _size = Math.Max(1, value);
             Console.WriteLine(_size);
             // Clear Labels
-            foreach (var label in gdMain.Children.OfType<Label>().ToList())
+            foreach (var label in GdMain.Children.OfType<Label>().ToList())
             {
-                gdMain.Children.Remove(label);
+                GdMain.Children.Remove(label);
             }
 
             Width = _size * 100 + 1;
             double currentLeft = 5; // Start position
             double marginTop = 39;
-            List<string> lst = new List<string>();
+            var lst = new List<string>();
 
             // Define the list of labels based on the count
             switch (_size)
             {
                 case 1:
-                    slTimeChecker.TickFrequency = 144;
+                    SlTimeChecker.TickFrequency = 144;
                     lst = new List<string> { "0", "12", "24" };
                     break;
                 case 2:
-                    slTimeChecker.TickFrequency = 72;
+                    SlTimeChecker.TickFrequency = 72;
                     lst = new List<string> { "0", "6", "12", "18", "24" };
                     break;
                 case 3:
-                    slTimeChecker.TickFrequency = 36;
+                    SlTimeChecker.TickFrequency = 36;
                     lst = new List<string> { "0", "3", "6", "9", "12", "15", "18", "21", "24" };
                     break;
                 case 4:
-                    slTimeChecker.TickFrequency = 24;
+                    SlTimeChecker.TickFrequency = 24;
                     lst = new List<string> { "0", "2", "4", "6", "8", "10", "12", "14", "16", "18", "20", "22", "24" };
                     break;
                 default:
-                    slTimeChecker.TickFrequency = 24;
+                    SlTimeChecker.TickFrequency = 24;
                     lst = new List<string> { "0", "2", "4", "6", "8", "10", "12", "14", "16", "18", "20", "22", "24" };
                     break;
             }
@@ -79,13 +79,13 @@ public partial class FmSlider : Window
             // Get the DPI scale (125% or 1.25 scaling factor)
             var dpiScale = PresentationSource.FromVisual(this).CompositionTarget.TransformToDevice.M11;
 
-            double delta = (this.Width - 27) / (lst.Count - 1); // Adjust delta to fit the available space
+            var delta = (Width - 27) / (lst.Count - 1); // Adjust delta to fit the available space
 
             // Calculate the expected width of the labels based on the font size (considering DPI scale)
             double expectedLabelWidth = 0;
 
             // Assuming we use the same font for all labels, you can calculate based on the font size
-            foreach (string label in lst)
+            foreach (var label in lst)
             {
                 if (label.Length == 1)
                 {
@@ -96,7 +96,7 @@ public partial class FmSlider : Window
                     expectedLabelWidth = 16 * dpiScale; // Double digit width
                 }
 
-                Label lbl = new Label
+                var lbl = new Label
                 {
                     Content = label,
                     HorizontalAlignment = HorizontalAlignment.Left,
@@ -108,7 +108,7 @@ public partial class FmSlider : Window
                 lbl.Margin = new Thickness(currentLeft - (expectedLabelWidth / 3), marginTop, 0, 0);
 
                 // Add the label to the UI
-                gdMain.Children.Add(lbl);
+                GdMain.Children.Add(lbl);
 
                 // Move to the next tick position
                 currentLeft += delta;

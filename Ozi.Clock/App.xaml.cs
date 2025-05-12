@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
+using Ozi.Utilities.Settings;
+using Ozi.Utilities.ViewModels;
 
 namespace Ozi.Utilities;
 
@@ -10,6 +12,19 @@ public partial class App
 {
     public static AppSettings Settings { get; } = LoadSettings();
     public static List<Clock> Clocks { get; } = [];
+
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+        Resources["AppSettings"] = Settings;
+        LoadClocks();
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        base.OnExit(e);
+        Settings.Save();
+    }
 
     private static void LoadClocks()
     {
@@ -27,19 +42,6 @@ public partial class App
                 Settings.MainTimeZone = timeZoneInfo.Value.TimeZone;
             }
         }
-    }
-
-    protected override void OnStartup(StartupEventArgs e)
-    {
-        base.OnStartup(e);
-        Resources["AppSettings"] = Settings;
-        LoadClocks();
-    }
-
-    protected override void OnExit(ExitEventArgs e)
-    {
-        base.OnExit(e);
-        Settings.Save();
     }
 
     private static AppSettings LoadSettings()

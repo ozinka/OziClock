@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel; // Required for INotifyPropertyChanged
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
+// Required for INotifyPropertyChanged
 
-namespace Ozi.Utilities
+namespace Ozi.Utilities.Settings
 {
     public class AppSettings
     {

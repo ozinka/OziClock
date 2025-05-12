@@ -1,11 +1,11 @@
 ﻿using System.Windows;
 using System.Windows.Input;
 
-namespace Ozi.Utilities;
+namespace Ozi.Utilities.Views;
 
-public partial class FmSettings : Window
+public partial class Settings
 {
-    public FmSettings(FmMainWindow fmMain)
+    public Settings(FmMainWindow fmMain)
     {
         InitializeComponent();
     }
@@ -25,6 +25,6 @@ public partial class FmSettings : Window
 
     private void SlTransparent_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        lbOpacity.Content = $"Opacity: {(int)(slTransparent.Value * 100)}%";
+        LbOpacity.Content = $"Opacity: {(int)(SlTransparent.Value * 100)}%";
     }
 }
