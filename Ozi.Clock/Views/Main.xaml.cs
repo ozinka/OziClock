@@ -166,7 +166,7 @@ public partial class FmMainWindow
         var index = GdMain.Children.IndexOf(_lastRightClickedClock);
         if (_lastRightClickedClock != null)
         {
-            var fmEdit = new FmEdit(App.Clocks[index])
+            var fmEdit = new Edit(App.Clocks[index])
             {
                 Owner = this,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner

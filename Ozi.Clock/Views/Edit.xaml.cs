@@ -7,12 +7,12 @@ using Ozi.Utilities.ViewModels;
 
 namespace Ozi.Utilities.Views;
 
-public partial class FmEdit
+public partial class Edit
 {
     private readonly Clock _clock;
     private readonly OsClockViewModel _viewModel;
 
-    public FmEdit(Clock clock)
+    public Edit(Clock clock)
     {
         InitializeComponent();
 
