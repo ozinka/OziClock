@@ -2,10 +2,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using Ozi.Utilities.Common;
+using Ozi.Utilities.Helpers;
 using Ozi.Utilities.ViewModels;
-
-// For Key and KeyEventArgs
 
 namespace Ozi.Utilities.Views;
 
@@ -22,9 +20,8 @@ public partial class FmEdit
         _viewModel = new OsClockViewModel(clock);
         DataContext = _viewModel;
 
-        CbTimeZones.ItemsSource = CommonTimeZones.TimeZones2;
+        CbTimeZones.ItemsSource = TimeZonesHelper.SystemTimeZones;
     }
-
 
     private void Submit(object sender, RoutedEventArgs e)
     {
@@ -32,7 +29,6 @@ public partial class FmEdit
         DialogResult = true;
         Close();
     }
-
 
     private void Window_MouseDown(object sender, MouseButtonEventArgs e)
     {

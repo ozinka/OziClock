@@ -42,7 +42,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Folder Include="Helpers\"/>
+        <Folder Include="Common\" />
         <Folder Include="Models\"/>
         <Folder Include="Resources\"/>
     </ItemGroup>
