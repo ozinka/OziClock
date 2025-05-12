@@ -42,14 +42,14 @@ namespace Ozi.Utilities
             return true;
         }
 
-        public OsClockViewModel(OsClock clock)
+        public OsClockViewModel(Clock clock)
         {
             ClockName = clock.Caption;
             SelectedTimeZoneId = clock.TimeZoneId;
             ClockColor = (Color)ColorConverter.ConvertFromString(clock.Color); // conversion here
         }
 
-        public void UpdateModel(OsClock clock)
+        public void UpdateModel(Clock clock)
         {
             clock.Caption = ClockName;
             clock.TimeZoneId = SelectedTimeZoneId;

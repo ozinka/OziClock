@@ -5,7 +5,7 @@ using System.Windows.Media;
 
 namespace Ozi.Utilities;
 
-public class OsClock
+public class Clock
 {
     private string _caption;
     private string _color;
@@ -93,7 +93,7 @@ public class OsClock
     }
 
     //constructor
-    public OsClock(string caption, string timeZoneId, string color, int position, bool IsMain)
+    public Clock(string caption, string timeZoneId, string color, int position, bool IsMain)
     {
         Caption = caption;
         this.TimeZoneId = timeZoneId;

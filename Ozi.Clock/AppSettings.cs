@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel; // Required for INotifyPropertyChanged
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 
@@ -70,12 +71,12 @@ namespace Ozi.Utilities
         public int MainClockIndex = 0;
         public string MainTimeZone = "";
 
-        private Dictionary<string, ClockTimeZoneInfo> _timeZones = new();
+        private Dictionary<string, ClockSettings> _clocksSettings = new();
 
-        public Dictionary<string, ClockTimeZoneInfo> TimeZones
+        public Dictionary<string, ClockSettings> ClocksSettings
         {
-            get => _timeZones;
-            set => SetField(ref _timeZones, value);
+            get => _clocksSettings;
+            set => SetField(ref _clocksSettings, value);
         }
 
         public void Save()
@@ -85,6 +86,19 @@ namespace Ozi.Utilities
                 WriteIndented = true,
                 // ReferenceHandler = ReferenceHandler.Preserve - ? 
             };
+
+            var actualSettings = App
+                .Clocks
+                .Select(clock => new ClockSettings
+                {
+                    Label = clock.Caption,
+                    TimeZone = clock.TimeZoneId,
+                    Color = clock.Color,
+                    IsMain = clock.IsMain
+                })
+                .ToDictionary(x => x.Label, x => x);
+
+            _clocksSettings = actualSettings;
             var fileData = JsonSerializer.Serialize(this, options);
 
             var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");

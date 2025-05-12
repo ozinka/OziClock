@@ -10,10 +10,10 @@ namespace Ozi.Utilities;
 
 public partial class FmEdit : Window
 {
-    private readonly OsClock _clock;
+    private readonly Clock _clock;
     private readonly OsClockViewModel _viewModel;
 
-    public FmEdit(OsClock clock)
+    public FmEdit(Clock clock)
     {
         InitializeComponent();
 

@@ -74,7 +74,7 @@ public partial class FmMainWindow : Window
         init_Timer();
         read_Config();
 
-        App.LstClock.ForEach(clock => gdMain.Children.Add(clock.OsGrid));
+        App.Clocks.ForEach(clock => gdMain.Children.Add(clock.OsGrid));
 
         App.Settings.PropertyChanged += (sender, e) =>
         {
@@ -183,7 +183,7 @@ public partial class FmMainWindow : Window
         int index = gdMain.Children.IndexOf(_lastRightClickedClock);
         if (_lastRightClickedClock != null)
         {
-            var fmEdit = new FmEdit(App.LstClock[index])
+            var fmEdit = new FmEdit(App.Clocks[index])
             {
                 Owner = this,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner
@@ -201,10 +201,10 @@ public partial class FmMainWindow : Window
         int index = gdMain.Children.IndexOf(_lastRightClickedClock);
         if (_lastRightClickedClock != null)
         {
-            App.LstClock[App.Settings.MainClockIndex].IsMain = false;
+            App.Clocks[App.Settings.MainClockIndex].IsMain = false;
             App.Settings.MainClockIndex = index;
-            App.LstClock[index].IsMain = true;
-            App.Settings.MainTimeZone = App.LstClock[index].TimeZoneId;
+            App.Clocks[index].IsMain = true;
+            App.Settings.MainTimeZone = App.Clocks[index].TimeZoneId;
         }
 
         fmRulers.UpdateRulers();
@@ -277,7 +277,7 @@ public partial class FmMainWindow : Window
             _lastRightClickedClock = current as UIElement;
             int index = gdMain.Children.IndexOf(_lastRightClickedClock);
 
-            if (App.LstClock[index].IsMain)
+            if (App.Clocks[index].IsMain)
             {
                 itemMakeMain.Visibility = Visibility.Collapsed;
             }
@@ -287,8 +287,8 @@ public partial class FmMainWindow : Window
             }
 
             itemMoveLeft.IsEnabled = (index == 0) ? false : true;
-            itemMoveRight.IsEnabled = (index == App.LstClock.Count - 1) ? false : true;
-            itemRemove.IsEnabled = (App.LstClock.Count == 1) ? false : true;
+            itemMoveRight.IsEnabled = (index == App.Clocks.Count - 1) ? false : true;
+            itemRemove.IsEnabled = (App.Clocks.Count == 1) ? false : true;
             itemFold.Header = _isFolded ? "Unfold" : "Fold";
             itemShowRulers.Header = fmRulers.IsVisible ? "Hide Rulers" : "Show Rulers";
         }
@@ -310,14 +310,14 @@ public partial class FmMainWindow : Window
         if (_lastRightClickedClock != null)
         {
             // Prevent removing the last clock
-            if (App.LstClock.Count <= 1)
+            if (App.Clocks.Count <= 1)
             {
                 MessageBox.Show("Cannot remove the last clock.", "Warning", MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 return;
             }
 
-            var clockToRemove = App.LstClock
+            var clockToRemove = App.Clocks
                 .FirstOrDefault(c => c.OsGrid == _lastRightClickedClock);
             if (clockToRemove.IsMain)
             {
@@ -338,7 +338,7 @@ public partial class FmMainWindow : Window
                     fmRulers.InitializeRulers();
                 }
 
-                App.LstClock.Remove(clockToRemove);
+                App.Clocks.Remove(clockToRemove);
                 gdMain.Children.Remove(clockToRemove.OsGrid);
 
                 fmSlider.Size -= 1;
@@ -384,7 +384,7 @@ public partial class FmMainWindow : Window
             _localTime = utcNow;
         }
 
-        foreach (var item in App.LstClock!)
+        foreach (var item in App.Clocks!)
             item.SetTime(_localTime);
 
         ForceToTopmost();
