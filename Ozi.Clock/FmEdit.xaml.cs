@@ -4,9 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Ozi.Utilities.Common;
-using System.Windows.Forms;
-using System.Windows.Input; // For Key and KeyEventArgs
-using System.Windows;
+// For Key and KeyEventArgs
 
 namespace Ozi.Utilities;
 

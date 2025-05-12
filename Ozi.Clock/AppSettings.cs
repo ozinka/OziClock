@@ -4,7 +4,6 @@ using System.ComponentModel; // Required for INotifyPropertyChanged
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace Ozi.Utilities
 {
@@ -12,9 +11,8 @@ namespace Ozi.Utilities
     {
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        public List<OsClock>? LstClock = [];
-
         private double _mainWndLeft;
+
         public double MainWndLeft
         {
             get => _mainWndLeft;
@@ -22,6 +20,7 @@ namespace Ozi.Utilities
         }
 
         private double _mainWndTop;
+
         public double MainWndTop
         {
             get => _mainWndTop;
@@ -29,6 +28,7 @@ namespace Ozi.Utilities
         }
 
         private bool _isTransparent;
+
         public bool IsTransparent
         {
             get => _isTransparent;
@@ -36,6 +36,7 @@ namespace Ozi.Utilities
         }
 
         private double _opacity;
+
         public double Opacity
         {
             get => _opacity;
@@ -43,6 +44,7 @@ namespace Ozi.Utilities
         }
 
         private bool _topMost;
+
         public bool TopMost
         {
             get => _topMost;
@@ -50,6 +52,7 @@ namespace Ozi.Utilities
         }
 
         private bool _showInTaskBar;
+
         public bool ShowInTaskBar
         {
             get => _showInTaskBar;
@@ -57,6 +60,7 @@ namespace Ozi.Utilities
         }
 
         private bool _useSnap;
+
         public bool UseSnap
         {
             get => _useSnap;
@@ -67,6 +71,7 @@ namespace Ozi.Utilities
         public string MainTimeZone = "";
 
         private Dictionary<string, ClockTimeZoneInfo> _timeZones = new();
+
         public Dictionary<string, ClockTimeZoneInfo> TimeZones
         {
             get => _timeZones;

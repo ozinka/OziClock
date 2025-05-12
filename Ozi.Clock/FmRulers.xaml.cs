@@ -300,7 +300,7 @@ public partial class FmRulers : Window
         // Update the rulers
         if (_isInitialized)
         {
-            foreach (var clock in App.Settings.LstClock)
+            foreach (var clock in App.LstClock)
             {
                 CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.TimeZoneId);
             }
@@ -315,7 +315,7 @@ public partial class FmRulers : Window
 
         if (!_isInitialized)
         {
-            foreach (var clock in App.Settings.LstClock)
+            foreach (var clock in App.LstClock)
             {
                 glRulers.Children.Add(clock.RulerGrid);
                 CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.TimeZoneId);

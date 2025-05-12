@@ -1,16 +1,12 @@
 ﻿using System;
-using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
-using System.Reflection.Metadata;
 using System.Windows;
 using System.Windows.Interop;
 using System.Runtime.InteropServices;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Windows.Media.Animation;
 
@@ -78,22 +74,7 @@ public partial class FmMainWindow : Window
         init_Timer();
         read_Config();
 
-        foreach (var timeZoneInfo in App.Settings.TimeZones)
-        {
-            var clock = new OsClock(timeZoneInfo.Value.Label ?? timeZoneInfo.Key,
-                timeZoneInfo.Value.TimeZone,
-                timeZoneInfo.Value.Color,
-                App.Settings.LstClock.Count,
-                timeZoneInfo.Value.IsMain ?? false);
-            App.Settings.LstClock.Add(clock);
-
-            gdMain.Children.Add(clock.OsGrid);
-            if (timeZoneInfo.Value.IsMain ?? false)
-            {
-                App.Settings.MainClockIndex = gdMain.Children.Count - 1;
-                App.Settings.MainTimeZone = timeZoneInfo.Value.TimeZone;
-            }
-        }
+        App.LstClock.ForEach(clock => gdMain.Children.Add(clock.OsGrid));
 
         App.Settings.PropertyChanged += (sender, e) =>
         {
@@ -132,58 +113,58 @@ public partial class FmMainWindow : Window
         mainMenu.Opened += ContextMenu_Opened;
 
         var itemClock = new MenuItem { Header = "Clock" };
-        itemClock.Icon = new TextBlock() { Text = "🕒"};
+        itemClock.Icon = new TextBlock() { Text = "🕒" };
         mainMenu.Items.Add(itemClock);
 
         var itemEdit = new MenuItem { Header = "Edit" };
-        itemEdit.Icon = new TextBlock() { Text = "📝"};
+        itemEdit.Icon = new TextBlock() { Text = "📝" };
         itemEdit.Click += ItemEditClick;
         itemClock.Items.Add(itemEdit);
 
         itemMoveLeft = new MenuItem { Header = "Move Left" };
-        itemMoveLeft.Icon = new TextBlock() { Text = "⬅️"};
+        itemMoveLeft.Icon = new TextBlock() { Text = "⬅️" };
         itemMoveLeft.Click += ItemMoveLeftOnClick;
         itemClock.Items.Add(itemMoveLeft);
 
         itemMoveRight = new MenuItem { Header = "Move Right" };
-        itemMoveRight.Icon = new TextBlock() { Text = "➡️"};
+        itemMoveRight.Icon = new TextBlock() { Text = "➡️" };
         itemMoveRight.Click += ItemMoveRightOnClick;
         itemClock.Items.Add(itemMoveRight);
 
         itemMakeMain = new MenuItem { Header = "Make as Main" };
-        itemMakeMain.Icon = new TextBlock() { Text = "❗"};
+        itemMakeMain.Icon = new TextBlock() { Text = "❗" };
         itemMakeMain.Click += ItemMakeMainOnClick;
         itemClock.Items.Add(itemMakeMain);
 
         itemRemove = new MenuItem { Header = "Remove" };
-        itemRemove.Icon = new TextBlock() { Text = "🗑️"};
+        itemRemove.Icon = new TextBlock() { Text = "🗑️" };
         itemRemove.Click += MenuItemRemove_Click;
         itemClock.Items.Add(itemRemove);
 
         var itemAbout = new MenuItem { Header = "About" };
-        itemAbout.Icon = new TextBlock() { Text = "❓️"};
+        itemAbout.Icon = new TextBlock() { Text = "❓️" };
         itemAbout.Click += MenuItemAbout_Click;
         mainMenu.Items.Add(itemAbout);
 
         itemFold = new MenuItem { Header = "Fold" };
-        itemFold.Icon = new TextBlock() { Text = "📂"};
+        itemFold.Icon = new TextBlock() { Text = "📂" };
         itemFold.Click += MenuItemFold_Click;
         mainMenu.Items.Add(itemFold);
 
         itemShowRulers = new MenuItem { Header = "Show rulers" };
-        itemShowRulers.Icon = new TextBlock() { Text = "📏"};
+        itemShowRulers.Icon = new TextBlock() { Text = "📏" };
         itemShowRulers.Click += MenuItemShowRulers_Click;
         mainMenu.Items.Add(itemShowRulers);
 
         var itemSettings = new MenuItem { Header = "Settings" };
-        itemSettings.Icon = new TextBlock() { Text = "⚙️"};
+        itemSettings.Icon = new TextBlock() { Text = "⚙️" };
         itemSettings.Click += MenuItemSettings_Click;
         mainMenu.Items.Add(itemSettings);
 
         mainMenu.Items.Add(new Separator());
 
         var itemExit = new MenuItem { Header = "Exit" };
-        itemExit.Icon = new TextBlock() { Text = "❌"};
+        itemExit.Icon = new TextBlock() { Text = "❌" };
         itemExit.Click += MenuItemExit_Click;
         mainMenu.Items.Add(itemExit);
 
@@ -202,7 +183,7 @@ public partial class FmMainWindow : Window
         int index = gdMain.Children.IndexOf(_lastRightClickedClock);
         if (_lastRightClickedClock != null)
         {
-            var fmEdit = new FmEdit(App.Settings.LstClock[index])
+            var fmEdit = new FmEdit(App.LstClock[index])
             {
                 Owner = this,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner
@@ -210,9 +191,9 @@ public partial class FmMainWindow : Window
             fmEdit.Owner = this;
             fmEdit.ShowDialog();
         }
- 
+
         // Restore topmost
-       ForceToTopmost();
+        ForceToTopmost();
     }
 
     private void ItemMakeMainOnClick(object sender, RoutedEventArgs e)
@@ -220,10 +201,10 @@ public partial class FmMainWindow : Window
         int index = gdMain.Children.IndexOf(_lastRightClickedClock);
         if (_lastRightClickedClock != null)
         {
-            App.Settings.LstClock[App.Settings.MainClockIndex].IsMain = false;
+            App.LstClock[App.Settings.MainClockIndex].IsMain = false;
             App.Settings.MainClockIndex = index;
-            App.Settings.LstClock[index].IsMain = true;
-            App.Settings.MainTimeZone = App.Settings.LstClock[index].TimeZoneId;
+            App.LstClock[index].IsMain = true;
+            App.Settings.MainTimeZone = App.LstClock[index].TimeZoneId;
         }
 
         fmRulers.UpdateRulers();
@@ -273,7 +254,7 @@ public partial class FmMainWindow : Window
 
     private void ItemMoveLeftOnClick(object sender, RoutedEventArgs e)
     {
-        throw new NotImplementedException();  // TODO: Implement this
+        throw new NotImplementedException(); // TODO: Implement this
     }
 
     private UIElement? _lastRightClickedClock;
@@ -296,7 +277,7 @@ public partial class FmMainWindow : Window
             _lastRightClickedClock = current as UIElement;
             int index = gdMain.Children.IndexOf(_lastRightClickedClock);
 
-            if (App.Settings.LstClock[index].IsMain)
+            if (App.LstClock[index].IsMain)
             {
                 itemMakeMain.Visibility = Visibility.Collapsed;
             }
@@ -306,8 +287,8 @@ public partial class FmMainWindow : Window
             }
 
             itemMoveLeft.IsEnabled = (index == 0) ? false : true;
-            itemMoveRight.IsEnabled = (index == App.Settings.LstClock.Count - 1) ? false : true;
-            itemRemove.IsEnabled = (App.Settings.LstClock.Count == 1) ? false : true;
+            itemMoveRight.IsEnabled = (index == App.LstClock.Count - 1) ? false : true;
+            itemRemove.IsEnabled = (App.LstClock.Count == 1) ? false : true;
             itemFold.Header = _isFolded ? "Unfold" : "Fold";
             itemShowRulers.Header = fmRulers.IsVisible ? "Hide Rulers" : "Show Rulers";
         }
@@ -329,14 +310,14 @@ public partial class FmMainWindow : Window
         if (_lastRightClickedClock != null)
         {
             // Prevent removing the last clock
-            if (App.Settings.LstClock.Count <= 1)
+            if (App.LstClock.Count <= 1)
             {
                 MessageBox.Show("Cannot remove the last clock.", "Warning", MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 return;
             }
 
-            var clockToRemove = App.Settings.LstClock
+            var clockToRemove = App.LstClock
                 .FirstOrDefault(c => c.OsGrid == _lastRightClickedClock);
             if (clockToRemove.IsMain)
             {
@@ -357,7 +338,7 @@ public partial class FmMainWindow : Window
                     fmRulers.InitializeRulers();
                 }
 
-                App.Settings.LstClock.Remove(clockToRemove);
+                App.LstClock.Remove(clockToRemove);
                 gdMain.Children.Remove(clockToRemove.OsGrid);
 
                 fmSlider.Size -= 1;
@@ -403,7 +384,7 @@ public partial class FmMainWindow : Window
             _localTime = utcNow;
         }
 
-        foreach (var item in App.Settings.LstClock!)
+        foreach (var item in App.LstClock!)
             item.SetTime(_localTime);
 
         ForceToTopmost();

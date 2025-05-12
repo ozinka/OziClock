@@ -31,7 +31,7 @@ public partial class FmSlider : Window
     private void FmSlider_Loaded(object sender, RoutedEventArgs e)
     {
         Loaded -= FmSlider_Loaded; // Avoid duplicate calls if window is reopened
-        Size = App.Settings.LstClock.Count;
+        Size = App.LstClock.Count;
     }
 
     private void SetSize(int value)
