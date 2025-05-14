@@ -139,9 +139,9 @@ public partial class FmMainWindow
         _itemMakeMain.Icon = imageMain;
         _itemMakeMain.Click += ItemMakeMainOnClick;
         itemClock.Items.Add(_itemMakeMain);
-        
+
         itemClock.Items.Add(new Separator());
-        
+
         _itemRemove = new MenuItem { Header = "Remove" };
         var imageRemove = new Image
         {
@@ -279,15 +279,56 @@ public partial class FmMainWindow
 
     private void ItemMoveRightOnClick(object sender, RoutedEventArgs e)
     {
-        throw new NotImplementedException(); // TODO: Implement this
-    }
+        var index = GdMain.Children.IndexOf(_lastRightClickedClock);
+        if (_lastRightClickedClock != null)
+        {
+            if (index < App.Clocks.Count - 1)
+            {
+                var clockToMove = App.Clocks[index];
+                var rulerToMove = App.Clocks[index].RulerGrid;
+                
+                App.Clocks.RemoveAt(index);
+                App.Clocks.Insert(index + 1, clockToMove);
 
-    private void ItemMoveLeftOnClick(object sender, RoutedEventArgs e)
-    {
-        throw new NotImplementedException(); // TODO: Implement this
+                GdMain.Children.RemoveAt(index);
+                GdMain.Children.Insert(index + 1, clockToMove.OsGrid);
+
+                if (_rulers.IsLoaded)
+                {
+                    _rulers.GlRulers.Children.RemoveAt(index);
+                    _rulers.GlRulers.Children.Insert(index + 1, rulerToMove);
+                }
+            }
+        }
     }
 
     private UIElement? _lastRightClickedClock;
+
+    private void ItemMoveLeftOnClick(object sender, RoutedEventArgs e)
+    {
+        var index = GdMain.Children.IndexOf(_lastRightClickedClock);
+        if (_lastRightClickedClock != null)
+        {
+            if (index > 0)
+            {
+                var clockToMove = App.Clocks[index];
+                var rulerToMove = App.Clocks[index].RulerGrid;
+                
+                App.Clocks.RemoveAt(index);
+                App.Clocks.Insert(index - 1, clockToMove);
+
+                GdMain.Children.RemoveAt(index);
+                GdMain.Children.Insert(index - 1, clockToMove.OsGrid);
+
+                if (_rulers.IsLoaded)
+                {
+                    _rulers.GlRulers.Children.RemoveAt(index);
+                    _rulers.GlRulers.Children.Insert(index - 1, rulerToMove);
+                }
+            }
+        }
+    }
+
 
     private void ContextMenu_Opened(object sender, RoutedEventArgs e)
     {
@@ -307,18 +348,10 @@ public partial class FmMainWindow
             _lastRightClickedClock = current as UIElement;
             var index = GdMain.Children.IndexOf(_lastRightClickedClock);
 
-            if (App.Clocks[index].IsMain)
-            {
-                _itemMakeMain.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                _itemMakeMain.Visibility = Visibility.Visible;
-            }
-
-            _itemMoveLeft.IsEnabled = (index == 0) ? false : true;
-            _itemMoveRight.IsEnabled = (index == App.Clocks.Count - 1) ? false : true;
-            _itemRemove.IsEnabled = (App.Clocks.Count == 1) ? false : true;
+            _itemMakeMain.Visibility =  (App.Clocks[index].IsMain)? Visibility.Collapsed : Visibility.Visible;
+            _itemMoveLeft.Visibility = (index == 0) ? Visibility.Collapsed : Visibility.Visible;
+            _itemMoveRight.Visibility = (index == App.Clocks.Count - 1) ? Visibility.Collapsed : Visibility.Visible;
+            _itemRemove.Visibility = (App.Clocks.Count == 1 || App.Clocks[index].IsMain) ? Visibility.Collapsed : Visibility.Visible;
             _itemFold.Header = _isFolded ? "Unfold" : "Fold";
             _itemShowRulers.Header = _rulers.IsVisible ? "Hide Rulers" : "Show Rulers";
         }
@@ -339,22 +372,8 @@ public partial class FmMainWindow
     {
         if (_lastRightClickedClock != null)
         {
-            // Prevent removing the last clock
-            if (App.Clocks.Count <= 1)
-            {
-                MessageBox.Show("Cannot remove the last clock.", "Warning", MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
             var clockToRemove = App.Clocks
                 .FirstOrDefault(c => c.OsGrid == _lastRightClickedClock);
-            if (clockToRemove.IsMain)
-            {
-                MessageBox.Show("Cannot remove Main clock.", "Warning", MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
 
             if (MessageBox.Show("Are you sure you want to delete this clock?", "Confirm Deletion",
                     MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
@@ -365,7 +384,6 @@ public partial class FmMainWindow
                 if (_rulers.IsLoaded)
                 {
                     _rulers.GlRulers.Children.Remove(clockToRemove.RulerGrid);
-                    _rulers.InitializeRulers();
                 }
 
                 App.Clocks.Remove(clockToRemove);
