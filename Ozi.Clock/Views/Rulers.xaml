@@ -16,23 +16,24 @@
         SizeToContent="Width">
 
     <Window.Resources>
-        <views:VerticalMagnifierEffect x:Key="VerticalMagnifierEffect"
-                                       CenterY="0.5"
-                                       BandHeight="1"
-                                       Magnification="1.5" />
-        <VisualBrush x:Key="GlRulersBrush"
+        <VisualBrush x:Key="MagnifiedRulersBrush"
                      Visual="{Binding ElementName=GlRulers}"
                      ViewboxUnits="Absolute"
                      Viewbox="0,0,120,30"
                      Stretch="None"
                      AlignmentX="Left"
-                     AlignmentY="Top" />
+                     AlignmentY="Top" >
+            <VisualBrush.RelativeTransform>
+                <TransformGroup>
+                    <ScaleTransform ScaleY="1.6"/>
+                    <TranslateTransform Y="-0.25" />
+                </TransformGroup>
+            </VisualBrush.RelativeTransform>
+        </VisualBrush>
     </Window.Resources>
 
     <Grid x:Name="GdMain" Margin="0">
         <WrapPanel x:Name="GlRulers" Orientation="Horizontal" MinWidth="99" Margin="0" />
-
-
         <Grid x:Name="GdRulers" Panel.ZIndex="1" Visibility="Visible" Margin="0, 0,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="ColTopLeft" MinWidth="1" />
@@ -77,7 +78,6 @@
 
             <!-- Vertical Splitter -->
             <Grid Grid.Column="1" Grid.RowSpan="4"
-                  Effect="{StaticResource VerticalMagnifierEffect}"
                   Background="Transparent"
                   MouseLeftButtonDown="VerticalSplitter_MouseLeftButtonDown"
                   MouseMove="VerticalSplitter_MouseMove"
@@ -86,38 +86,32 @@
             <!-- Horizontal Splitter -->
             <Grid x:Name="RulerGrid"
                   Grid.Row="1" Grid.ColumnSpan="3"
-                  Effect="{StaticResource VerticalMagnifierEffect}"
                   MinHeight="30"
                   Cursor="SizeNS"
                   MouseLeftButtonDown="HorizontalSplitter_MouseLeftButtonDown"
                   MouseMove="HorizontalSplitter_MouseMove"
                   LayoutUpdated="GridSplitter_LayoutUpdated">
-
                 <!-- Background content using your glRulersBrush -->
-                <Border Background="{StaticResource GlRulersBrush}" />
+                <Border Background="{StaticResource MagnifiedRulersBrush}" />
+                <Border Background="Transparent" Margin="1, 1" />
+                
                 <!-- Overlay gradient mask -->
                 <Rectangle>
                     <Rectangle.OpacityMask>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                             <!-- Very dark at top -->
-                            <GradientStop Color="#FF000000" Offset="0.0" />
-                            <!-- Start fading earlier -->
-                            <GradientStop Color="#66000000" Offset="0.15" />
-                            <!-- Transition to full transparency -->
-                            <GradientStop Color="#00000000" Offset="0.35" />
-                            <!-- Keep a wide transparent center -->
-                            <GradientStop Color="#00000000" Offset="0.65" />
-                            <!-- Start fading back to dark -->
-                            <GradientStop Color="#66000000" Offset="0.85" />
-                            <!-- Very dark at bottom -->
-                            <GradientStop Color="#FF000000" Offset="1.0" />
+                            <GradientStop Color="#88000000" Offset="0.0" />
+                            <GradientStop Color="#55000000" Offset="0.1" />
+                            <GradientStop Color="#00000000" Offset="0.4" />
+                            <GradientStop Color="#00000000" Offset="0.6" />
+                            <GradientStop Color="#55000000" Offset="0.9" />
+                            <GradientStop Color="#88000000" Offset="1.0" />
                         </LinearGradientBrush>
                     </Rectangle.OpacityMask>
                     <Rectangle.Fill>
                         <SolidColorBrush Color="Black" />
                     </Rectangle.Fill>
                 </Rectangle>
-                <Border Background="Transparent" Margin="1, 1" />
             </Grid>
 
 
@@ -154,3 +148,4 @@
         </Grid>
     </Grid>
 </Window>
+

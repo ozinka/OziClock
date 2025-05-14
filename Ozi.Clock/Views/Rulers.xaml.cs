@@ -9,58 +9,6 @@ using System.Windows.Shapes;
 
 namespace Ozi.Utilities.Views;
 
-public class VerticalMagnifierEffect : ShaderEffect
-{
-    private static readonly PixelShader Shader = new()
-    {
-        // UriSource = new Uri("pack://application:,,,/YourAssemblyName;component/VerticalMagnifier.ps")
-        UriSource = new Uri("pack://application:,,,/Shaders/VerticalMagnifier.ps")
-    };
-
-    public VerticalMagnifierEffect()
-    {
-        PixelShader = Shader;
-
-        UpdateShaderValue(InputProperty);
-        UpdateShaderValue(CenterYProperty);
-        UpdateShaderValue(BandHeightProperty);
-        UpdateShaderValue(MagnificationProperty);
-    }
-
-    public static readonly DependencyProperty InputProperty =
-        RegisterPixelShaderSamplerProperty("Input", typeof(VerticalMagnifierEffect), 0);
-
-    public static readonly DependencyProperty CenterYProperty =
-        DependencyProperty.Register("CenterY", typeof(double), typeof(VerticalMagnifierEffect),
-            new UIPropertyMetadata(0.5, PixelShaderConstantCallback(0)));
-
-    public static readonly DependencyProperty BandHeightProperty =
-        DependencyProperty.Register("BandHeight", typeof(double), typeof(VerticalMagnifierEffect),
-            new UIPropertyMetadata(0.2, PixelShaderConstantCallback(1)));
-
-    public static readonly DependencyProperty MagnificationProperty =
-        DependencyProperty.Register("Magnification", typeof(double), typeof(VerticalMagnifierEffect),
-            new UIPropertyMetadata(2.0, PixelShaderConstantCallback(2)));
-
-    public double CenterY
-    {
-        get => (double)GetValue(CenterYProperty);
-        set => SetValue(CenterYProperty, value);
-    }
-
-    public double BandHeight
-    {
-        get => (double)GetValue(BandHeightProperty);
-        set => SetValue(BandHeightProperty, value);
-    }
-
-    public double Magnification
-    {
-        get => (double)GetValue(MagnificationProperty);
-        set => SetValue(MagnificationProperty, value);
-    }
-}
-
 public partial class Rulers
 {
     private readonly FmMainWindow _fFmMain;
@@ -139,7 +87,7 @@ public partial class Rulers
     {
         var position = RulerGrid.TranslatePoint(new Point(0, 0), this);
 
-        var brush = (VisualBrush)Resources["GlRulersBrush"];
+        var brush = (VisualBrush)Resources["MagnifiedRulersBrush"];
         var oldViewbox = brush.Viewbox;
 
         // Update Y offset based on Grid position
@@ -297,9 +245,9 @@ public partial class Rulers
             {
                 CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.TimeZoneId);
             }
+
             ColTopLeft.Width = new GridLength(App.Settings.MainClockIndex * 100, GridUnitType.Pixel);
         }
-        
     }
 
     public void InitializeRulers()
