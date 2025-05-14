@@ -22,8 +22,8 @@
 
         <!-- TextBox for Clock Name -->
         <TextBox x:Name="TbClockName" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,50,0,0"
-                 Width="100" Height="30" Foreground="#FFD1D1D1" Background="#FF383838"
-                 Text="{Binding ClockName}" />
+                 Width="100" Height="30" Foreground="#FFdddddd" Background="#FF383838"
+                 Text="{Binding ClockName, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center" TextChanged="TbClockName_OnTextChanged"/>
 
         <!-- ComboBox for Timezone Selection -->
         <ComboBox x:Name="CbTimeZones" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,100,0,0"
@@ -32,7 +32,9 @@
                   SelectedValue="{Binding SelectedTimeZoneId}"
                   IsTextSearchEnabled="True"
                   IsEditable="False"
-                  DisplayMemberPath="DisplayName" />
+                  DisplayMemberPath="DisplayName" 
+                  SelectionChanged="CbTimeZones_OnSelectionChanged"
+                  VerticalContentAlignment="Center"/>
 
         <!-- Color Picker for Clock Background -->
         <Label Content="Color:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="200,50,0,0"
@@ -40,6 +42,6 @@
         <Grid x:Name="ColorPicker" Width="50" Height="30" Margin="200,-69,0,0" Background="Beige"
               MouseLeftButtonDown="ColorPicker_OnMouseLeftButtonDown" />
         <Button x:Name="BtnOk" Content="Ok" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="135,0,0,10"
-                Width="140" Height="30" Click="Submit" />
+                Width="140" Height="30" Click="Submit" IsDefault="True" IsCancel="True"/>
     </Grid>
 </Window>

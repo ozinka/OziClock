@@ -216,8 +216,46 @@ public partial class FmMainWindow
             var fmEdit = new Edit(App.Clocks[index])
             {
                 Owner = this,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner
+                WindowStartupLocation = WindowStartupLocation.Manual // Set to Manual for custom positioning
             };
+
+            // Get main window and Edit window dimensions
+            double mainWindowLeft = this.Left;
+            double mainWindowTop = this.Top;
+            double mainWindowWidth = this.ActualWidth;
+            double mainWindowHeight = this.ActualHeight;
+            double editWindowWidth = fmEdit.Width; // 400 as per XAML
+            double editWindowHeight = fmEdit.Height; // 200 as per XAML
+
+            // Get screen working area (excludes taskbar)
+            var workArea = SystemParameters.WorkArea;
+
+            // Calculate X position: Center of main window
+            double editLeft = mainWindowLeft + (mainWindowWidth - editWindowWidth) / 2;
+
+            // Ensure Edit window stays within screen bounds on X-axis
+            editLeft = Math.Max(workArea.Left, Math.Min(editLeft, workArea.Right - editWindowWidth));
+
+            // Calculate Y position: Prefer below main window, fallback to above
+            double editTop;
+            bool enoughSpaceBelow = mainWindowTop + mainWindowHeight + editWindowHeight <= workArea.Bottom;
+            if (enoughSpaceBelow)
+            {
+                // Place below main window
+                editTop = mainWindowTop + mainWindowHeight;
+            }
+            else
+            {
+                // Place above main window
+                editTop = mainWindowTop - editWindowHeight;
+                // Ensure it doesn't go above the screen
+                editTop = Math.Max(workArea.Top, editTop);
+            }
+
+            // Set position
+            fmEdit.Left = editLeft;
+            fmEdit.Top = editTop;
+
             fmEdit.Owner = this;
             fmEdit.ShowDialog();
         }
@@ -286,7 +324,7 @@ public partial class FmMainWindow
             {
                 var clockToMove = App.Clocks[index];
                 var rulerToMove = App.Clocks[index].RulerGrid;
-                
+
                 App.Clocks.RemoveAt(index);
                 App.Clocks.Insert(index + 1, clockToMove);
 
@@ -313,7 +351,7 @@ public partial class FmMainWindow
             {
                 var clockToMove = App.Clocks[index];
                 var rulerToMove = App.Clocks[index].RulerGrid;
-                
+
                 App.Clocks.RemoveAt(index);
                 App.Clocks.Insert(index - 1, clockToMove);
 
@@ -348,25 +386,16 @@ public partial class FmMainWindow
             _lastRightClickedClock = current as UIElement;
             var index = GdMain.Children.IndexOf(_lastRightClickedClock);
 
-            _itemMakeMain.Visibility =  (App.Clocks[index].IsMain)? Visibility.Collapsed : Visibility.Visible;
+            _itemMakeMain.Visibility = (App.Clocks[index].IsMain) ? Visibility.Collapsed : Visibility.Visible;
             _itemMoveLeft.Visibility = (index == 0) ? Visibility.Collapsed : Visibility.Visible;
             _itemMoveRight.Visibility = (index == App.Clocks.Count - 1) ? Visibility.Collapsed : Visibility.Visible;
-            _itemRemove.Visibility = (App.Clocks.Count == 1 || App.Clocks[index].IsMain) ? Visibility.Collapsed : Visibility.Visible;
+            _itemRemove.Visibility = (App.Clocks.Count == 1 || App.Clocks[index].IsMain)
+                ? Visibility.Collapsed
+                : Visibility.Visible;
             _itemFold.Header = _isFolded ? "Unfold" : "Fold";
             _itemShowRulers.Header = _rulers.IsVisible ? "Hide Rulers" : "Show Rulers";
         }
     }
-
-    private void MenuItemChangeTimeZone_Click(object sender, RoutedEventArgs e)
-    {
-        throw new NotImplementedException();
-    }
-
-    private void MenuItemRename_Click(object sender, RoutedEventArgs e)
-    {
-        throw new NotImplementedException();
-    }
-
 
     private void MenuItemRemove_Click(object sender, RoutedEventArgs e)
     {
@@ -449,8 +478,47 @@ public partial class FmMainWindow
 
         var fmFmSettings = new Settings(this)
         {
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            WindowStartupLocation = WindowStartupLocation.Manual,
         };
+
+        // Get main window and Edit window dimensions
+        double mainWindowLeft = this.Left;
+        double mainWindowTop = this.Top;
+        double mainWindowWidth = this.ActualWidth;
+        double mainWindowHeight = this.ActualHeight;
+        double editWindowWidth = fmFmSettings.Width; // 400 as per XAML
+        double editWindowHeight = fmFmSettings.Height; // 200 as per XAML
+
+        // Get screen working area (excludes taskbar)
+        var workArea = SystemParameters.WorkArea;
+
+        // Calculate X position: Center of main window
+        double editLeft = mainWindowLeft + (mainWindowWidth - editWindowWidth) / 2;
+
+        // Ensure Edit window stays within screen bounds on X-axis
+        editLeft = Math.Max(workArea.Left, Math.Min(editLeft, workArea.Right - editWindowWidth));
+
+        // Calculate Y position: Prefer below main window, fallback to above
+        double editTop;
+        bool enoughSpaceBelow = mainWindowTop + mainWindowHeight + editWindowHeight <= workArea.Bottom;
+        if (enoughSpaceBelow)
+        {
+            // Place below main window
+            editTop = mainWindowTop + mainWindowHeight;
+        }
+        else
+        {
+            // Place above main window
+            editTop = mainWindowTop - editWindowHeight;
+            // Ensure it doesn't go above the screen
+            editTop = Math.Max(workArea.Top, editTop);
+        }
+
+        // Set position
+        fmFmSettings.Left = editLeft;
+        fmFmSettings.Top = editTop;
+
+        fmFmSettings.Owner = this;
         fmFmSettings.ShowDialog();
 
         // Restore topmost

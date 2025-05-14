@@ -18,7 +18,7 @@ public class Clock
         set
         {
             _caption = value;
-            _lbCapt.Text ??= value;
+            _lbCapt.Text = value;
         }
     }
 

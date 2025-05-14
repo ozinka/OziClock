@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -25,8 +26,7 @@ public partial class Edit
 
     private void Submit(object sender, RoutedEventArgs e)
     {
-        _viewModel.UpdateModel(_clock); // Update the original clock here
-        DialogResult = true;
+        _viewModel.UpdateModel(_clock);
         Close();
     }
 
@@ -52,6 +52,19 @@ public partial class Edit
         {
             _viewModel.ClockColor = Color.FromArgb(dlg.Color.A, dlg.Color.R, dlg.Color.G, dlg.Color.B);
             ColorPicker.Background = new SolidColorBrush(_viewModel.ClockColor);
+            _viewModel.UpdateModel(_clock);
         }
     }
+
+    private void CbTimeZones_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        _viewModel.UpdateModel(_clock); // Update the original clock here
+    }
+
+    private void TbClockName_OnTextChanged(object sender, TextChangedEventArgs e)
+    {
+        _viewModel.UpdateModel(_clock);
+        Console.WriteLine(TbClockName.Text);
+    }
+
 }
