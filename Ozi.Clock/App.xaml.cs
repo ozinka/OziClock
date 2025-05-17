@@ -46,7 +46,53 @@ public partial class App
     private static AppSettings LoadSettings()
     {
         var settingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-        return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(settingsPath)) ??
-               throw new InvalidOperationException();
+
+        if (File.Exists(settingsPath))
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(settingsPath)) ??
+                       throw new InvalidOperationException();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+        }
+
+        return DefaultConfig();
+    }
+
+    private static AppSettings DefaultConfig()
+    {
+        return new AppSettings
+        {
+            MainWndLeft = 0,
+            MainWndTop = 0,
+            IsTransparent = false,
+            Opacity = 0,
+            TopMost = false,
+            ShowInTaskBar = false,
+            UseSnap = false,
+            MainClockIndex = 0,
+            MainTimeZone = null,
+            ClocksSettings =
+            [
+                new ClockSettings
+                {
+                    Label = "s",
+                    TimeZone = null,
+                    Color = null,
+                    IsMain = null
+                },
+                new ClockSettings
+                {
+                    Label = null,
+                    TimeZone = null,
+                    Color = null,
+                    IsMain = null
+                }
+            ]
+        };
     }
 }

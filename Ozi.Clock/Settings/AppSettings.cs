@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+
 // Required for INotifyPropertyChanged
 
 namespace Ozi.Utilities.Settings
