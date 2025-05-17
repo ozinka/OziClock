@@ -1,4 +1,4 @@
-<Window x:Class="Ozi.Utilities.Views.ColorPickerWindow"
+<Window x:Class="Ozi.Utilities.Views.ColorPicker"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Pick a Color"

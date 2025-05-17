@@ -6,14 +6,14 @@ using System.Windows.Shapes;
 
 namespace Ozi.Utilities.Views
 {
-    public partial class ColorPickerWindow : Window
+    public partial class ColorPicker : Window
     {
         public Color? SelectedColor { get; private set; }
         public Action<Color> OnColorSelected { get; set; }
         
         private bool _isClosing;
 
-        public ColorPickerWindow()
+        public ColorPicker()
         {
             InitializeComponent();
             Deactivated += ColorPickerWindow_OnDeactivated;

@@ -107,29 +107,42 @@ public partial class App
     {
         return new AppSettings
         {
-            MainWndLeft = 0,
-            MainWndTop = 0,
-            IsTransparent = false,
-            Opacity = 0,
-            TopMost = false,
-            ShowInTaskBar = false,
+            MainWndLeft = 200,
+            MainWndTop = 200,
+            Opacity = 100,
+            TopMost = true,
+            ShowInTaskBar = true,
             UseSnap = false,
             ClocksSettings =
             [
                 new ClockSettings
                 {
-                    Label = "s",
-                    TimeZone = null,
-                    Color = null,
+                    Label = "NYK",
+                    TimeZone = "Eastern Standard Time",
+                    Color = "#FFAAAAFF",
+                    IsMain = null,
+                },
+                new ClockSettings
+                {
+                    Label = "LDN",
+                    TimeZone = "GMT Standard Time",
+                    Color = "#FFAAFFAA",
                     IsMain = null
                 },
                 new ClockSettings
                 {
-                    Label = null,
-                    TimeZone = null,
-                    Color = null,
-                    IsMain = null
-                }
+                    Label = "KYIV",
+                    TimeZone = "FLE Standard Time",
+                    Color = "#FFAAFFFF",
+                    IsMain = true
+                },
+                new ClockSettings
+                {
+                    Label = "PUNE",
+                    TimeZone = "India Standard Time",
+                    Color = "#FFFFFFAA",
+                    IsMain = false
+                },
             ]
         };
     }

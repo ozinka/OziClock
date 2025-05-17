@@ -63,7 +63,7 @@ public partial class Edit
     {
         e.Handled = true;
 
-        var picker = new ColorPickerWindow
+        var picker = new ColorPicker
         {
             Owner = this,
             Topmost = true,
