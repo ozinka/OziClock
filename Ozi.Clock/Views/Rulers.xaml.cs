@@ -238,7 +238,6 @@ public partial class Rulers
 
     public void UpdateRulers()
     {
-        // Update the rulers
         if (_isInitialized)
         {
             foreach (var clock in App.Clocks)
@@ -246,26 +245,35 @@ public partial class Rulers
                 CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.TimeZoneId);
             }
 
-            ColTopLeft.Width = new GridLength(App.Settings.MainClockIndex * 100, GridUnitType.Pixel);
+            // ColTopLeft.Width = new GridLength(App.Settings.MainClockIndex * 100, GridUnitType.Pixel);
+            
+            UpdateSize();
         }
     }
 
     public void InitializeRulers()
     {
         var colTopLeft = GdRulers.ColumnDefinitions[0];
-
         if (!_isInitialized)
         {
             foreach (var clock in App.Clocks)
             {
                 GlRulers.Children.Add(clock.RulerGrid);
                 CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.TimeZoneId);
+                
+                colTopLeft.MaxWidth = (GlRulers.Children.Count - 1) * 100;
+                colTopLeft.Width = new GridLength(App.Settings.MainClockIndex * 100, GridUnitType.Pixel);
             }
 
-            colTopLeft.MaxWidth = (GlRulers.Children.Count - 1) * 100;
-            colTopLeft.Width = new GridLength(App.Settings.MainClockIndex * 100, GridUnitType.Pixel);
+            UpdateSize();
         }
-        else
+    }
+
+    public void UpdateSize()
+    {
+        var colTopLeft = GdRulers.ColumnDefinitions[0];
+
+        if (_isInitialized)
         {
             double max = (GlRulers.Children.Count - 1) * 100;
             colTopLeft.MaxWidth = max;

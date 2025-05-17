@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Ozi.Utilities.ViewModels;
 
 namespace Ozi.Utilities.Views;
 
@@ -64,6 +65,7 @@ public partial class FmMainWindow
     {
         init_Timer();
         read_Config();
+        TtTick(this, EventArgs.Empty);
 
         App.Clocks.ForEach(clock => GdMain.Children.Add(clock.OsGrid));
 
@@ -90,19 +92,29 @@ public partial class FmMainWindow
     private MenuItem _itemRemove;
     private MenuItem _itemFold;
     private MenuItem _itemShowRulers;
+    private MenuItem _itemClock;
 
     private void CreateContextMenu()
     {
         var mainMenu = new ContextMenu();
         mainMenu.Opened += ContextMenu_Opened;
 
-        var itemClock = new MenuItem { Header = "Clock" };
+        _itemClock = new MenuItem
+        {
+            Header = new TextBlock
+            {
+                Text = "Clock",
+                FontWeight = FontWeights.Bold
+            }
+        };
         var imageClock = new Image
         {
             Source = new BitmapImage(new Uri("pack://application:,,,/Assets/clock.ico", UriKind.Absolute)),
         };
-        itemClock.Icon = imageClock;
-        mainMenu.Items.Add(itemClock);
+        _itemClock.Icon = imageClock;
+        mainMenu.Items.Add(_itemClock);
+        
+        mainMenu.Items.Add(new Separator());
 
         var itemEdit = new MenuItem { Header = "Edit" };
         var imageEdit = new Image
@@ -111,7 +123,7 @@ public partial class FmMainWindow
         };
         itemEdit.Icon = imageEdit;
         itemEdit.Click += ItemEditClick;
-        itemClock.Items.Add(itemEdit);
+        _itemClock.Items.Add(itemEdit);
 
         _itemMoveLeft = new MenuItem { Header = "Move Left" };
         var imageLeft = new Image
@@ -120,7 +132,7 @@ public partial class FmMainWindow
         };
         _itemMoveLeft.Icon = imageLeft;
         _itemMoveLeft.Click += ItemMoveLeftOnClick;
-        itemClock.Items.Add(_itemMoveLeft);
+        _itemClock.Items.Add(_itemMoveLeft);
 
         _itemMoveRight = new MenuItem { Header = "Move Right" };
         var imageRight = new Image
@@ -129,7 +141,7 @@ public partial class FmMainWindow
         };
         _itemMoveRight.Icon = imageRight;
         _itemMoveRight.Click += ItemMoveRightOnClick;
-        itemClock.Items.Add(_itemMoveRight);
+        _itemClock.Items.Add(_itemMoveRight);
 
         _itemMakeMain = new MenuItem { Header = "Make Main" };
         var imageMain = new Image
@@ -138,9 +150,9 @@ public partial class FmMainWindow
         };
         _itemMakeMain.Icon = imageMain;
         _itemMakeMain.Click += ItemMakeMainOnClick;
-        itemClock.Items.Add(_itemMakeMain);
+        _itemClock.Items.Add(_itemMakeMain);
 
-        itemClock.Items.Add(new Separator());
+        _itemClock.Items.Add(new Separator());
 
         _itemRemove = new MenuItem { Header = "Remove" };
         var imageRemove = new Image
@@ -149,16 +161,16 @@ public partial class FmMainWindow
         };
         _itemRemove.Icon = imageRemove;
         _itemRemove.Click += MenuItemRemove_Click;
-        itemClock.Items.Add(_itemRemove);
+        _itemClock.Items.Add(_itemRemove);
 
-        var itemSettings = new MenuItem { Header = "Settings" };
-        var imageSettings = new Image
+        var itemAdd = new MenuItem { Header = "Add Clock" };
+        var imageAdd = new Image
         {
-            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/settings.ico", UriKind.Absolute)),
+            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/add.ico", UriKind.Absolute)),
         };
-        itemSettings.Icon = imageSettings;
-        itemSettings.Click += MenuItemSettings_Click;
-        mainMenu.Items.Add(itemSettings);
+        itemAdd.Icon = imageAdd;
+        itemAdd.Click += ItemAddOnClick;
+        mainMenu.Items.Add(itemAdd);
 
         _itemFold = new MenuItem { Header = "Fold" };
         var imageFold = new Image
@@ -177,6 +189,17 @@ public partial class FmMainWindow
         _itemShowRulers.Icon = imageRuler;
         _itemShowRulers.Click += MenuItemShowRulers_Click;
         mainMenu.Items.Add(_itemShowRulers);
+
+        mainMenu.Items.Add(new Separator());
+
+        var itemSettings = new MenuItem { Header = "Settings" };
+        var imageSettings = new Image
+        {
+            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/settings.ico", UriKind.Absolute)),
+        };
+        itemSettings.Icon = imageSettings;
+        itemSettings.Click += MenuItemSettings_Click;
+        mainMenu.Items.Add(itemSettings);
 
         var itemAbout = new MenuItem { Header = "About" };
         var imageAbout = new Image
@@ -201,7 +224,25 @@ public partial class FmMainWindow
         FmMain.ContextMenu = mainMenu;
     }
 
-    private void ItemEditClick(object sender, RoutedEventArgs e)
+    private void ItemAddOnClick(object sender, RoutedEventArgs e)
+    {
+        App.Clocks.Add(new OsClock("UTC",
+            TimeZoneInfo.Utc.Id,
+            "#FFFFFFFF",
+            false));
+
+        GdMain.Children.Add(App.Clocks[^1].OsGrid);
+        if (_rulers.IsLoaded)
+        {
+            _rulers.GlRulers.Children.Add(App.Clocks[^1].RulerGrid);
+            _rulers.UpdateRulers();
+            Slider.Size += 1;
+        }
+
+        OpenEditWindow(App.Clocks.Count -1);
+    }
+
+    private void OpenEditWindow(int index)
     {
         // Remove topmost
         var windowHandle = new WindowInteropHelper(this).Handle;
@@ -210,58 +251,64 @@ public partial class FmMainWindow
             0, 0, 0, 0,
             SwpNomove | SwpNosize | SwpNoactivate);
 
-        var index = GdMain.Children.IndexOf(_lastRightClickedClock);
-        if (_lastRightClickedClock != null)
+        var fmEdit = new Edit(App.Clocks[index])
         {
-            var fmEdit = new Edit(App.Clocks[index])
-            {
-                Owner = this,
-                WindowStartupLocation = WindowStartupLocation.Manual // Set to Manual for custom positioning
-            };
+            Owner = this,
+            WindowStartupLocation = WindowStartupLocation.Manual // Set to Manual for custom positioning
+        };
 
-            // Get main window and Edit window dimensions
-            double mainWindowLeft = this.Left;
-            double mainWindowTop = this.Top;
-            double mainWindowWidth = this.ActualWidth;
-            double mainWindowHeight = this.ActualHeight;
-            double editWindowWidth = fmEdit.Width; // 400 as per XAML
-            double editWindowHeight = fmEdit.Height; // 200 as per XAML
+        // Get main window and Edit window dimensions
+        double mainWindowLeft = this.Left;
+        double mainWindowTop = this.Top;
+        double mainWindowWidth = this.ActualWidth;
+        double mainWindowHeight = this.ActualHeight;
+        double editWindowWidth = fmEdit.Width; // 400 as per XAML
+        double editWindowHeight = fmEdit.Height; // 200 as per XAML
 
-            // Get screen working area (excludes taskbar)
-            var workArea = SystemParameters.WorkArea;
+        // Get screen working area (excludes taskbar)
+        var workArea = SystemParameters.WorkArea;
 
-            // Calculate X position: Center of main window
-            double editLeft = mainWindowLeft + (mainWindowWidth - editWindowWidth) / 2;
+        // Calculate X position: Center of main window
+        double editLeft = mainWindowLeft + (mainWindowWidth - editWindowWidth) / 2;
 
-            // Ensure Edit window stays within screen bounds on X-axis
-            editLeft = Math.Max(workArea.Left, Math.Min(editLeft, workArea.Right - editWindowWidth));
+        // Ensure Edit window stays within screen bounds on X-axis
+        editLeft = Math.Max(workArea.Left, Math.Min(editLeft, workArea.Right - editWindowWidth));
 
-            // Calculate Y position: Prefer below main window, fallback to above
-            double editTop;
-            bool enoughSpaceBelow = mainWindowTop + mainWindowHeight + editWindowHeight <= workArea.Bottom;
-            if (enoughSpaceBelow)
-            {
-                // Place below main window
-                editTop = mainWindowTop + mainWindowHeight;
-            }
-            else
-            {
-                // Place above main window
-                editTop = mainWindowTop - editWindowHeight;
-                // Ensure it doesn't go above the screen
-                editTop = Math.Max(workArea.Top, editTop);
-            }
-
-            // Set position
-            fmEdit.Left = editLeft;
-            fmEdit.Top = editTop;
-
-            fmEdit.Owner = this;
-            fmEdit.ShowDialog();
+        // Calculate Y position: Prefer below main window, fallback to above
+        double editTop;
+        bool enoughSpaceBelow = mainWindowTop + mainWindowHeight + editWindowHeight <= workArea.Bottom;
+        if (enoughSpaceBelow)
+        {
+            // Place below main window
+            editTop = mainWindowTop + mainWindowHeight;
         }
+        else
+        {
+            // Place above main window
+            editTop = mainWindowTop - editWindowHeight;
+            // Ensure it doesn't go above the screen
+            editTop = Math.Max(workArea.Top, editTop);
+        }
+
+        // Set position
+        fmEdit.Left = editLeft;
+        fmEdit.Top = editTop;
+
+        fmEdit.Owner = this;
+        fmEdit.ShowDialog();
 
         // Restore topmost
         ForceToTopmost();
+    }
+    
+    private void ItemEditClick(object sender, RoutedEventArgs e)
+    {
+        var index = GdMain.Children.IndexOf(_lastRightClickedClock);
+        
+        if (_lastRightClickedClock != null)
+        {
+            OpenEditWindow(index);
+        }
     }
 
     private void ItemMakeMainOnClick(object sender, RoutedEventArgs e)
@@ -367,7 +414,6 @@ public partial class FmMainWindow
         }
     }
 
-
     private void ContextMenu_Opened(object sender, RoutedEventArgs e)
     {
         var pos = Mouse.GetPosition(GdMain); // relative to the grid
@@ -394,6 +440,7 @@ public partial class FmMainWindow
                 : Visibility.Visible;
             _itemFold.Header = _isFolded ? "Unfold" : "Fold";
             _itemShowRulers.Header = _rulers.IsVisible ? "Hide Rulers" : "Show Rulers";
+            ((TextBlock)_itemClock.Header).Text = App.Clocks[index].Caption;
         }
     }
 
@@ -419,6 +466,7 @@ public partial class FmMainWindow
                 GdMain.Children.Remove(clockToRemove.OsGrid);
 
                 Slider.Size -= 1;
+                _rulers.UpdateSize();
             }
 
             _lastRightClickedClock = null;

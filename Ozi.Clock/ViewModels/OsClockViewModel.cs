@@ -2,19 +2,19 @@ using System.Windows.Media;
 
 namespace Ozi.Utilities.ViewModels
 {
-    public class OsClockViewModel(Clock clock)
+    public class OsClockViewModel(OsClock osClock)
     {
-        public string ClockName { get; set; } = clock.Caption;
+        public string ClockName { get; set; } = osClock.Caption;
 
-        public string SelectedTimeZoneId { get; set; } = clock.TimeZoneId;
+        public string SelectedTimeZoneId { get; set; } = osClock.TimeZoneId;
 
-        public Color ClockColor { get; set; } = (Color)ColorConverter.ConvertFromString(clock.Color);
+        public Color ClockColor { get; set; } = (Color)ColorConverter.ConvertFromString(osClock.Color);
 
-        public void UpdateModel(Clock clock)
+        public void UpdateModel(OsClock osClock)
         {
-            clock.Caption = ClockName;
-            clock.TimeZoneId = SelectedTimeZoneId;
-            clock.Color = ClockColor.ToString(); // e.g., "#FF383838"
+            osClock.Caption = ClockName;
+            osClock.TimeZoneId = SelectedTimeZoneId;
+            osClock.Color = ClockColor.ToString(); // e.g., "#FF383838"
         }
     }
 }

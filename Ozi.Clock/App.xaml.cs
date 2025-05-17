@@ -11,7 +11,7 @@ namespace Ozi.Utilities;
 public partial class App
 {
     public static AppSettings Settings { get; } = LoadSettings();
-    public static List<Clock> Clocks { get; } = [];
+    public static List<OsClock> Clocks { get; } = [];
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -30,16 +30,15 @@ public partial class App
     {
         foreach (var timeZoneInfo in Settings.ClocksSettings)
         {
-            Clocks.Add(new Clock(timeZoneInfo.Value.Label,
-                timeZoneInfo.Value.TimeZone,
-                timeZoneInfo.Value.Color,
-                Clocks.Count,
-                timeZoneInfo.Value.IsMain ?? false));
+            Clocks.Add(new OsClock(timeZoneInfo.Label,
+                timeZoneInfo.TimeZone,
+                timeZoneInfo.Color,
+                timeZoneInfo.IsMain ?? false));
 
-            if (timeZoneInfo.Value.IsMain ?? false)
+            if (timeZoneInfo.IsMain ?? false)
             {
                 Settings.MainClockIndex = Clocks.Count - 1;
-                Settings.MainTimeZone = timeZoneInfo.Value.TimeZone;
+                Settings.MainTimeZone = timeZoneInfo.TimeZone;
             }
         }
     }

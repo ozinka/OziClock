@@ -10,15 +10,15 @@ namespace Ozi.Utilities.Views;
 
 public partial class Edit
 {
-    private readonly Clock _clock;
+    private readonly OsClock _osClock;
     private readonly OsClockViewModel _viewModel;
 
-    public Edit(Clock clock)
+    public Edit(OsClock osClock)
     {
         InitializeComponent();
 
-        _clock = clock; // Keep reference to original clock
-        _viewModel = new OsClockViewModel(clock);
+        _osClock = osClock; // Keep reference to original clock
+        _viewModel = new OsClockViewModel(osClock);
         DataContext = _viewModel;
 
         CbTimeZones.ItemsSource = TimeZonesHelper.SystemTimeZones;
@@ -26,7 +26,7 @@ public partial class Edit
 
     private void Submit(object sender, RoutedEventArgs e)
     {
-        _viewModel.UpdateModel(_clock);
+        _viewModel.UpdateModel(_osClock);
         Close();
     }
 
@@ -52,18 +52,18 @@ public partial class Edit
         {
             _viewModel.ClockColor = Color.FromArgb(dlg.Color.A, dlg.Color.R, dlg.Color.G, dlg.Color.B);
             ColorPicker.Background = new SolidColorBrush(_viewModel.ClockColor);
-            _viewModel.UpdateModel(_clock);
+            _viewModel.UpdateModel(_osClock);
         }
     }
 
     private void CbTimeZones_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        _viewModel.UpdateModel(_clock); // Update the original clock here
+        _viewModel.UpdateModel(_osClock); // Update the original clock here
     }
 
     private void TbClockName_OnTextChanged(object sender, TextChangedEventArgs e)
     {
-        _viewModel.UpdateModel(_clock);
+        _viewModel.UpdateModel(_osClock);
         Console.WriteLine(TbClockName.Text);
     }
 

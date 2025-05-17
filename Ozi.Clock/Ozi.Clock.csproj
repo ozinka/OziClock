@@ -47,8 +47,8 @@
         <Resource Include="Assets\settings.ico"/>
         <Resource Include="Assets\about.ico"/>
         <Resource Include="Assets\exit.ico"/>
+        <Resource Include="Assets\add.ico"/>
         <Resource Include="Assets\ClockAll.ico"/>
-        <Resource Include="Shaders\VerticalMagnifier.ps"/>
     </ItemGroup>
 
     <ItemGroup>

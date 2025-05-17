@@ -21,7 +21,7 @@ namespace Ozi.Utilities.Settings
 
         public int MainClockIndex = 0;
         public string MainTimeZone = "";
-        public Dictionary<string, ClockSettings> ClocksSettings { get; set; } = [];
+        public List<ClockSettings> ClocksSettings { get; set; } = [];
 
         public void Save()
         {
@@ -40,7 +40,8 @@ namespace Ozi.Utilities.Settings
                     Color = clock.Color,
                     IsMain = clock.IsMain
                 })
-                .ToDictionary(x => x.Label, x => x);
+                .ToList();
+            Console.WriteLine(App.Clocks.Count);
 
             ClocksSettings = actualSettings;
             var fileData = JsonSerializer.Serialize(this, options);

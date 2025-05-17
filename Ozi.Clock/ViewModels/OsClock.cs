@@ -5,7 +5,7 @@ using System.Windows.Media;
 
 namespace Ozi.Utilities.ViewModels;
 
-public class Clock
+public class OsClock
 {
     private string _caption;
     private string _color;
@@ -90,7 +90,7 @@ public class Clock
     }
 
     //constructor
-    public Clock(string caption, string timeZoneId, string color, int position, bool isMain)
+    public OsClock(string caption, string timeZoneId, string color, bool isMain)
     {
         OsGrid = new Grid
         {
