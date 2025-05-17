@@ -104,6 +104,7 @@ public partial class Rulers
     {
         InitializeRulers();
         _isInitialized = true;
+        UpdateSize();
     }
 
     public double GetRegionOffset(string timeZoneId)
@@ -114,7 +115,7 @@ public partial class Rulers
 
         // Get current time in Kyiv and the region's timezone
         var mainNow = TimeZoneInfo.ConvertTime(nowUtc, TimeZoneInfo.Utc,
-            TimeZoneInfo.FindSystemTimeZoneById(App.Settings.MainTimeZone));
+            TimeZoneInfo.FindSystemTimeZoneById(App.MainTimeZoneId));
         var regionNow = TimeZoneInfo.ConvertTime(nowUtc, TimeZoneInfo.Utc, timeZoneInfo);
 
         // Calculate the offset in hours
@@ -244,27 +245,19 @@ public partial class Rulers
             {
                 CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.TimeZoneId);
             }
-
-            // ColTopLeft.Width = new GridLength(App.Settings.MainClockIndex * 100, GridUnitType.Pixel);
-            
             UpdateSize();
         }
     }
 
     public void InitializeRulers()
     {
-        var colTopLeft = GdRulers.ColumnDefinitions[0];
         if (!_isInitialized)
         {
             foreach (var clock in App.Clocks)
             {
                 GlRulers.Children.Add(clock.RulerGrid);
                 CreateLinesAndLabels((Canvas)clock.RulerGrid.Children[0], clock.TimeZoneId);
-                
-                colTopLeft.MaxWidth = (GlRulers.Children.Count - 1) * 100;
-                colTopLeft.Width = new GridLength(App.Settings.MainClockIndex * 100, GridUnitType.Pixel);
             }
-
             UpdateSize();
         }
     }
@@ -275,11 +268,8 @@ public partial class Rulers
 
         if (_isInitialized)
         {
-            double max = (GlRulers.Children.Count - 1) * 100;
-            colTopLeft.MaxWidth = max;
-
-            var currentWidth = colTopLeft.Width.Value;
-            colTopLeft.Width = new GridLength(Math.Min(max, currentWidth), GridUnitType.Pixel);
+            colTopLeft.MaxWidth = (GlRulers.Children.Count - 1) * 100;
+            colTopLeft.Width = new GridLength(App.MainClockIndex * 100, GridUnitType.Pixel);
         }
     }
 }

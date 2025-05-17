@@ -20,8 +20,6 @@ namespace Ozi.Utilities.Settings
 
         public bool UseSnap { get; set; }
 
-        public int MainClockIndex = 0;
-        public string MainTimeZone = "";
         public List<ClockSettings> ClocksSettings { get; set; } = [];
 
         public void Save()

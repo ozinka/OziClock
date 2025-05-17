@@ -12,6 +12,52 @@ public partial class App
 {
     public static AppSettings Settings { get; } = LoadSettings();
     public static List<OsClock> Clocks { get; } = [];
+    private static int _mainClockIndex;
+
+    public static string MainTimeZoneId
+    {
+        get
+        {
+            int index = MainClockIndex;
+
+            // Check if the Clocks list is not empty and the index is valid
+            if (Clocks.Count > 0 && index >= 0 && index < Clocks.Count)
+            {
+                return Clocks[index].TimeZoneId;
+            }
+
+            // Return a default value if there are no clocks or the index is invalid
+            return TimeZoneInfo.Local.Id;
+        }
+    }
+
+    public static int MainClockIndex
+    {
+        get
+        {
+            // Return the index of the first clock with isMain = true
+            for (int i = 0; i < Clocks.Count; i++)
+            {
+                if (Clocks[i].IsMain)
+                {
+                    return i;
+                }
+            }
+
+            // If no clock is set as main, return default value
+            return 0;
+        }
+        set
+        {
+            // Set all clocks' isMain property to false except the one at the provided index
+            for (int i = 0; i < Clocks.Count; i++)
+            {
+                Clocks[i].IsMain = (i == value);
+            }
+
+            _mainClockIndex = value;
+        }
+    }
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -34,12 +80,6 @@ public partial class App
                 timeZoneInfo.TimeZone,
                 timeZoneInfo.Color,
                 timeZoneInfo.IsMain ?? false));
-
-            if (timeZoneInfo.IsMain ?? false)
-            {
-                Settings.MainClockIndex = Clocks.Count - 1;
-                Settings.MainTimeZone = timeZoneInfo.TimeZone;
-            }
         }
     }
 
@@ -74,8 +114,6 @@ public partial class App
             TopMost = false,
             ShowInTaskBar = false,
             UseSnap = false,
-            MainClockIndex = 0,
-            MainTimeZone = null,
             ClocksSettings =
             [
                 new ClockSettings

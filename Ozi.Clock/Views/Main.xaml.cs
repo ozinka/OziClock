@@ -113,7 +113,7 @@ public partial class FmMainWindow
         };
         _itemClock.Icon = imageClock;
         mainMenu.Items.Add(_itemClock);
-        
+
         mainMenu.Items.Add(new Separator());
 
         var itemEdit = new MenuItem { Header = "Edit" };
@@ -239,7 +239,7 @@ public partial class FmMainWindow
             Slider.Size += 1;
         }
 
-        OpenEditWindow(App.Clocks.Count -1);
+        OpenEditWindow(App.Clocks.Count - 1);
     }
 
     private void OpenEditWindow(int index)
@@ -300,11 +300,11 @@ public partial class FmMainWindow
         // Restore topmost
         ForceToTopmost();
     }
-    
+
     private void ItemEditClick(object sender, RoutedEventArgs e)
     {
         var index = GdMain.Children.IndexOf(_lastRightClickedClock);
-        
+
         if (_lastRightClickedClock != null)
         {
             OpenEditWindow(index);
@@ -315,14 +315,10 @@ public partial class FmMainWindow
     {
         var index = GdMain.Children.IndexOf(_lastRightClickedClock);
         if (_lastRightClickedClock != null)
-        {
-            App.Clocks[App.Settings.MainClockIndex].IsMain = false;
-            App.Settings.MainClockIndex = index;
-            App.Clocks[index].IsMain = true;
-            App.Settings.MainTimeZone = App.Clocks[index].TimeZoneId;
-        }
+            App.MainClockIndex = index;
 
         _rulers.UpdateRulers();
+        _rulers.UpdateSize();
     }
 
     private void MenuItemShowRulers_Click(object sender, RoutedEventArgs e)
@@ -335,7 +331,7 @@ public partial class FmMainWindow
         }
         else
         {
-            var curTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(_localTime, App.Settings.MainTimeZone);
+            var curTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(_localTime, App.MainTimeZoneId);
             // Round to nearest hour
             if (curTime.Minute >= 30)
                 curTime = curTime.AddHours(1);
@@ -382,6 +378,7 @@ public partial class FmMainWindow
                 {
                     _rulers.GlRulers.Children.RemoveAt(index);
                     _rulers.GlRulers.Children.Insert(index + 1, rulerToMove);
+                    _rulers.UpdateSize();
                 }
             }
         }
@@ -409,6 +406,7 @@ public partial class FmMainWindow
                 {
                     _rulers.GlRulers.Children.RemoveAt(index);
                     _rulers.GlRulers.Children.Insert(index - 1, rulerToMove);
+                    _rulers.UpdateSize();
                 }
             }
         }
@@ -496,7 +494,7 @@ public partial class FmMainWindow
         if (Slider.Visibility == Visibility.Visible)
         {
             var localOffset = TimeZoneInfo.Local.GetUtcOffset(utcNow);
-            var targetOffset = TimeZoneInfo.FindSystemTimeZoneById(App.Settings.MainTimeZone).GetUtcOffset(utcNow);
+            var targetOffset = TimeZoneInfo.FindSystemTimeZoneById(App.MainTimeZoneId).GetUtcOffset(utcNow);
 
             _localTime = Slider.CurTime.Date + (localOffset - targetOffset);
 
