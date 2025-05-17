@@ -690,7 +690,9 @@ public partial class FmMainWindow
     }
 
     private void ForceToTopmost()
-    {
+    { 
+        if (!App.Settings.TopMost) 
+            return;
         // Get the window handle
         var windowHandle = new WindowInteropHelper(this).Handle;
 
