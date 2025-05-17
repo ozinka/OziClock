@@ -1,12 +1,32 @@
 using System;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using Ozi.Utilities.Helpers;
 using Ozi.Utilities.ViewModels;
 
 namespace Ozi.Utilities.Views;
+
+public class ColorToSolidBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is Color color)
+            return new SolidColorBrush(color);
+        return DependencyProperty.UnsetValue;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is SolidColorBrush brush)
+            return brush.Color;
+        return DependencyProperty.UnsetValue;
+    }
+}
 
 public partial class Edit
 {
@@ -32,29 +52,36 @@ public partial class Edit
 
     private void Window_MouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton == MouseButton.Left && e.OriginalSource as Grid != ColorPicker)
+        if (e.ChangedButton == MouseButton.Left && e.OriginalSource as Grid != ColorPickerContainer)
         {
             DragMove();
         }
     }
 
-    private void FmEdit_OnLoaded(object sender, RoutedEventArgs e)
-    {
-        ColorPicker.Background = new SolidColorBrush(_viewModel.ClockColor);
-    }
 
     private void ColorPicker_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
 
-        var dlg = new System.Windows.Forms.ColorDialog();
-        if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+        var picker = new ColorPickerWindow
         {
-            _viewModel.ClockColor = Color.FromArgb(dlg.Color.A, dlg.Color.R, dlg.Color.G, dlg.Color.B);
-            ColorPicker.Background = new SolidColorBrush(_viewModel.ClockColor);
+            Owner = this,
+            Topmost = true,
+            ShowInTaskbar = false
+        };
+
+        picker.OnColorSelected = color =>
+        {
+            _viewModel.ClockColor = color;
+            ((Border)ColorPickerContainer.Children[0]).Background = new SolidColorBrush(color);
             _viewModel.UpdateModel(_osClock);
-        }
+        };
+
+        picker.Left = this.Left + ColorPickerContainer.Margin.Left + 130;
+        picker.Top = this.Top + ColorPickerContainer.Margin.Top + 110;
+        picker.Show();
     }
+
 
     private void CbTimeZones_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -66,5 +93,4 @@ public partial class Edit
         _viewModel.UpdateModel(_osClock);
         Console.WriteLine(TbClockName.Text);
     }
-
 }

@@ -3,14 +3,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:converters="clr-namespace:Ozi.Utilities.Views"
         mc:Ignorable="d" ResizeMode="NoResize"
         Topmost="True"
         MouseDown="Window_MouseDown"
-        Loaded="FmEdit_OnLoaded"
         WindowStyle="None" Background="#FF383838"
         Title="FmEdit" Height="200" Width="400">
     <Window.Resources>
-
+            <converters:ColorToSolidBrushConverter x:Key="ColorToBrush"/>
     </Window.Resources>
 
     <Grid>
@@ -39,8 +39,10 @@
         <!-- Color Picker for Clock Background -->
         <Label Content="Color:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="200,50,0,0"
                Foreground="#FFD1D1D1" />
-        <Grid x:Name="ColorPicker" Width="50" Height="30" Margin="200,-69,0,0" Background="Beige"
-              MouseLeftButtonDown="ColorPicker_OnMouseLeftButtonDown" />
+        <Grid x:Name="ColorPickerContainer" Margin="200,-69,0,0">
+            <Border Background="{Binding ClockColor, Converter={StaticResource ColorToBrush}}" 
+                    Width="50" Height="30" MouseLeftButtonDown="ColorPicker_OnMouseLeftButtonDown"/>
+        </Grid>
         <Button x:Name="BtnOk" Content="Ok" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="135,0,0,10"
                 Width="140" Height="30" Click="Submit" IsDefault="True" IsCancel="True"/>
     </Grid>

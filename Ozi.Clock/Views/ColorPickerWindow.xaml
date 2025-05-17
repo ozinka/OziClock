@@ -1,0 +1,29 @@
+<Window x:Class="Ozi.Utilities.Views.ColorPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Pick a Color"
+        Height="150" Width="220"
+        ResizeMode="NoResize"
+        WindowStartupLocation="Manual"
+        WindowStyle="None"
+        Topmost="True"
+        Background="#FF2E2E2E">
+    <WrapPanel Margin="10">
+        <Rectangle Fill="#FFEE99CC" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- soft peach -->
+        <Rectangle Fill="#FFDD88BB" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- pinkish coral -->
+        <Rectangle Fill="#FFFFB3AA" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- salmon pink -->
+        <Rectangle Fill="#FFFAA15C" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- light orange -->
+        <Rectangle Fill="#FFF7B380" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- soft orange-yellow -->
+        <Rectangle Fill="#FFF5C08C" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- warm beige -->
+        <Rectangle Fill="#FFFFAAAA" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- light yellow -->
+        <Rectangle Fill="#FFFFFFAA" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- white with yellow tint -->
+        <Rectangle Fill="#FFD4FFAA" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- lime pastel -->
+        <Rectangle Fill="#FFAAFFAA" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- light green -->
+        <Rectangle Fill="#FFAAFFFF" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- light aqua -->
+        <Rectangle Fill="#FFCCEEFF" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- light sky blue -->
+        <Rectangle Fill="#FFDDAAFF" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- mint lavender -->
+        <Rectangle Fill="#FFAAAAFF" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- light pink -->
+        <Rectangle Fill="#FFFFFFFF" Width="30" Height="30" Margin="5" MouseLeftButtonUp="ColorSelected"/> <!-- pure white -->
+        <!-- Add more as needed -->
+    </WrapPanel>
+</Window>
