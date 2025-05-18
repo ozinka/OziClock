@@ -586,8 +586,9 @@ public partial class FmMainWindow
 
     private void MenuItemAbout_Click(object sender, RoutedEventArgs e)
     {
-        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
-        MessageBox.Show("Ozi clock. " + version);
+        var aboutWindow = new About();
+        aboutWindow.Owner = this; // Optional: make it modal to main window
+        aboutWindow.ShowDialog();
     }
 
 

@@ -1,0 +1,99 @@
+<Window x:Class="Ozi.Utilities.Views.About"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="About Ozi Clock v1.0.1"
+        Height="550" Width="450"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#1e1e1e"
+        Foreground="White"
+        WindowStyle="None"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    <Grid>
+        <Border Margin="10" BorderThickness="1" BorderBrush="#444" CornerRadius="10" Background="#2a2a2a">
+            <ScrollViewer Padding="20" VerticalScrollBarVisibility="Hidden" >
+                <StackPanel MouseLeftButtonDown="Window_MouseLeftButtonDown" MouseRightButtonUp="UIElement_OnMouseRightButtonUp">
+                    <TextBlock FontSize="24" FontWeight="Bold" Margin="0,0,0,15" Text="About Ozi Clock v1.0.1"
+                               Foreground="White" />
+
+                    <TextBlock TextWrapping="Wrap" FontSize="14" Foreground="#DDDDDD">
+                        <Run Text="Ozi Clock is an application that allows you to view time in different timezones." />
+                        <LineBreak /><LineBreak />
+                        <Run Text="• Clocks with new timezones can be added/removed." />
+                        <LineBreak />
+                        <Run Text="• It has compact and standard mode." />
+                        <LineBreak />
+                        <Run Text="• Clocks can have different colors." />
+                        <LineBreak />
+                        <Run Text="• App can be always on top." />
+                        <LineBreak />
+                        <Run Text="• It can be transparent." />
+                        <LineBreak />
+                        <Run Text="• It has rulers showing any time in any timezone." />
+                        <LineBreak />
+                        <Run Text="• One clock can be set as main - will be highlighted." />
+
+
+                        <LineBreak /><LineBreak />
+
+                        <Run Text="Controls:" FontWeight="Bold" />
+                        <LineBreak />
+                        <Run Text="• Middle click on clock — standard/compact mode" />
+                        <LineBreak />
+                        <Run Text="• Double click — show rulers" />
+                        <LineBreak /><LineBreak />
+
+                        <Run Text="Created by Ozi Os" />
+                        <LineBreak />
+                        <Run Text="GitHub: " />
+                        <Hyperlink NavigateUri="https://github.com/ozinka/OziClock"
+                                   RequestNavigate="Hyperlink_RequestNavigate" Foreground="#4FC3F7">
+                            github.com/ozinka/OziClock
+                        </Hyperlink>
+                        <LineBreak />
+                        <Run Text="Developed in C# WPF (.NET 9)" />
+                        <LineBreak />
+                        <Run
+                            Text="Special thanks to Viacheslav Melnichenko, a professional .NET developer, for code improvements." />
+                        <LineBreak />
+                        <Run Text="GitHub: " />
+                        <Hyperlink NavigateUri="https://github.com/ViacheslavMelnichenko"
+                                   RequestNavigate="Hyperlink_RequestNavigate" Foreground="#4FC3F7">
+                            github.com/ViacheslavMelnichenko
+                        </Hyperlink>
+                        <LineBreak />
+                        <Run Text="© 2025 Ozi Os" />
+                        <LineBreak />
+                        <Run Text="Licensed under the MIT License" />
+                    </TextBlock>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+        <Button Content="✕"
+                Width="30" Height="30"
+                FontWeight="Bold"
+                HorizontalAlignment="Right" VerticalAlignment="Top"
+                Margin="0,10,10,0"
+                Background="Transparent"
+                Foreground="White"
+                BorderThickness="0"
+                Cursor="Hand"
+                Click="CloseButton_Click"
+                ToolTip="Close"
+                Panel.ZIndex="10">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border" Background="{TemplateBinding Background}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#22000000"/>
+                            <Setter Property="Foreground" Value="#FFAAAAAA"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+    </Grid>
+</Window>
