@@ -32,9 +32,11 @@ public partial class Edit
 {
     private readonly OsClock _osClock;
     private readonly OsClockViewModel _viewModel;
+    private readonly FmMainWindow _mainWindow;
 
-    public Edit(OsClock osClock)
+    public Edit(OsClock osClock, FmMainWindow mainWindow)
     {
+        _mainWindow = mainWindow;
         InitializeComponent();
 
         _osClock = osClock; // Keep reference to original clock
@@ -86,6 +88,7 @@ public partial class Edit
     private void CbTimeZones_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         _viewModel.UpdateModel(_osClock); // Update the original clock here
+        _mainWindow.Rulers.UpdateRulers();
     }
 
     private void TbClockName_OnTextChanged(object sender, TextChangedEventArgs e)

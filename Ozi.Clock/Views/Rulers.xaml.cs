@@ -125,7 +125,7 @@ public partial class Rulers
         return timeDifference.TotalHours;
     }
 
-    private void CreateLinesAndLabels(Canvas canvas, string timeZoneId)
+    public void CreateLinesAndLabels(Canvas canvas, string timeZoneId)
     {
         var lineData = new List<(double y, double x2)>();
         double y = 15;

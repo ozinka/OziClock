@@ -29,7 +29,7 @@ public partial class FmMainWindow
     private const int UnfoldedHeight = 62;
     private bool _isFolded;
     public readonly Slider Slider;
-    private readonly Rulers _rulers;
+    public readonly Rulers Rulers;
     private DateTime _localTime;
     private DispatcherTimer? _timeTimer;
     private bool _isMouseOver;
@@ -47,7 +47,7 @@ public partial class FmMainWindow
         InitializeComponent();
         // CommonTimeZones.ShowTimeZones();
         Slider = new Slider(this);
-        _rulers = new Rulers(this);
+        Rulers = new Rulers(this);
 
         // Initial opacity from settings
         Opacity = App.Settings.Opacity;
@@ -55,10 +55,10 @@ public partial class FmMainWindow
 
     private void fmMain_LocationChanged(object sender, EventArgs e)
     {
-        _rulers.Left = Left;
-        _rulers.Top = Top + Height;
+        Rulers.Left = Left;
+        Rulers.Top = Top + Height;
         Slider.Left = Left;
-        Slider.Top = Top + Height + _rulers.Height;
+        Slider.Top = Top + Height + Rulers.Height;
     }
 
     private void fmMain_Loaded(object sender, RoutedEventArgs e)
@@ -78,7 +78,7 @@ public partial class FmMainWindow
 
         Deactivated += (s, e) =>
         {
-            if (!_rulers.IsVisible)
+            if (!Rulers.IsVisible)
             {
                 _isWindowFocused = false;
                 UpdateOpacity();
@@ -232,10 +232,10 @@ public partial class FmMainWindow
             false));
 
         GdMain.Children.Add(App.Clocks[^1].OsGrid);
-        if (_rulers.IsLoaded)
+        if (Rulers.IsLoaded)
         {
-            _rulers.GlRulers.Children.Add(App.Clocks[^1].RulerGrid);
-            _rulers.UpdateRulers();
+            Rulers.GlRulers.Children.Add(App.Clocks[^1].RulerGrid);
+            Rulers.UpdateRulers();
             Slider.Size += 1;
         }
 
@@ -251,7 +251,7 @@ public partial class FmMainWindow
             0, 0, 0, 0,
             SwpNomove | SwpNosize | SwpNoactivate);
 
-        var fmEdit = new Edit(App.Clocks[index])
+        var fmEdit = new Edit(App.Clocks[index], this)
         {
             Owner = this,
             WindowStartupLocation = WindowStartupLocation.Manual // Set to Manual for custom positioning
@@ -317,8 +317,8 @@ public partial class FmMainWindow
         if (_lastRightClickedClock != null)
             App.MainClockIndex = index;
 
-        _rulers.UpdateRulers();
-        _rulers.UpdateSize();
+        Rulers.UpdateRulers();
+        Rulers.UpdateSize();
     }
 
     private void MenuItemShowRulers_Click(object sender, RoutedEventArgs e)
@@ -326,7 +326,7 @@ public partial class FmMainWindow
         if (Slider.Visibility == Visibility.Visible)
         {
             Slider.Hide();
-            _rulers.Hide();
+            Rulers.Hide();
             _timeTimer!.Interval = TimeSpan.FromSeconds(1);
         }
         else
@@ -338,7 +338,7 @@ public partial class FmMainWindow
             curTime = new DateTime(curTime.Year, curTime.Month, curTime.Day, curTime.Hour, 0, 0);
             Slider.CurTime = curTime;
             Slider.SlTimeChecker.Value = curTime.Hour * 12; // + (int)(curTime.Minute / 5);
-            _rulers.Show();
+            Rulers.Show();
             Slider.Show();
             _timeTimer!.Interval = TimeSpan.FromMilliseconds(20); // Time reaction to the slider change
         }
@@ -374,11 +374,11 @@ public partial class FmMainWindow
                 GdMain.Children.RemoveAt(index);
                 GdMain.Children.Insert(index + 1, clockToMove.OsGrid);
 
-                if (_rulers.IsLoaded)
+                if (Rulers.IsLoaded)
                 {
-                    _rulers.GlRulers.Children.RemoveAt(index);
-                    _rulers.GlRulers.Children.Insert(index + 1, rulerToMove);
-                    _rulers.UpdateSize();
+                    Rulers.GlRulers.Children.RemoveAt(index);
+                    Rulers.GlRulers.Children.Insert(index + 1, rulerToMove);
+                    Rulers.UpdateSize();
                 }
             }
         }
@@ -402,11 +402,11 @@ public partial class FmMainWindow
                 GdMain.Children.RemoveAt(index);
                 GdMain.Children.Insert(index - 1, clockToMove.OsGrid);
 
-                if (_rulers.IsLoaded)
+                if (Rulers.IsLoaded)
                 {
-                    _rulers.GlRulers.Children.RemoveAt(index);
-                    _rulers.GlRulers.Children.Insert(index - 1, rulerToMove);
-                    _rulers.UpdateSize();
+                    Rulers.GlRulers.Children.RemoveAt(index);
+                    Rulers.GlRulers.Children.Insert(index - 1, rulerToMove);
+                    Rulers.UpdateSize();
                 }
             }
         }
@@ -437,7 +437,7 @@ public partial class FmMainWindow
                 ? Visibility.Collapsed
                 : Visibility.Visible;
             _itemFold.Header = _isFolded ? "Unfold" : "Fold";
-            _itemShowRulers.Header = _rulers.IsVisible ? "Hide Rulers" : "Show Rulers";
+            _itemShowRulers.Header = Rulers.IsVisible ? "Hide Rulers" : "Show Rulers";
             ((TextBlock)_itemClock.Header).Text = App.Clocks[index].Caption;
         }
     }
@@ -455,16 +455,16 @@ public partial class FmMainWindow
 
             if (clockToRemove != null)
             {
-                if (_rulers.IsLoaded)
+                if (Rulers.IsLoaded)
                 {
-                    _rulers.GlRulers.Children.Remove(clockToRemove.RulerGrid);
+                    Rulers.GlRulers.Children.Remove(clockToRemove.RulerGrid);
                 }
 
                 App.Clocks.Remove(clockToRemove);
                 GdMain.Children.Remove(clockToRemove.OsGrid);
 
                 Slider.Size -= 1;
-                _rulers.UpdateSize();
+                Rulers.UpdateSize();
             }
 
             _lastRightClickedClock = null;
@@ -499,7 +499,7 @@ public partial class FmMainWindow
             _localTime = Slider.CurTime.Date + (localOffset - targetOffset);
 
             _localTime = _localTime.AddMinutes((int)Slider.SlTimeChecker.Value * 5);
-            _rulers.RwTop.Height = new GridLength(_rulers.RwTop.MaxHeight *
+            Rulers.RwTop.Height = new GridLength(Rulers.RwTop.MaxHeight *
                 Slider.SlTimeChecker.Value / Slider.SlTimeChecker.Maximum);
         }
         else
@@ -573,10 +573,10 @@ public partial class FmMainWindow
 
     private void AdjustTimeCheckerPosition()
     {
-        _rulers.Left = Left;
-        _rulers.Top = Top + Height;
+        Rulers.Left = Left;
+        Rulers.Top = Top + Height;
         Slider.Left = Left;
-        Slider.Top = Top + Height + _rulers.Height;
+        Slider.Top = Top + Height + Rulers.Height;
     }
 
     private void MenuItemExit_Click(object sender, RoutedEventArgs e)
@@ -682,11 +682,11 @@ public partial class FmMainWindow
         animClock.CurrentTimeInvalidated += (s, e) =>
         {
             // Each tick of the animation, update attached windows
-            _rulers.Left = Left;
-            _rulers.Top = Top + Height;
+            Rulers.Left = Left;
+            Rulers.Top = Top + Height;
 
             Slider.Left = Left;
-            Slider.Top = Top + Height + _rulers.Height;
+            Slider.Top = Top + Height + Rulers.Height;
         };
     }
 

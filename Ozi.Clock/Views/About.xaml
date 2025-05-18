@@ -1,8 +1,8 @@
 <Window x:Class="Ozi.Utilities.Views.About"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="About Ozi Clock v1.0.1"
-        Height="550" Width="450"
+        Title="About Ozi Clock v1.0.2"
+        Height="500" Width="450"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="#1e1e1e"
@@ -13,25 +13,25 @@
         <Border Margin="10" BorderThickness="1" BorderBrush="#444" CornerRadius="10" Background="#2a2a2a">
             <ScrollViewer Padding="20" VerticalScrollBarVisibility="Hidden" >
                 <StackPanel MouseLeftButtonDown="Window_MouseLeftButtonDown" MouseRightButtonUp="UIElement_OnMouseRightButtonUp">
-                    <TextBlock FontSize="24" FontWeight="Bold" Margin="0,0,0,15" Text="About Ozi Clock v1.0.1"
+                    <TextBlock FontSize="24" FontWeight="Bold" Margin="0,0,0,15" Text="Ozi Clock v1.0.2"
                                Foreground="White" />
 
                     <TextBlock TextWrapping="Wrap" FontSize="14" Foreground="#DDDDDD">
-                        <Run Text="Ozi Clock is an application that allows you to view time in different timezones." />
+                        <Run Text="Ozi Clock - is a multizone Clock with the following features" />
                         <LineBreak /><LineBreak />
-                        <Run Text="• Clocks with new timezones can be added/removed." />
+                        <Run Text="• Add/remove new timezone" />
                         <LineBreak />
-                        <Run Text="• It has compact and standard mode." />
+                        <Run Text="• Compact/Standart/Extended view" />
                         <LineBreak />
-                        <Run Text="• Clocks can have different colors." />
+                        <Run Text="• Each timezone can have its color" />
                         <LineBreak />
-                        <Run Text="• App can be always on top." />
+                        <Run Text="• Always-on-top toggle" />
                         <LineBreak />
-                        <Run Text="• It can be transparent." />
+                        <Run Text="• Adjustable transparency" />
                         <LineBreak />
-                        <Run Text="• It has rulers showing any time in any timezone." />
+                        <Run Text="• Rulers for a time overview across all set timezones" />
                         <LineBreak />
-                        <Run Text="• One clock can be set as main - will be highlighted." />
+                        <Run Text="• One clock is Main - highlighted" />
 
 
                         <LineBreak /><LineBreak />
@@ -43,7 +43,7 @@
                         <Run Text="• Double click — show rulers" />
                         <LineBreak /><LineBreak />
 
-                        <Run Text="Created by Ozi Os" />
+                        <Run Text="Developed by Vitaliy Osidach" />
                         <LineBreak />
                         <Run Text="GitHub: " />
                         <Hyperlink NavigateUri="https://github.com/ozinka/OziClock"
