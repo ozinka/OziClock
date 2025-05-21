@@ -1,15 +1,24 @@
 using System.Diagnostics;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Navigation;
 
 namespace Ozi.Utilities.Views;
 
+
+
 public partial class About : Window
 {
     public About()
     {
         InitializeComponent();
+        var version = Assembly
+            .GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion?.Split('+')[0]; // Strip metadata
+
+        TbClockName.Text = "Ozi Clock v" + version;
     }
 
 

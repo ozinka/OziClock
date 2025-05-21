@@ -1,78 +1,45 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
-
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net9.0-windows</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>false</ImplicitUsings>
         <UseWPF>true</UseWPF>
+        <UseWindowsForms>true</UseWindowsForms>
+
         <ApplicationIcon>Assets/clock.ico</ApplicationIcon>
         <RootNamespace>Ozi.Utilities</RootNamespace>
         <Title>Ozi.Clock</Title>
         <Authors>Ozi</Authors>
         <PackageId>Ozi.Clock</PackageId>
+        <AssemblyName>OziClock</AssemblyName>
+
+        <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+        <Version>1.0.2</Version>
+        <AssemblyVersion>1.0.2.0</AssemblyVersion>
+        <FileVersion>1.0.2.0</FileVersion>
+        <InformationalVersion>1.0.2</InformationalVersion>
+
+        <!-- Final Release Settings -->
         <PublishSingleFile>true</PublishSingleFile>
         <SelfContained>true</SelfContained>
         <RuntimeIdentifier>win-x64</RuntimeIdentifier>
         <PublishReadyToRun>true</PublishReadyToRun>
+        <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
         <DebugType>none</DebugType>
-        <IncludeAllContentForSelfExtract>false</IncludeAllContentForSelfExtract>
-        <EnableCompressionInSingleFile>False</EnableCompressionInSingleFile>
         <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
-        <CopyOutputTrimmedFiles>true</CopyOutputTrimmedFiles>
-        <UseWindowsForms>true</UseWindowsForms>
+
+        <!-- 🚫 REMOVE trimming settings to support WPF -->
+        <PublishTrimmed>false</PublishTrimmed>
     </PropertyGroup>
 
-    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-        <DebugType>portable</DebugType>
-    </PropertyGroup>
-
-    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-        <DebugType>portable</DebugType>
-    </PropertyGroup>
 
     <ItemGroup>
-        <Reference Include="System.Windows.Forms"/>
+        <Resource Include="Assets\*.ico"/>
     </ItemGroup>
 
     <ItemGroup>
-        <Resource Include="Assets\clock.ico"/>
-        <Resource Include="Assets\edit2.ico"/>
-        <Resource Include="Assets\left.ico"/>
-        <Resource Include="Assets\right.ico"/>
-        <Resource Include="Assets\main4.ico"/>
-        <Resource Include="Assets\remove.ico"/>
-        <Resource Include="Assets\fold.ico"/>
-        <Resource Include="Assets\ruler.ico"/>
-        <Resource Include="Assets\settings.ico"/>
-        <Resource Include="Assets\about.ico"/>
-        <Resource Include="Assets\exit.ico"/>
-        <Resource Include="Assets\add.ico"/>
-        <Resource Include="Assets\ClockAll.ico"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Page Update="Views\Main.xaml">
-            <Generator>MSBuild:Compile</Generator>
-            <XamlRuntime>Wpf</XamlRuntime>
-            <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\Edit.xaml">
-            <Generator>MSBuild:Compile</Generator>
-            <XamlRuntime>Wpf</XamlRuntime>
-            <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\Rulers.xaml">
-            <Generator>MSBuild:Compile</Generator>
-            <XamlRuntime>Wpf</XamlRuntime>
-            <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\Settings.xaml">
-            <Generator>MSBuild:Compile</Generator>
-            <XamlRuntime>Wpf</XamlRuntime>
-            <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\Slider.xaml">
+        <Page Update="Views\*.xaml">
             <Generator>MSBuild:Compile</Generator>
             <XamlRuntime>Wpf</XamlRuntime>
             <SubType>Designer</SubType>
@@ -80,8 +47,9 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="appsettings.json">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
+        <None Update="appsettings.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
+
 </Project>
