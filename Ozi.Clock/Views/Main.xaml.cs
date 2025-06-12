@@ -84,6 +84,8 @@ public partial class FmMainWindow
                 UpdateOpacity();
             }
         };
+        // Console.WriteLine($"DateTime.UtcNow: {DateTime.UtcNow}");
+        // Console.WriteLine($"DateTime.Now.ToUniversalTime(): {DateTime.Now.ToUniversalTime()}");
     }
 
     private MenuItem _itemMoveLeft;

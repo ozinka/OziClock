@@ -9,7 +9,9 @@ public class OsClock
 {
     private string _caption;
     private string _color;
+    private TimeZoneInfo _timeZone;
     public string TimeZoneId;
+    
     public readonly Grid OsGrid;
 
     public string Caption
@@ -58,7 +60,20 @@ public class OsClock
             }
         }
     }
-
+    
+    private void SetTimeZone(string timeZoneId)
+    {
+        try
+        {
+            TimeZoneId = timeZoneId;
+            _timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            TimeZoneId = "UTC";
+            _timeZone = TimeZoneInfo.Utc;
+        }
+    }
     public Grid RulerGrid { get; set; }
 
     private readonly TextBlock _lbCapt;
@@ -111,6 +126,7 @@ public class OsClock
         OsGrid.VerticalAlignment = VerticalAlignment.Bottom;
 
         TimeZoneId = timeZoneId;
+        SetTimeZone(timeZoneId);
 
         var fntClcCaption = new FontFamily("Calibry");
 
@@ -270,7 +286,8 @@ public class OsClock
 
     public void SetTime(DateTime curTime)
     {
-        var tmzTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(curTime, TimeZoneId);
+        var tmzTime = TimeZoneInfo.ConvertTimeFromUtc(curTime, _timeZone);
+        
         _lbDateMm.Text = tmzTime.ToString("MM'/'");
         _lbDateDd.Text = tmzTime.ToString("dd");
         _lbDateH.Text = tmzTime.ToString("HH");

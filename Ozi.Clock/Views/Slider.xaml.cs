@@ -39,7 +39,6 @@ public partial class Slider
         if (IsLoaded)
         {
             _size = Math.Max(1, value);
-            Console.WriteLine(_size);
             // Clear Labels
             foreach (var label in GdMain.Children.OfType<Label>().ToList())
             {

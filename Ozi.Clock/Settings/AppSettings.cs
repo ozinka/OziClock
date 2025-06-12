@@ -40,7 +40,6 @@ namespace Ozi.Utilities.Settings
                     IsMain = clock.IsMain
                 })
                 .ToList();
-            Console.WriteLine(App.Clocks.Count);
 
             ClocksSettings = actualSettings;
             var fileData = JsonSerializer.Serialize(this, options);

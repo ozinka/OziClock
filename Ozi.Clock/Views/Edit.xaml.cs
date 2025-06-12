@@ -94,6 +94,5 @@ public partial class Edit
     private void TbClockName_OnTextChanged(object sender, TextChangedEventArgs e)
     {
         _viewModel.UpdateModel(_osClock);
-        Console.WriteLine(TbClockName.Text);
     }
 }
