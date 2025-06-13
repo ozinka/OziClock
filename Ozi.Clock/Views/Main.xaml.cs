@@ -30,7 +30,7 @@ public partial class FmMainWindow
     private bool _isFolded;
     public readonly Slider Slider;
     public readonly Rulers Rulers;
-    private DateTime _localTime;
+    private DateTime _utcTime;
     private DispatcherTimer? _timeTimer;
     private bool _isMouseOver;
     private bool _isWindowFocused;
@@ -333,7 +333,7 @@ public partial class FmMainWindow
         }
         else
         {
-            var curTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(_localTime, App.MainTimeZoneId);
+            var curTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(_utcTime, App.MainTimeZoneId);
             // Round to nearest hour
             if (curTime.Minute >= 30)
                 curTime = curTime.AddHours(1);
@@ -492,25 +492,20 @@ public partial class FmMainWindow
 
     private void TtTick(object sender, EventArgs e)
     {
-        var utcNow = DateTime.UtcNow;
+        _utcTime = DateTime.UtcNow;
         if (Slider.Visibility == Visibility.Visible)
         {
-            var localOffset = TimeZoneInfo.Local.GetUtcOffset(utcNow);
-            var targetOffset = TimeZoneInfo.FindSystemTimeZoneById(App.MainTimeZoneId).GetUtcOffset(utcNow);
+            var targetOffset = TimeZoneInfo.FindSystemTimeZoneById(App.MainTimeZoneId).GetUtcOffset(_utcTime);
 
-            _localTime = Slider.CurTime.Date + (localOffset - targetOffset);
+            _utcTime = Slider.CurTime.Date - targetOffset;
 
-            _localTime = _localTime.AddMinutes((int)Slider.SlTimeChecker.Value * 5);
+            _utcTime = _utcTime.AddMinutes((int)Slider.SlTimeChecker.Value * 5);
             Rulers.RwTop.Height = new GridLength(Rulers.RwTop.MaxHeight *
                 Slider.SlTimeChecker.Value / Slider.SlTimeChecker.Maximum);
         }
-        else
-        {
-            _localTime = utcNow;
-        }
 
         foreach (var item in App.Clocks!)
-            item.SetTime(_localTime);
+            item.SetTime(_utcTime);
 
         ForceToTopmost();
     }
@@ -693,8 +688,8 @@ public partial class FmMainWindow
     }
 
     private void ForceToTopmost()
-    { 
-        if (!App.Settings.TopMost) 
+    {
+        if (!App.Settings.TopMost)
             return;
         // Get the window handle
         var windowHandle = new WindowInteropHelper(this).Handle;

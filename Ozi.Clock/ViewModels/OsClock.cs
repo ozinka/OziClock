@@ -286,8 +286,11 @@ public class OsClock
 
     public void SetTime(DateTime curTime)
     {
-        var tmzTime = TimeZoneInfo.ConvertTimeFromUtc(curTime, _timeZone);
-        
+        // Force the Kind to be UTC regardless of what it currently is
+        var utcTime = DateTime.SpecifyKind(curTime, DateTimeKind.Utc);
+    
+        var tmzTime = TimeZoneInfo.ConvertTimeFromUtc(utcTime, _timeZone);
+    
         _lbDateMm.Text = tmzTime.ToString("MM'/'");
         _lbDateDd.Text = tmzTime.ToString("dd");
         _lbDateH.Text = tmzTime.ToString("HH");
