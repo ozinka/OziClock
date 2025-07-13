@@ -13,12 +13,11 @@ namespace Ozi.Utilities.Settings
         public double MainWndLeft { get; set; }
         public double MainWndTop { get; set; }
 
-        public bool IsTransparent { get; set; }
         public double Opacity { get; set; }
         public bool TopMost { get; set; }
         public bool ShowInTaskBar { get; set; }
+        public bool ShowSeconds { get; set; }
 
-        public bool UseSnap { get; set; }
 
         public List<ClockSettings> ClocksSettings { get; set; } = [];
 
@@ -27,7 +26,6 @@ namespace Ozi.Utilities.Settings
             var options = new JsonSerializerOptions
             {
                 WriteIndented = true,
-                // ReferenceHandler = ReferenceHandler.Preserve - ? 
             };
 
             var actualSettings = App

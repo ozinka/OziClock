@@ -24,8 +24,10 @@
         <CheckBox x:Name="CbTopMost" Content="Always on top" HorizontalAlignment="Left" Margin="10,138,0,0"
                   VerticalAlignment="Top" Foreground="#FFD1D1D1"
                   IsChecked="{Binding TopMost, Source={StaticResource AppSettings}, Mode=TwoWay}" />
-        <CheckBox x:Name="CbSnap" Content="Snap to screen" HorizontalAlignment="Left" Margin="10,201,0,0"
-                  VerticalAlignment="Top" Foreground="#FFD1D1D1" Visibility="Hidden" />
+        <CheckBox x:Name="CbShowSeconds" Content="Show seconds" HorizontalAlignment="Left" Margin="10,168,0,0"
+                  VerticalAlignment="Top" Foreground="#FFD1D1D1" 
+                  IsChecked="{Binding ShowSeconds, Source={StaticResource AppSettings}, Mode=TwoWay}"/>
+        
         <Button x:Name="BtOk" Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}" Content="Ok"
                 Margin="26,0,28,27" Click="btOk_Click" RenderTransformOrigin="0.5,0.5" Background="#FFA2A2A2"
                 IsDefault="True" Height="39" VerticalAlignment="Bottom" Width="245" IsCancel="True" />
