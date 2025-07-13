@@ -107,13 +107,13 @@ public partial class FmMainWindow
             {
                 Text = "Clock",
                 FontWeight = FontWeights.Bold
-            }
+            },
+            Icon = new Image
+            {
+                Source = new BitmapImage(new Uri("pack://application:,,,/Assets/clock.ico", UriKind.Absolute))
+            },
+            IsEnabled = false // Make it non-clickable, menu won't close
         };
-        var imageClock = new Image
-        {
-            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/clock.ico", UriKind.Absolute)),
-        };
-        _itemClock.Icon = imageClock;
         mainMenu.Items.Add(_itemClock);
 
         mainMenu.Items.Add(new Separator());
@@ -125,7 +125,7 @@ public partial class FmMainWindow
         };
         itemEdit.Icon = imageEdit;
         itemEdit.Click += ItemEditClick;
-        _itemClock.Items.Add(itemEdit);
+        mainMenu.Items.Add(itemEdit);
 
         _itemMoveLeft = new MenuItem { Header = "Move Left" };
         var imageLeft = new Image
@@ -134,7 +134,7 @@ public partial class FmMainWindow
         };
         _itemMoveLeft.Icon = imageLeft;
         _itemMoveLeft.Click += ItemMoveLeftOnClick;
-        _itemClock.Items.Add(_itemMoveLeft);
+        mainMenu.Items.Add(_itemMoveLeft);
 
         _itemMoveRight = new MenuItem { Header = "Move Right" };
         var imageRight = new Image
@@ -143,7 +143,7 @@ public partial class FmMainWindow
         };
         _itemMoveRight.Icon = imageRight;
         _itemMoveRight.Click += ItemMoveRightOnClick;
-        _itemClock.Items.Add(_itemMoveRight);
+        mainMenu.Items.Add(_itemMoveRight);
 
         _itemMakeMain = new MenuItem { Header = "Make Main" };
         var imageMain = new Image
@@ -152,9 +152,7 @@ public partial class FmMainWindow
         };
         _itemMakeMain.Icon = imageMain;
         _itemMakeMain.Click += ItemMakeMainOnClick;
-        _itemClock.Items.Add(_itemMakeMain);
-
-        _itemClock.Items.Add(new Separator());
+        mainMenu.Items.Add(_itemMakeMain);
 
         _itemRemove = new MenuItem { Header = "Remove" };
         var imageRemove = new Image
@@ -163,8 +161,25 @@ public partial class FmMainWindow
         };
         _itemRemove.Icon = imageRemove;
         _itemRemove.Click += MenuItemRemove_Click;
-        _itemClock.Items.Add(_itemRemove);
+        mainMenu.Items.Add(_itemRemove);
+        
+        mainMenu.Items.Add(new Separator());
 
+        var labelSeparator = new MenuItem
+        {
+            Header = new TextBlock
+            {
+                
+                Foreground = Brushes.Black,
+                FontWeight = FontWeights.SemiBold,
+                FontStyle = FontStyles.Italic
+            },
+            IsEnabled = false // Not clickable
+        };
+        mainMenu.Items.Add(labelSeparator);
+        
+        mainMenu.Items.Add(new Separator());
+        
         var itemAdd = new MenuItem { Header = "Add Clock" };
         var imageAdd = new Image
         {

@@ -10,7 +10,13 @@ public class OsClock
     private string _caption;
     private string _color;
     private TimeZoneInfo _timeZone;
-    public string TimeZoneId;
+
+    public string TimeZoneId
+    {
+        get => _timeZone.Id;
+        set => SetTimeZone(value);
+    }
+
     
     public readonly Grid OsGrid;
 
@@ -65,12 +71,10 @@ public class OsClock
     {
         try
         {
-            TimeZoneId = timeZoneId;
             _timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
         }
         catch (TimeZoneNotFoundException)
         {
-            TimeZoneId = "UTC";
             _timeZone = TimeZoneInfo.Utc;
         }
     }
@@ -126,7 +130,6 @@ public class OsClock
         OsGrid.VerticalAlignment = VerticalAlignment.Bottom;
 
         TimeZoneId = timeZoneId;
-        SetTimeZone(timeZoneId);
 
         var fntClcCaption = new FontFamily("Calibry");
 
@@ -253,7 +256,6 @@ public class OsClock
 
         IsMain = isMain;
         Caption = caption;
-        TimeZoneId = timeZoneId;
         _color = color;
 
         RulerGrid = new Grid
