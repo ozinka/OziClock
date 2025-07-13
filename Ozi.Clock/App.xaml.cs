@@ -79,7 +79,8 @@ public partial class App
             Clocks.Add(new OsClock(timeZoneInfo.Label,
                 timeZoneInfo.TimeZone,
                 timeZoneInfo.Color,
-                timeZoneInfo.IsMain ?? false));
+                timeZoneInfo.IsMain ?? false,
+                App.Settings.ShowSeconds));
         }
     }
 
@@ -112,7 +113,7 @@ public partial class App
             Opacity = 100,
             TopMost = true,
             ShowInTaskBar = true,
-            UseSnap = false,
+            ShowSeconds = true,
             ClocksSettings =
             [
                 new ClockSettings

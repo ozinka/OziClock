@@ -579,6 +579,11 @@ public partial class FmMainWindow
         fmFmSettings.Owner = this;
         fmFmSettings.ShowDialog();
 
+        foreach (var clock in App.Clocks)
+        {
+            clock.ShowSeconds = App.Settings.ShowSeconds;
+        }
+
         // Restore topmost
         ForceToTopmost();
     }

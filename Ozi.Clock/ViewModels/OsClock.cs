@@ -3,12 +3,19 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
+
 namespace Ozi.Utilities.ViewModels;
 
 public class OsClock
 {
+    const int MarginLeftH = 0;
+    const int MarginLeftM = 34;
+    const int MarginLeftCol = 30;
+    const int MarginLeftShift = 14;
+
     private string _caption;
     private string _color;
+    private bool _showSeconds = true;
     private TimeZoneInfo _timeZone;
 
     public string TimeZoneId
@@ -17,7 +24,37 @@ public class OsClock
         set => SetTimeZone(value);
     }
 
-    
+    public bool ShowSeconds
+    {
+        get => _showSeconds;
+        set
+        {
+            _showSeconds = value;
+            ApplyShowSeconds(value); // Call your custom function when set
+        }
+    }
+
+    private void ApplyShowSeconds(bool showSeconds)
+    {
+        _showSeconds = showSeconds;
+        if (ShowSeconds)
+        {
+            _lbDateS.Visibility = Visibility.Visible;
+            _lbDateDelim2.Visibility = Visibility.Visible;
+            _lbDateH.Margin = new Thickness(MarginLeftH, 35, 0, 0);
+            _lbDateM.Margin = new Thickness(MarginLeftM, 35, 0, 0);
+            _lbDateDelim.Margin = new Thickness(MarginLeftCol, 41, 0, 0);
+        }
+        else
+        {
+            _lbDateS.Visibility = Visibility.Collapsed;
+            _lbDateDelim2.Visibility = Visibility.Collapsed;
+            _lbDateH.Margin = new Thickness(MarginLeftH + MarginLeftShift, 35, 0, 0);
+            _lbDateM.Margin = new Thickness(MarginLeftM + MarginLeftShift, 35, 0, 0);
+            _lbDateDelim.Margin = new Thickness(MarginLeftCol + MarginLeftShift, 41, 0, 0);
+        }
+    }
+
     public readonly Grid OsGrid;
 
     public string Caption
@@ -66,7 +103,7 @@ public class OsClock
             }
         }
     }
-    
+
     private void SetTimeZone(string timeZoneId)
     {
         try
@@ -78,6 +115,7 @@ public class OsClock
             _timeZone = TimeZoneInfo.Utc;
         }
     }
+
     public Grid RulerGrid { get; set; }
 
     private readonly TextBlock _lbCapt;
@@ -86,6 +124,8 @@ public class OsClock
     private readonly TextBlock _lbDateH;
     private readonly TextBlock _lbDateM;
     private readonly TextBlock _lbDateS;
+    private readonly TextBlock _lbDateDelim2;
+    private readonly TextBlock _lbDateDelim;
     private bool _isMain;
 
     public bool IsMain
@@ -109,7 +149,7 @@ public class OsClock
     }
 
     //constructor
-    public OsClock(string caption, string timeZoneId, string color, bool isMain)
+    public OsClock(string caption, string timeZoneId, string color, bool isMain, bool showSeconds = true)
     {
         OsGrid = new Grid
         {
@@ -182,35 +222,36 @@ public class OsClock
         };
         OsGrid.Children.Add(_lbDateDd);
 
-        var lbDateDelim = new TextBlock
+        _lbDateDelim = new TextBlock
         {
             FontFamily = fntClcCaption,
             FontSize = 16,
             FontWeight = FontWeights.DemiBold,
             Text = ":",
-            Margin = new Thickness(30, 41, 0, 0),
+            Margin = new Thickness(showSeconds ? MarginLeftCol : MarginLeftCol + MarginLeftShift, 41, 0, 0),
             Width = 9,
             TextTrimming = TextTrimming.None,
             VerticalAlignment = VerticalAlignment.Top,
             HorizontalAlignment = HorizontalAlignment.Left,
             TextAlignment = TextAlignment.Center,
         };
-        OsGrid.Children.Add(lbDateDelim);
+        OsGrid.Children.Add(_lbDateDelim);
 
-        var lbDateDelim2 = new TextBlock
+        _lbDateDelim2 = new TextBlock
         {
             FontFamily = fntClcCaption,
             FontSize = 16,
             FontWeight = FontWeights.DemiBold,
             Text = ":",
             Margin = new Thickness(67, 41, 0, 0),
+            Visibility = showSeconds ? Visibility.Visible : Visibility.Collapsed,
             Width = 9,
             TextTrimming = TextTrimming.None,
             VerticalAlignment = VerticalAlignment.Top,
             HorizontalAlignment = HorizontalAlignment.Left,
             TextAlignment = TextAlignment.Center,
         };
-        OsGrid.Children.Add(lbDateDelim2);
+        OsGrid.Children.Add(_lbDateDelim2);
 
         _lbDateH = new TextBlock
         {
@@ -218,7 +259,7 @@ public class OsClock
             FontSize = 22,
             FontWeight = FontWeights.DemiBold,
             Text = "00",
-            Margin = new Thickness(0, 35, 0, 0),
+            Margin = new Thickness(showSeconds ? MarginLeftH : MarginLeftH + MarginLeftShift, 35, 0, 0),
             Width = 28,
             TextTrimming = TextTrimming.None,
             VerticalAlignment = VerticalAlignment.Top,
@@ -232,7 +273,7 @@ public class OsClock
             FontFamily = fntClcCaption,
             FontSize = 22,
             Text = "00",
-            Margin = new Thickness(34, 35, 0, 0),
+            Margin = new Thickness(showSeconds ? MarginLeftM : MarginLeftM + MarginLeftShift, 35, 0, 0),
             Width = 38,
             TextTrimming = TextTrimming.None,
             VerticalAlignment = VerticalAlignment.Top,
@@ -248,7 +289,7 @@ public class OsClock
             Text = "00",
             Margin = new Thickness(67, 41, 0, 0),
             Width = 38,
-            // Background = Brushes.White,
+            Visibility = showSeconds ? Visibility.Visible : Visibility.Collapsed,
             TextTrimming = TextTrimming.None,
             TextAlignment = TextAlignment.Center,
         };
@@ -290,9 +331,9 @@ public class OsClock
     {
         // Force the Kind to be UTC regardless of what it currently is
         var utcTime = DateTime.SpecifyKind(curTime, DateTimeKind.Utc);
-    
+
         var tmzTime = TimeZoneInfo.ConvertTimeFromUtc(utcTime, _timeZone);
-    
+
         _lbDateMm.Text = tmzTime.ToString("MM'/'");
         _lbDateDd.Text = tmzTime.ToString("dd");
         _lbDateH.Text = tmzTime.ToString("HH");
