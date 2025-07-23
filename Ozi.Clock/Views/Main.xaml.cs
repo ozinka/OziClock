@@ -110,7 +110,9 @@ public partial class FmMainWindow
             },
             Icon = new Image
             {
-                Source = new BitmapImage(new Uri("pack://application:,,,/Assets/clock.ico", UriKind.Absolute))
+                Source = new BitmapImage(new Uri("pack://application:,,,/Assets/clock.ico", UriKind.Absolute)),
+                Width = 16,
+                Height = 16
             },
             IsEnabled = false // Make it non-clickable, menu won't close
         };
@@ -122,6 +124,8 @@ public partial class FmMainWindow
         var imageEdit = new Image
         {
             Source = new BitmapImage(new Uri("pack://application:,,,/Assets/edit2.ico", UriKind.Absolute)),
+            Width = 16,
+            Height = 16
         };
         itemEdit.Icon = imageEdit;
         itemEdit.Click += ItemEditClick;
@@ -131,6 +135,8 @@ public partial class FmMainWindow
         var imageLeft = new Image
         {
             Source = new BitmapImage(new Uri("pack://application:,,,/Assets/left.ico", UriKind.Absolute)),
+            Width = 16,
+            Height = 16
         };
         _itemMoveLeft.Icon = imageLeft;
         _itemMoveLeft.Click += ItemMoveLeftOnClick;
@@ -140,6 +146,8 @@ public partial class FmMainWindow
         var imageRight = new Image
         {
             Source = new BitmapImage(new Uri("pack://application:,,,/Assets/right.ico", UriKind.Absolute)),
+            Width = 16,
+            Height = 16
         };
         _itemMoveRight.Icon = imageRight;
         _itemMoveRight.Click += ItemMoveRightOnClick;
@@ -149,6 +157,8 @@ public partial class FmMainWindow
         var imageMain = new Image
         {
             Source = new BitmapImage(new Uri("pack://application:,,,/Assets/main4.ico", UriKind.Absolute)),
+            Width = 16,
+            Height = 16
         };
         _itemMakeMain.Icon = imageMain;
         _itemMakeMain.Click += ItemMakeMainOnClick;
@@ -158,6 +168,8 @@ public partial class FmMainWindow
         var imageRemove = new Image
         {
             Source = new BitmapImage(new Uri("pack://application:,,,/Assets/remove.ico", UriKind.Absolute)),
+            Width = 16,
+            Height = 16
         };
         _itemRemove.Icon = imageRemove;
         _itemRemove.Click += MenuItemRemove_Click;
@@ -184,6 +196,8 @@ public partial class FmMainWindow
         var imageAdd = new Image
         {
             Source = new BitmapImage(new Uri("pack://application:,,,/Assets/add.ico", UriKind.Absolute)),
+            Width = 16,
+            Height = 16
         };
         itemAdd.Icon = imageAdd;
         itemAdd.Click += ItemAddOnClick;
@@ -193,6 +207,8 @@ public partial class FmMainWindow
         var imageFold = new Image
         {
             Source = new BitmapImage(new Uri("pack://application:,,,/Assets/fold.ico", UriKind.Absolute)),
+            Width = 16,
+            Height = 16
         };
         _itemFold.Icon = imageFold;
         _itemFold.Click += MenuItemFold_Click;
@@ -202,6 +218,8 @@ public partial class FmMainWindow
         var imageRuler = new Image
         {
             Source = new BitmapImage(new Uri("pack://application:,,,/Assets/ruler.ico", UriKind.Absolute)),
+            Width = 16,
+            Height = 16
         };
         _itemShowRulers.Icon = imageRuler;
         _itemShowRulers.Click += MenuItemShowRulers_Click;
@@ -213,6 +231,8 @@ public partial class FmMainWindow
         var imageSettings = new Image
         {
             Source = new BitmapImage(new Uri("pack://application:,,,/Assets/settings.ico", UriKind.Absolute)),
+            Width = 16,
+            Height = 16
         };
         itemSettings.Icon = imageSettings;
         itemSettings.Click += MenuItemSettings_Click;
@@ -222,6 +242,8 @@ public partial class FmMainWindow
         var imageAbout = new Image
         {
             Source = new BitmapImage(new Uri("pack://application:,,,/Assets/about.ico", UriKind.Absolute)),
+            Width = 16,
+            Height = 16
         };
         itemAbout.Icon = imageAbout;
         itemAbout.Click += MenuItemAbout_Click;
@@ -233,6 +255,8 @@ public partial class FmMainWindow
         var imageExit = new Image
         {
             Source = new BitmapImage(new Uri("pack://application:,,,/Assets/exit.ico", UriKind.Absolute)),
+            Width = 16,
+            Height = 16
         };
         itemExit.Icon = imageExit;
         itemExit.Click += MenuItemExit_Click;
