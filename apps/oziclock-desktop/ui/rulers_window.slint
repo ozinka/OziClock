@@ -70,6 +70,56 @@ export component RulersWindow inherits Window {
         Rectangle { x: (root.focused-column + 1) * 100px * root.clock-scale; y: 0px; width: parent.width; height: parent.height; background: #88000000; }
         Rectangle { x: root.focused-column * 100px * root.clock-scale; y: 0px; width: 2px * root.clock-scale; height: parent.height; background: #800000; }
         Rectangle { x: (root.focused-column + 1) * 100px * root.clock-scale - 2px * root.clock-scale; y: 0px; width: 2px * root.clock-scale; height: parent.height; background: #800000; }
+        lens := Rectangle {
+            x: 0px;
+            y: root.focus-progress * 433px * root.clock-scale;
+            width: parent.width;
+            height: 30px * root.clock-scale;
+            clip: true;
+            property <length> source-center: Math.max(15px * root.clock-scale, Math.min(447px * root.clock-scale, root.focus-progress * 433px * root.clock-scale + 15px * root.clock-scale));
+
+            for ruler[index] in root.rulers: Rectangle {
+                x: (1px + index * 100px) * root.clock-scale;
+                width: 99px * root.clock-scale;
+                height: parent.height;
+                background: ruler.accent;
+
+                for tick[tick-index] in root.tick-indices: Rectangle {
+                    x: 0px;
+                    y: Math.round((((15px + tick * 3px) * root.clock-scale - lens.source-center) * 1.6 + 15px * root.clock-scale) / 1px) * 1px;
+                    width: (Math.mod(tick-index, 6) == 0 ? 25px : Math.mod(tick-index, 6) == 3 ? 20px : 15px) * root.clock-scale;
+                    height: 2px;
+                    background: #000000;
+                }
+                for tick[tick-index] in root.tick-indices: Rectangle {
+                    x: parent.width - (Math.mod(tick-index, 6) == 0 ? 25px : Math.mod(tick-index, 6) == 3 ? 20px : 15px) * root.clock-scale;
+                    y: Math.round((((15px + tick * 3px) * root.clock-scale - lens.source-center) * 1.6 + 15px * root.clock-scale) / 1px) * 1px;
+                    width: (Math.mod(tick-index, 6) == 0 ? 25px : Math.mod(tick-index, 6) == 3 ? 20px : 15px) * root.clock-scale;
+                    height: 2px;
+                    background: #000000;
+                }
+                for hour[hour-index] in root.label-hours: Text {
+                    x: 0px;
+                    y: ((6px + hour-index * 18px) * root.clock-scale + 9px * root.clock-scale - lens.source-center) * 1.6 + 0.6px * root.clock-scale;
+                    width: parent.width;
+                    height: 28.8px * root.clock-scale;
+                    text: root.format-label(index, hour);
+                    color: #000000;
+                    font-family: "Calibry";
+                    font-size: 12px * root.clock-scale * 1.6;
+                    font-weight: 700;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+            Rectangle {
+                width: parent.width;
+                height: parent.height;
+                background: @linear-gradient(180deg, #88000000, #55000000 10%, #00000000 40%, #00000000 60%, #55000000 90%, #88000000);
+            }
+            Rectangle { x: 0px; y: 0px; width: parent.width; height: 1px; background: #111111; }
+            Rectangle { x: 0px; y: parent.height - 1px; width: parent.width; height: 1px; background: #111111; }
+        }
         TouchArea {
             width: parent.width;
             height: parent.height;

@@ -26,6 +26,7 @@ export component AppWindow inherits Window {
     callback request-open-about();
     callback request-exit();
     callback request-toggle-compact();
+    callback request-toggle-rulers();
 
     title: product-name;
     no-frame: true;
@@ -75,6 +76,7 @@ export component AppWindow inherits Window {
         }
 
         interaction := TouchArea {
+            double-clicked => { root.request-toggle-rulers(); }
             pointer-event(event) => {
                 if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
                     root.request-window-drag();

@@ -259,6 +259,27 @@ fn main() -> Result<(), slint::PlatformError> {
         );
     });
     let state = shared_settings.clone();
+    let editor = settings_window.as_weak();
+    let main_window = window.as_weak();
+    let rulers_for_toggle = rulers_window.as_weak();
+    let slider_for_toggle = time_slider_window.as_weak();
+    window.on_request_toggle_rulers(move || {
+        let show_rulers = {
+            let mut state = state.borrow_mut();
+            state.show_rulers = !state.show_rulers;
+            state.show_rulers
+        };
+        if let Some(editor) = editor.upgrade() {
+            editor.set_show_rulers(show_rulers);
+        }
+        sync_attached_windows(
+            &main_window,
+            &rulers_for_toggle,
+            &slider_for_toggle,
+            show_rulers,
+        );
+    });
+    let state = shared_settings.clone();
     let main_window = window.as_weak();
     let rulers_for_scale = rulers_window.as_weak();
     let slider_for_scale = time_slider_window.as_weak();
