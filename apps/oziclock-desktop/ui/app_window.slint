@@ -1,0 +1,62 @@
+import { ClockTile } from "../../../ui/clock_tile.slint";
+
+export struct ClockTileData {
+    label: string,
+    month: string,
+    day: string,
+    hour: string,
+    minute: string,
+    second: string,
+    accent: color,
+    main-zone: bool,
+}
+
+export component AppWindow inherits Window {
+    in property <string> product-name;
+    in property <[ClockTileData]> clocks;
+    in property <bool> show-seconds: true;
+    in-out property <length> menu-x: 0px;
+    callback request-window-drag();
+    callback request-open-menu();
+    callback request-open-settings();
+    callback request-open-about();
+    callback request-exit();
+
+    title: product-name;
+    no-frame: true;
+    preferred-width: 100px * root.clocks.length + 1px;
+    preferred-height: 62px;
+    min-width: 101px;
+    min-height: 62px;
+    max-height: 62px;
+    background: #000000;
+
+    HorizontalLayout {
+        padding: 1px;
+        spacing: 1px;
+
+        for clock in root.clocks: ClockTile {
+            label: clock.label;
+            month: clock.month;
+            day: clock.day;
+            hour: clock.hour;
+            minute: clock.minute;
+            second: clock.second;
+            accent: clock.accent;
+            main-zone: clock.main-zone;
+            show-seconds: root.show-seconds;
+        }
+    }
+
+    TouchArea {
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                root.request-window-drag();
+            }
+            if (event.kind == PointerEventKind.up && event.button == PointerEventButton.right) {
+                root.menu-x = self.mouse-x;
+                root.request-open-menu();
+            }
+        }
+    }
+}

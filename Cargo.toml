@@ -1,0 +1,20 @@
+[workspace]
+members = [
+    "apps/oziclock-desktop",
+    "crates/oziclock-app",
+    "crates/oziclock-domain",
+    "crates/oziclock-storage",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/ozinka/OziClock"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+opt-level = "z"
+panic = "abort"
+strip = "symbols"

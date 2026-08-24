@@ -1,0 +1,19 @@
+{
+  "SchemaVersion": 1,
+  "MainWndLeft": 120.0,
+  "MainWndTop": 200.0,
+  "Opacity": 1.0,
+  "TopMost": true,
+  "ShowInTaskBar": false,
+  "ShowSeconds": true,
+  "ClocksSettings": [
+    { "Label": "MEX", "TimeZone": "America/Mexico_City", "Color": "#FFFFAA" },
+    { "Label": "NYK", "TimeZone": "America/New_York", "Color": "#AAAAFF" },
+    { "Label": "UTC", "TimeZone": "UTC", "Color": "#FFFFFF" },
+    { "Label": "LDN", "TimeZone": "Europe/London", "Color": "#AAFFAA" },
+    { "Label": "WAW", "TimeZone": "Europe/Warsaw", "Color": "#FAA15C" },
+    { "Label": "KYIV", "TimeZone": "Europe/Kyiv", "Color": "#AAFFFF" },
+    { "Label": "PUNE", "TimeZone": "Asia/Kolkata", "Color": "#99BBBB", "IsMain": true },
+    { "Label": "TKO", "TimeZone": "Asia/Tokyo", "Color": "#FFAAAA" }
+  ]
+}

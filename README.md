@@ -1,75 +1,28 @@
-# Ozi.Clock
-Compact Clock with different Time Zones
-# 🌍 WPF World Clock
+# OziClock
 
-A compact and customizable **WPF desktop Clock** displaying current time in multiple time zones. This app is designed to always stay on top, with a transparent mode and adjustable UI for easy time comparison across global cities.
+OziClock is being rebuilt as a lightweight, cross-platform desktop world clock. The target application will use Rust for application logic and Slint for the custom desktop UI.
 
----
+## Repository Layout
 
-## 🧩 Features
+- `apps/oziclock-desktop/` — future native desktop executable.
+- `crates/` — reusable Rust domain and application modules.
+- `ui/` — shared Slint components and design tokens.
+- `docs/` — requirements, architecture, design specifications, and decisions.
+- `legacy/dotnet-wpf/` — preserved WPF/.NET 9 reference implementation, assets, solution, and release script.
 
-- ⏱️ Displays current time in multiple time zones:
-    - NYK (New York)
-    - LDN (London)
-    - KYIV (Kyiv)
-    - PUN (Pune)
-    - SGP (Singapore)
-    - TKO (Tokyo)
-    - and other
-- 🎛️ Sliders to shift time and compare different zones.
-- 📐 Compact view for minimal screen space usage.
-- 🪟 "Always on top" mode.
-- ✨ Optional transparent window mode.
-- 🎨 Color-coded zones for easy recognition.
+## Documentation
 
----
+- [Product and architecture notes](docs/PRODUCT_ARCHITECTURE.md)
+- [Target modular architecture](docs/ARCHITECTURE.md)
+- [Functional and quality requirements](docs/REQUIREMENTS.md)
+- [Ruler and magnifying-lens design](docs/RULER_LENS_DESIGN.md)
+- [Future alarms, reminders, timers, and stopwatch](docs/FUTURE_FEATURES.md)
+- [AI-assisted development workflow](docs/AI_DEVELOPMENT_WORKFLOW.md)
+- [Minimal Windows development environment](docs/DEVELOPMENT_ENVIRONMENT.md)
+- [Rust and Slint stack decision](docs/decisions/0002-rust-slint-stack.md)
 
-## 📸 Screenshots
+The Rust toolchain is required before building the new workspace. The legacy application can still be built from `legacy/dotnet-wpf/` with the .NET 9 SDK.
 
-### Compact Mode
-![Compact Mode](./Ozi.Clock/Assets/ozi.clock.small.webp)
+## Current Prototype
 
-### Standard Mode
-![Standard View](./Ozi.Clock/Assets/ozi.clock.mid.webp)
-
-### Extended Mode
-![Standard View](./Ozi.Clock/Assets/ozi.clock.large.webp)
-
----
-## Getting Run
-
-1. Go to the Releases section https://github.com/ozinka/OziClock/releases
-2. If you have installed .Net 9 version or higher download `oziclock.xxx.win-x64.zip`, otherwise `oziclock.xxx.win-x64-bundled.zip`. Last one contains all required .Net files.
-3. Unzip and run `OziClock.exe` file.
-
-p.s. As this is Open Source and Free project, it doesn't have certificate :(. Therefore, you may receive warning massage about unknown source of this application. There are two options:
-* ignore this message (will be shown only once)
-* Build the app by your own
-
-## 🚀 Getting Started
-
-1. Clone the repository
-2. Open the solution in Visual Studio
-3. Install .Net 9
-3. Build and run the project
-
----
-
-## 🛠️ Technologies
-
-- C#
-- WPF (Windows Presentation Foundation)
-- .Net 9.0
-
----
-
-## 📌 Notes
-
-- Designed for Windows OS.
-- Optimized for developers or teams working across time zones.
-
----
-
-## 📃 License
-
-This project is licensed under the MIT License.
+The first Rust/Slint slice loads a dynamic clock list from portable JSON settings, renders reusable `ClockTile` components, and updates time once per second. On first launch it creates `settings.json` beside `oziclock-desktop.exe`. Edit this file to add, remove, reorder, recolor, or select the main time zone; use IANA names such as `Europe/Kyiv`.

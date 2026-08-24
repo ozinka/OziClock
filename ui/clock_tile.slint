@@ -1,0 +1,129 @@
+export component ClockTile inherits Rectangle {
+    in property <string> label;
+    in property <string> month;
+    in property <string> day;
+    in property <string> hour;
+    in property <string> minute;
+    in property <string> second;
+    in property <color> accent: #ffffff;
+    in property <bool> main-zone: false;
+    in property <bool> show-seconds: true;
+
+    width: 99px;
+    height: 60px;
+    background: @linear-gradient(180deg, #383838 45.3%, accent 77.6%);
+    clip: true;
+
+    Text {
+        x: 4px;
+        y: 5px;
+        width: 48px;
+        height: 20px;
+        text: root.label;
+        font-family: "Calibry";
+        font-size: 16px;
+        font-weight: root.main-zone ? 600 : 400;
+        color: root.main-zone ? #ffffff : #b9b9b9;
+        horizontal-alignment: left;
+        vertical-alignment: top;
+        overflow: elide;
+    }
+
+    Text {
+        x: 51px;
+        y: 5px;
+        width: 28px;
+        height: 20px;
+        text: root.month;
+        font-family: "Calibry";
+        font-size: 16px;
+        font-weight: 600;
+        color: #b9b9b9;
+        horizontal-alignment: right;
+        vertical-alignment: top;
+    }
+
+    Text {
+        x: 80px;
+        y: 5px;
+        width: 18px;
+        height: 20px;
+        text: root.day;
+        font-family: "Calibry";
+        font-size: 16px;
+        font-weight: 600;
+        color: #b9b9b9;
+        horizontal-alignment: left;
+        vertical-alignment: top;
+    }
+
+    Text {
+        x: root.show-seconds ? 0px : 14px;
+        y: 34px;
+        width: 28px;
+        height: 25px;
+        text: root.hour;
+        font-family: "Calibry";
+        font-size: 22px;
+        font-weight: 600;
+        color: #000000;
+        horizontal-alignment: right;
+        vertical-alignment: top;
+    }
+
+    Text {
+        x: root.show-seconds ? 30px : 44px;
+        y: 40px;
+        width: 9px;
+        height: 19px;
+        text: ":";
+        font-family: "Calibry";
+        font-size: 16px;
+        font-weight: 600;
+        color: #000000;
+        horizontal-alignment: center;
+        vertical-alignment: top;
+    }
+
+    Text {
+        x: root.show-seconds ? 34px : 48px;
+        y: 34px;
+        width: 38px;
+        height: 25px;
+        text: root.minute;
+        font-family: "Calibry";
+        font-size: 22px;
+        color: #000000;
+        horizontal-alignment: center;
+        vertical-alignment: top;
+    }
+
+    Text {
+        x: 67px;
+        y: 40px;
+        width: 9px;
+        height: 19px;
+        text: ":";
+        font-family: "Calibry";
+        font-size: 16px;
+        font-weight: 600;
+        color: #000000;
+        horizontal-alignment: center;
+        vertical-alignment: top;
+        visible: root.show-seconds;
+    }
+
+    Text {
+        x: 67px;
+        y: 40px;
+        width: 38px;
+        height: 19px;
+        text: root.second;
+        font-family: "Calibry";
+        font-size: 16px;
+        color: #000000;
+        horizontal-alignment: center;
+        vertical-alignment: top;
+        visible: root.show-seconds;
+    }
+}

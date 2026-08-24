@@ -1,0 +1,15 @@
+[package]
+name = "oziclock-desktop"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+chrono-tz = "0.10.4"
+oziclock-app = { path = "../../crates/oziclock-app" }
+oziclock-storage = { path = "../../crates/oziclock-storage" }
+slint = { version = "1.17.1", default-features = false, features = ["backend-winit", "compat-1-2", "renderer-femtovg", "unstable-winit-030"] }
+
+[build-dependencies]
+slint-build = "1.17.1"
