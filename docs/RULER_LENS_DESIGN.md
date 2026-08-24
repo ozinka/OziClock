@@ -49,6 +49,7 @@ The transparent center preserves sharp labels; the shaded upper and lower edges 
 ## Interaction Requirements
 
 - Dragging the vertical focus moves the 99-pixel highlighted column without changing clock order.
+- The Column slider moves freely, but snaps to a ruler-column boundary when it comes within five logical pixels of that boundary.
 - Dragging the horizontal lens continuously updates its vertical position.
 - Lens position and the 0–24-hour slider remain synchronized in both directions.
 - The slider has five-minute resolution (`0…288`) and maps linearly to the lens range.

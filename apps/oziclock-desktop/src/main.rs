@@ -970,6 +970,7 @@ fn initialize_ruler_windows(
         .position(|clock| clock.is_main)
         .unwrap_or(0) as i32;
     rulers_window.set_focused_column(focused_column);
+    rulers_window.set_focus_column_position(focused_column as f32);
     rulers_window.set_clock_scale(settings.clock_scale.clamp(0.8, 1.5) as f32);
     rulers_window.set_tick_indices(ModelRc::new(VecModel::from(
         (0..=144).collect::<Vec<i32>>(),

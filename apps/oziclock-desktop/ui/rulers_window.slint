@@ -11,10 +11,13 @@ export component RulersWindow inherits Window {
     in property <[int]> tick-indices;
     in property <[int]> label-hours;
     in property <int> focused-column: 0;
+    in-out property <float> focus-column-position: 0;
     in property <float> focus-progress: 0;
     in property <float> clock-scale: 1.0;
     in-out property <bool> lens-dragging: false;
     in-out property <bool> focus-dragging: false;
+    in-out property <length> focus-drag-anchor: 0px;
+    in-out property <float> focus-column-raw-position: 0;
     pure callback format-label(int, int) -> string;
     callback request-focus-column(int);
     callback request-focus-progress(float);
@@ -67,12 +70,12 @@ export component RulersWindow inherits Window {
             TouchArea { clicked => { root.request-focus-column(index); } }
         }
 
-        Rectangle { x: 0px; y: 0px; width: root.focused-column * 100px * root.clock-scale; height: root.focus-progress * 433px * root.clock-scale; background: #00000080; }
-        Rectangle { x: (root.focused-column + 1) * 100px * root.clock-scale; y: 0px; width: parent.width; height: root.focus-progress * 433px * root.clock-scale; background: #00000080; }
-        Rectangle { x: 0px; y: root.focus-progress * 433px * root.clock-scale + 30px * root.clock-scale; width: root.focused-column * 100px * root.clock-scale; height: parent.height; background: #00000080; }
-        Rectangle { x: (root.focused-column + 1) * 100px * root.clock-scale; y: root.focus-progress * 433px * root.clock-scale + 30px * root.clock-scale; width: parent.width; height: parent.height; background: #00000080; }
-        Rectangle { x: root.focused-column * 100px * root.clock-scale; y: 0px; width: 2px * root.clock-scale; height: parent.height; background: #800000; }
-        Rectangle { x: (root.focused-column + 1) * 100px * root.clock-scale - 2px * root.clock-scale; y: 0px; width: 2px * root.clock-scale; height: parent.height; background: #800000; }
+        Rectangle { x: 0px; y: 0px; width: root.focus-column-position * 100px * root.clock-scale; height: root.focus-progress * 433px * root.clock-scale; background: #00000080; }
+        Rectangle { x: (root.focus-column-position + 1) * 100px * root.clock-scale; y: 0px; width: parent.width; height: root.focus-progress * 433px * root.clock-scale; background: #00000080; }
+        Rectangle { x: 0px; y: root.focus-progress * 433px * root.clock-scale + 30px * root.clock-scale; width: root.focus-column-position * 100px * root.clock-scale; height: parent.height; background: #00000080; }
+        Rectangle { x: (root.focus-column-position + 1) * 100px * root.clock-scale; y: root.focus-progress * 433px * root.clock-scale + 30px * root.clock-scale; width: parent.width; height: parent.height; background: #00000080; }
+        Rectangle { x: root.focus-column-position * 100px * root.clock-scale; y: 0px; width: 2px * root.clock-scale; height: parent.height; background: #800000; }
+        Rectangle { x: (root.focus-column-position + 1) * 100px * root.clock-scale - 2px * root.clock-scale; y: 0px; width: 2px * root.clock-scale; height: parent.height; background: #800000; }
         lens := Rectangle {
             x: 0px;
             y: root.focus-progress * 433px * root.clock-scale;
@@ -124,18 +127,25 @@ export component RulersWindow inherits Window {
             Rectangle { x: 0px; y: parent.height - 1px; width: parent.width; height: 1px; background: #111111; }
         }
         TouchArea {
-            x: root.focused-column * 100px * root.clock-scale;
+            x: root.focus-column-position * 100px * root.clock-scale;
             y: 0px;
             width: 100px * root.clock-scale;
             height: parent.height;
             pointer-event(event) => {
                 if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
                     root.focus-dragging = true;
-                    root.request-focus-column(Math.max(0, Math.min(root.rulers.length - 1, Math.floor((self.mouse-x + root.focused-column * 100px * root.clock-scale) / (100px * root.clock-scale)))));
+                    root.focus-drag-anchor = self.mouse-x;
+                    root.request-focus-column(Math.round(root.focus-column-position));
                 }
                 if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) { root.focus-dragging = false; }
             }
-            moved => { if (root.focus-dragging) { root.request-focus-column(Math.max(0, Math.min(root.rulers.length - 1, Math.floor((self.mouse-x + root.focused-column * 100px * root.clock-scale) / (100px * root.clock-scale))))); } }
+            moved => {
+                if (root.focus-dragging) {
+                    root.focus-column-raw-position = Math.max(0, Math.min(root.rulers.length - 1, (self.mouse-x - root.focus-drag-anchor + root.focus-column-position * 100px * root.clock-scale) / (100px * root.clock-scale)));
+                    root.focus-column-position = root.focus-column-raw-position - Math.round(root.focus-column-raw-position) < 0.05 && root.focus-column-raw-position - Math.round(root.focus-column-raw-position) > -0.05 ? Math.round(root.focus-column-raw-position) : root.focus-column-raw-position;
+                    root.request-focus-column(Math.round(root.focus-column-position));
+                }
+            }
         }
         TouchArea {
             x: lens.x;
