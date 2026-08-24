@@ -303,10 +303,9 @@ fn main() -> Result<(), slint::PlatformError> {
             };
             if main_clock_changed {
                 update_settings_preview(&editor, &settings.clocks_settings);
-                if let (Some(rulers_window), Some(time_slider_window)) = (
-                    rulers_for_apply.upgrade(),
-                    slider_for_apply.upgrade(),
-                ) {
+                if let (Some(rulers_window), Some(time_slider_window)) =
+                    (rulers_for_apply.upgrade(), slider_for_apply.upgrade())
+                {
                     initialize_ruler_windows(&rulers_window, &time_slider_window, &settings);
                     if settings.show_rulers {
                         rulers_window
@@ -315,7 +314,11 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
             }
             if let Some(main_window) = main_window.upgrade() {
-                update_clock_tiles(&main_window, &settings.clocks_settings, settings.show_seconds);
+                update_clock_tiles(
+                    &main_window,
+                    &settings.clocks_settings,
+                    settings.show_seconds,
+                );
             }
         }
     });
