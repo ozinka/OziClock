@@ -4,6 +4,11 @@ This document reserves architectural space without committing the first release 
 
 ## Candidate Capabilities
 
+### Platform Polish
+
+- **Live edge snapping:** While dragging, visibly snap the clock strip to monitor work-area edges. The implementation must use the platform drag lifecycle rather than cursor polling, preserve compact-mode geometry, and remain smooth on high-DPI displays.
+- **DPI-aware taskbar icon:** Ensure Windows chooses the appropriate frame from the multi-resolution legacy ICO (16/32/48/64) without flattening it to one bitmap. Verify visual parity with the WPF taskbar icon at common display scales before enabling it.
+
 ### Alarms
 
 - One-time or recurring local-time alarms.
@@ -36,4 +41,3 @@ World clock remains the primary identity of OziClock. Extra tools must be option
 ## Required Decisions Before Implementation
 
 For each capability, define interaction design, compact/expanded placement, persistence and restart behavior, operating-system notification behavior, sound policy, missed-event semantics, and acceptance tests. Record irreversible or cross-cutting choices as ADRs.
-

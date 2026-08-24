@@ -27,7 +27,7 @@ When code and documentation disagree, do not silently copy current behavior. Ide
 
 When the user requests an implementation, proceed immediately if the scope is clear. Ask for confirmation only when a choice would materially change product behavior, design, data, or external state. State the interpretation and present a single concise confirmation question.
 
-After every implementation change, run the required build and validation commands. If a build cannot overwrite the executable because the application is running, do not stop at a status report: ask the user to close the application and confirm continuation. As soon as the user confirms, retry the build without requesting further clarification.
+After every implementation change, run the required build and validation commands. If a build cannot overwrite the executable because the application is running, do not stop at a status report: ask the user to close the application and confirm continuation. The user reply `1` means “Ready, continue”; retry the build immediately without requesting further clarification.
 
 Use the conversation language selected by the user for all messages to the user. Keep code, comments, UI copy, documentation, commit messages, and runtime diagnostics in English only.
 

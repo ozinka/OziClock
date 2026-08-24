@@ -10,12 +10,22 @@ use std::{
 
 use chrono::{DateTime, Offset, Utc};
 use chrono_tz::{TZ_VARIANTS, Tz};
-use oziclock_storage::ClockSettings;
+use oziclock_storage::{AppSettings, ClockSettings};
 use slint::winit_030::WinitWindowAccessor;
 use slint::winit_030::winit::dpi::{PhysicalPosition, PhysicalSize};
 #[cfg(target_os = "windows")]
-use slint::winit_030::winit::platform::windows::WindowExtWindows;
-use slint::{Color, ModelRc, Timer, TimerMode, VecModel};
+use slint::winit_030::winit::platform::windows::{MonitorHandleExtWindows, WindowExtWindows};
+use slint::{Color, Model, ModelRc, Timer, TimerMode, VecModel};
+#[cfg(target_os = "windows")]
+use tray_icon::{
+    Icon, TrayIcon, TrayIconBuilder,
+    menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem},
+};
+#[cfg(target_os = "windows")]
+use windows_sys::Win32::{
+    Foundation::POINT,
+    Graphics::Gdi::{GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromPoint},
+};
 
 fn main() -> Result<(), slint::PlatformError> {
     let settings = oziclock_storage::load_or_initialize().map_err(|error| {
@@ -27,6 +37,7 @@ fn main() -> Result<(), slint::PlatformError> {
     window.set_inactive_opacity(settings.opacity.clamp(0.02, 1.0) as f32);
     window.set_show_seconds(settings.show_seconds);
     window.set_compact_mode(settings.compact_mode);
+    apply_clock_scale(&window, settings.clock_scale.clamp(0.8, 1.5) as f32);
     update_clock_tiles(&window, &settings.clocks_settings, settings.show_seconds);
 
     let settings_window = SettingsWindow::new()?;
@@ -57,7 +68,9 @@ fn main() -> Result<(), slint::PlatformError> {
     )));
     settings_window.set_show_seconds(settings.show_seconds);
     settings_window.set_top_most(settings.top_most);
+    settings_window.set_show_in_task_bar(settings.show_in_task_bar);
     settings_window.set_compact_mode(settings.compact_mode);
+    settings_window.set_clock_scale_percent((settings.clock_scale.clamp(0.8, 1.5) * 100.0) as f32);
     settings_window.set_opacity_percent((settings.opacity.clamp(0.02, 1.0) * 100.0) as f32);
     update_settings_preview(&settings_window, &settings.clocks_settings);
     select_clock(&settings_window, &settings.clocks_settings, 0);
@@ -65,10 +78,15 @@ fn main() -> Result<(), slint::PlatformError> {
     let shared_settings = Rc::new(RefCell::new(settings));
     let saved_settings = Rc::new(RefCell::new(shared_settings.borrow().clone()));
     let weak_settings_window = settings_window.as_weak();
+    let settings_for_open = shared_settings.clone();
+    let main_window_for_settings = window.as_weak();
     window.on_request_open_settings(move || {
         if let Some(settings_window) = weak_settings_window.upgrade() {
+            let saved_settings = settings_for_open.borrow().clone();
+            restore_settings_window_size(&settings_window, &saved_settings);
             let _ = settings_window.show();
             hide_auxiliary_window_from_taskbar(settings_window.window());
+            position_settings_near_clock(&settings_window, &main_window_for_settings);
         }
     });
     let weak_settings_window = settings_window.as_weak();
@@ -163,14 +181,27 @@ fn main() -> Result<(), slint::PlatformError> {
     let main_window = window.as_weak();
     let compact_animation_for_settings = compact_animation_generation.clone();
     settings_window.on_request_set_compact_mode(move |compact_mode| {
-        state.borrow_mut().compact_mode = compact_mode;
+        let clock_scale = {
+            let mut state = state.borrow_mut();
+            state.compact_mode = compact_mode;
+            state.clock_scale as f32
+        };
         if let Some(main_window) = main_window.upgrade() {
             main_window.set_compact_mode(compact_mode);
             animate_main_window_height(
                 main_window.as_weak(),
-                if compact_mode { 31.0 } else { 62.0 },
+                (if compact_mode { 31.0 } else { 62.0 }) * clock_scale,
                 compact_animation_for_settings.clone(),
             );
+        }
+    });
+    let state = shared_settings.clone();
+    let main_window = window.as_weak();
+    settings_window.on_request_set_clock_scale(move |clock_scale_percent| {
+        let clock_scale = (clock_scale_percent / 100.0).clamp(0.8, 1.5);
+        state.borrow_mut().clock_scale = f64::from(clock_scale);
+        if let Some(main_window) = main_window.upgrade() {
+            apply_clock_scale(&main_window, clock_scale);
         }
     });
     let state = shared_settings.clone();
@@ -183,19 +214,27 @@ fn main() -> Result<(), slint::PlatformError> {
     });
     let state = shared_settings.clone();
     let main_window = window.as_weak();
+    settings_window.on_request_set_show_in_task_bar(move |show_in_task_bar| {
+        state.borrow_mut().show_in_task_bar = show_in_task_bar;
+        if let Some(main_window) = main_window.upgrade() {
+            set_main_window_taskbar_visibility(&main_window, show_in_task_bar);
+        }
+    });
+    let state = shared_settings.clone();
+    let main_window = window.as_weak();
     let editor = settings_window.as_weak();
     let compact_animation_for_middle_click = compact_animation_generation.clone();
     window.on_request_toggle_compact(move || {
-        let compact_mode = {
+        let (compact_mode, clock_scale) = {
             let mut state = state.borrow_mut();
             state.compact_mode = !state.compact_mode;
-            state.compact_mode
+            (state.compact_mode, state.clock_scale as f32)
         };
         if let Some(main_window) = main_window.upgrade() {
             main_window.set_compact_mode(compact_mode);
             animate_main_window_height(
                 main_window.as_weak(),
-                if compact_mode { 31.0 } else { 62.0 },
+                (if compact_mode { 31.0 } else { 62.0 }) * clock_scale,
                 compact_animation_for_middle_click.clone(),
             );
         }
@@ -382,6 +421,9 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                 }
             }
+            if let Some(main_window) = main_window.upgrade() {
+                persist_main_window_position(&main_window, &mut state);
+            }
             match oziclock_storage::save(&state) {
                 Ok(()) => {
                     *saved.borrow_mut() = state.clone();
@@ -447,7 +489,11 @@ fn main() -> Result<(), slint::PlatformError> {
             hide_auxiliary_window_from_taskbar(about_window.window());
         }
     });
-    context_menu.on_request_exit(|| {
+    let exit_window = window.as_weak();
+    let exit_settings_window = settings_window.as_weak();
+    let exit_settings = shared_settings.clone();
+    context_menu.on_request_exit(move || {
+        save_state_before_exit(&exit_window, &exit_settings_window, &exit_settings);
         let _ = slint::quit_event_loop();
     });
 
@@ -459,7 +505,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 .with_winit_window(|window| window.drag_window());
         }
     });
-    let state = shared_settings;
+    let state = shared_settings.clone();
     let weak_window = window.as_weak();
     let timer = Timer::default();
     timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
@@ -469,7 +515,132 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
 
+    window.show()?;
+    set_main_window_taskbar_visibility(&window, shared_settings.borrow().show_in_task_bar);
+    let saved_position_settings = shared_settings.borrow().clone();
+    let weak_window_for_restore = window.as_weak();
+    Timer::single_shot(Duration::from_millis(10), move || {
+        if let Some(window) = weak_window_for_restore.upgrade() {
+            restore_main_window_position(&window, &saved_position_settings);
+        }
+    });
+    #[cfg(target_os = "windows")]
+    let _system_tray = create_system_tray(
+        window.as_weak(),
+        settings_window.as_weak(),
+        shared_settings.clone(),
+    )?;
     window.run()
+}
+
+#[cfg(target_os = "windows")]
+struct SystemTray {
+    _icon: TrayIcon,
+    _event_timer: Timer,
+}
+
+#[cfg(target_os = "windows")]
+fn create_system_tray(
+    main_window: slint::Weak<AppWindow>,
+    settings_window: slint::Weak<SettingsWindow>,
+    settings: Rc<RefCell<AppSettings>>,
+) -> Result<SystemTray, slint::PlatformError> {
+    let menu = Menu::new();
+    let show_hide = MenuItem::with_id("show-hide", "Show/Hide", true, None);
+    let open_settings = MenuItem::with_id("settings", "Settings", true, None);
+    let always_on_top = CheckMenuItem::with_id(
+        "always-on-top",
+        "Always on top",
+        true,
+        settings.borrow().top_most,
+        None,
+    );
+    let exit = MenuItem::with_id("exit", "Exit", true, None);
+    menu.append_items(&[
+        &show_hide,
+        &open_settings,
+        &always_on_top,
+        &PredefinedMenuItem::separator(),
+        &exit,
+    ])
+    .map_err(|error| slint::PlatformError::Other(format!("could not create tray menu: {error}")))?;
+    let icon = Icon::from_resource_name("IDI_APP_ICON", Some((32, 32))).map_err(|error| {
+        slint::PlatformError::Other(format!("could not load tray icon resource: {error}"))
+    })?;
+    let icon = TrayIconBuilder::new()
+        .with_tooltip("OziClock")
+        .with_menu(Box::new(menu))
+        .with_icon(icon)
+        .build()
+        .map_err(|error| {
+            slint::PlatformError::Other(format!("could not create system tray icon: {error}"))
+        })?;
+
+    let visible = Rc::new(Cell::new(true));
+    let event_timer = Timer::default();
+    let visible_for_events = visible.clone();
+    event_timer.start(TimerMode::Repeated, Duration::from_millis(100), move || {
+        while let Ok(event) = MenuEvent::receiver().try_recv() {
+            match event.id().0.as_str() {
+                "show-hide" => {
+                    if let Some(main_window) = main_window.upgrade() {
+                        if visible_for_events.get() {
+                            let _ = main_window.hide();
+                            visible_for_events.set(false);
+                        } else {
+                            let _ = main_window.show();
+                            visible_for_events.set(true);
+                        }
+                    }
+                }
+                "settings" => {
+                    if let Some(settings_window) = settings_window.upgrade() {
+                        let _ = settings_window.show();
+                        hide_auxiliary_window_from_taskbar(settings_window.window());
+                    }
+                }
+                "always-on-top" => {
+                    let top_most = {
+                        let mut settings = settings.borrow_mut();
+                        settings.top_most = !settings.top_most;
+                        settings.top_most
+                    };
+                    always_on_top.set_checked(top_most);
+                    if let Some(main_window) = main_window.upgrade() {
+                        main_window.set_top_most(top_most);
+                    }
+                    if let Some(settings_window) = settings_window.upgrade() {
+                        settings_window.set_top_most(top_most);
+                    }
+                    let _ = oziclock_storage::save(&settings.borrow());
+                }
+                "exit" => {
+                    save_state_before_exit(&main_window, &settings_window, &settings);
+                    let _ = slint::quit_event_loop();
+                }
+                _ => {}
+            }
+        }
+    });
+
+    Ok(SystemTray {
+        _icon: icon,
+        _event_timer: event_timer,
+    })
+}
+
+fn save_state_before_exit(
+    window: &slint::Weak<AppWindow>,
+    settings_window: &slint::Weak<SettingsWindow>,
+    settings: &Rc<RefCell<AppSettings>>,
+) {
+    if let Some(window) = window.upgrade() {
+        persist_main_window_position(&window, &mut settings.borrow_mut());
+    }
+    if let Some(settings_window) = settings_window.upgrade() {
+        persist_settings_window_size(&settings_window, &mut settings.borrow_mut());
+    }
+    let _ = oziclock_storage::save(&settings.borrow());
 }
 
 fn animate_main_window_height(
@@ -538,6 +709,198 @@ fn set_main_window_height(window: &AppWindow, height: f32) {
         let physical_height = (height * native.scale_factor() as f32).round() as u32;
         let _ = native.request_inner_size(PhysicalSize::new(width, physical_height));
     });
+}
+
+fn restore_main_window_position(window: &AppWindow, settings: &AppSettings) {
+    let _ = window.window().with_winit_window(|native| {
+        let scale_factor = native.scale_factor();
+        let saved_position = PhysicalPosition::new(
+            (settings.main_wnd_left * scale_factor).round() as i32,
+            (settings.main_wnd_top * scale_factor).round() as i32,
+        );
+        let work_area =
+            work_area_for_saved_position(saved_position).or_else(|| monitor_work_area(native));
+        let Some(work_area) = work_area else {
+            return;
+        };
+        native.set_outer_position(clamp_window_position(
+            saved_position,
+            native.outer_size(),
+            work_area,
+        ));
+    });
+}
+
+fn persist_main_window_position(window: &AppWindow, settings: &mut AppSettings) {
+    let _ = window.window().with_winit_window(|native| {
+        if let Ok(position) = native.outer_position() {
+            let scale_factor = native.scale_factor();
+            settings.main_wnd_left = position.x as f64 / scale_factor;
+            settings.main_wnd_top = position.y as f64 / scale_factor;
+        }
+    });
+}
+
+fn restore_settings_window_size(window: &SettingsWindow, settings: &AppSettings) {
+    let width = settings.settings_window_width.max(760.0);
+    let height = settings.settings_window_height.max(510.0);
+    window.set_saved_window_width(width as f32);
+    window.set_saved_window_height(height as f32);
+    let _ = window.window().with_winit_window(|native| {
+        let scale_factor = native.scale_factor();
+        let _ = native.request_inner_size(PhysicalSize::new(
+            (width * scale_factor).round() as u32,
+            (height * scale_factor).round() as u32,
+        ));
+    });
+}
+
+fn persist_settings_window_size(window: &SettingsWindow, settings: &mut AppSettings) {
+    let _ = window.window().with_winit_window(|native| {
+        let scale_factor = native.scale_factor();
+        let size = native.inner_size();
+        settings.settings_window_width = size.width as f64 / scale_factor;
+        settings.settings_window_height = size.height as f64 / scale_factor;
+        window.set_saved_window_width(settings.settings_window_width as f32);
+        window.set_saved_window_height(settings.settings_window_height as f32);
+    });
+}
+
+fn clamp_window_position(
+    position: PhysicalPosition<i32>,
+    size: PhysicalSize<u32>,
+    work_area: WorkArea,
+) -> PhysicalPosition<i32> {
+    let maximum_left = (work_area.right - size.width as i32).max(work_area.left);
+    let maximum_top = (work_area.bottom - size.height as i32).max(work_area.top);
+    PhysicalPosition::new(
+        position.x.clamp(work_area.left, maximum_left),
+        position.y.clamp(work_area.top, maximum_top),
+    )
+}
+
+fn set_main_window_taskbar_visibility(window: &AppWindow, show_in_task_bar: bool) {
+    #[cfg(target_os = "windows")]
+    let _ = window
+        .window()
+        .with_winit_window(|native| native.set_skip_taskbar(!show_in_task_bar));
+
+    #[cfg(not(target_os = "windows"))]
+    let _ = (window, show_in_task_bar);
+}
+
+fn apply_clock_scale(window: &AppWindow, clock_scale: f32) {
+    window.set_clock_scale(clock_scale);
+    let _ = window.window().with_winit_window(|native| {
+        let system_scale = native.scale_factor() as f32;
+        let logical_width = 1.0 + 100.0 * window.get_clocks().row_count() as f32;
+        let logical_height = if window.get_compact_mode() {
+            31.0
+        } else {
+            62.0
+        };
+        let _ = native.request_inner_size(PhysicalSize::new(
+            (logical_width * clock_scale * system_scale).round() as u32,
+            (logical_height * clock_scale * system_scale).round() as u32,
+        ));
+    });
+}
+
+fn position_settings_near_clock(settings: &SettingsWindow, owner: &slint::Weak<AppWindow>) {
+    let Some(owner) = owner.upgrade() else {
+        return;
+    };
+
+    let _ = owner.window().with_winit_window(|owner_native| {
+        let Ok(owner_position) = owner_native.outer_position() else {
+            return;
+        };
+        let Some(work_area) = monitor_work_area(owner_native) else {
+            return;
+        };
+        let _ = settings.window().with_winit_window(|settings_native| {
+            let owner_size = owner_native.outer_size();
+            let settings_size = settings_native.outer_size();
+            let maximum_left = (work_area.right - settings_size.width as i32).max(work_area.left);
+            let maximum_top = (work_area.bottom - settings_size.height as i32).max(work_area.top);
+            let preferred_left =
+                owner_position.x + (owner_size.width as i32 - settings_size.width as i32) / 2;
+            let below_owner = owner_position.y + owner_size.height as i32 + 8;
+            let above_owner = owner_position.y - settings_size.height as i32 - 8;
+            let preferred_top = if below_owner <= maximum_top {
+                below_owner
+            } else {
+                above_owner
+            };
+            settings_native.set_outer_position(PhysicalPosition::new(
+                preferred_left.clamp(work_area.left, maximum_left),
+                preferred_top.clamp(work_area.top, maximum_top),
+            ));
+        });
+    });
+}
+
+struct WorkArea {
+    left: i32,
+    top: i32,
+    right: i32,
+    bottom: i32,
+}
+
+#[cfg(target_os = "windows")]
+fn monitor_work_area(window: &slint::winit_030::winit::window::Window) -> Option<WorkArea> {
+    let monitor = window.current_monitor()?;
+    monitor_work_area_for_handle(monitor.hmonitor() as _)
+}
+
+#[cfg(target_os = "windows")]
+fn monitor_work_area_for_handle(monitor: *mut std::ffi::c_void) -> Option<WorkArea> {
+    let mut info = MONITORINFO {
+        cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+        ..Default::default()
+    };
+    let success = unsafe { GetMonitorInfoW(monitor, &mut info) };
+    if success == 0 {
+        return None;
+    }
+    Some(WorkArea {
+        left: info.rcWork.left,
+        top: info.rcWork.top,
+        right: info.rcWork.right,
+        bottom: info.rcWork.bottom,
+    })
+}
+
+#[cfg(target_os = "windows")]
+fn work_area_for_saved_position(position: PhysicalPosition<i32>) -> Option<WorkArea> {
+    let monitor = unsafe {
+        MonitorFromPoint(
+            POINT {
+                x: position.x,
+                y: position.y,
+            },
+            MONITOR_DEFAULTTONEAREST,
+        )
+    };
+    monitor_work_area_for_handle(monitor)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn work_area_for_saved_position(_position: PhysicalPosition<i32>) -> Option<WorkArea> {
+    None
+}
+
+#[cfg(not(target_os = "windows"))]
+fn monitor_work_area(window: &slint::winit_030::winit::window::Window) -> Option<WorkArea> {
+    let monitor = window.current_monitor()?;
+    let position = monitor.position();
+    let size = monitor.size();
+    Some(WorkArea {
+        left: position.x,
+        top: position.y,
+        right: position.x + size.width as i32,
+        bottom: position.y + size.height as i32,
+    })
 }
 
 fn update_clock_tiles(window: &AppWindow, settings: &[ClockSettings], show_seconds: bool) {
@@ -647,16 +1010,24 @@ fn show_context_menu(context_menu: &ContextMenuWindow, owner: &AppWindow) {
     let _ = owner.window().with_winit_window(|winit_owner| {
         let owner_position = winit_owner.outer_position().unwrap_or_default();
         let scale_factor = winit_owner.scale_factor();
-        let maximum_x =
-            winit_owner.inner_size().width.saturating_sub(216) as f32 / scale_factor as f32;
-        let x = requested_x.min(maximum_x).max(0.0);
-        let menu_position = PhysicalPosition::new(
-            owner_position.x + (x * scale_factor as f32) as i32,
-            owner_position.y + winit_owner.outer_size().height as i32 + 4,
-        );
-        let _ = context_menu
-            .window()
-            .with_winit_window(|menu| menu.set_outer_position(menu_position));
+        let Some(work_area) = monitor_work_area(winit_owner) else {
+            return;
+        };
+        let _ = context_menu.window().with_winit_window(|menu| {
+            let menu_size = menu.outer_size();
+            let requested_left = owner_position.x + (requested_x * scale_factor as f32) as i32;
+            let maximum_left = work_area.right - menu_size.width as i32;
+            let left = requested_left.clamp(work_area.left, maximum_left);
+            let below = owner_position.y + winit_owner.outer_size().height as i32 + 4;
+            let above = owner_position.y - menu_size.height as i32 - 4;
+            let maximum_top = work_area.bottom - menu_size.height as i32;
+            let top = if below <= maximum_top {
+                below
+            } else {
+                above.clamp(work_area.top, maximum_top)
+            };
+            menu.set_outer_position(PhysicalPosition::new(left, top));
+        });
     });
 }
 

@@ -18,6 +18,12 @@ pub struct AppSettings {
     pub show_seconds: bool,
     #[serde(default)]
     pub compact_mode: bool,
+    #[serde(default = "default_clock_scale")]
+    pub clock_scale: f64,
+    #[serde(default = "default_settings_window_width")]
+    pub settings_window_width: f64,
+    #[serde(default = "default_settings_window_height")]
+    pub settings_window_height: f64,
     pub clocks_settings: Vec<ClockSettings>,
 }
 
@@ -33,6 +39,18 @@ pub struct ClockSettings {
 
 fn default_schema_version() -> u32 {
     1
+}
+
+fn default_settings_window_width() -> f64 {
+    760.0
+}
+
+fn default_clock_scale() -> f64 {
+    1.0
+}
+
+fn default_settings_window_height() -> f64 {
+    510.0
 }
 
 /// Returns the portable settings path beside the running executable.

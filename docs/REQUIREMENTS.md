@@ -12,6 +12,10 @@ This catalog is derived from the WPF source, its bundled screenshots, and the in
 - **WIN-06 (Legacy):** Support configurable inactive opacity from 2% to 100% in General settings. Animate to 100% over 300 ms while hovered or focused and return to the configured opacity when inactive.
 - **WIN-07 (New):** Provide a system-tray/status-item icon whenever the taskbar/dock entry is hidden. Its menu must at minimum contain Show/Hide, Settings, Always on top, and Exit. Closing or hiding the window must not make the app unreachable.
 - **WIN-08 (New):** Restore an off-screen saved position into the current working area after monitor or resolution changes.
+- **WIN-10:** Keep the context menu entirely within the active monitor's working area; open it above the clock strip when there is insufficient space below.
+- **WIN-11:** Let users set a persisted clock UI scale from 80% to 150% without changing the operating-system display scale.
+- **WIN-12:** Open Settings near the clock while keeping the window entirely within the active monitor's working area.
+- **WIN-13:** Restore the last Settings window size at application startup and persist a changed size only when the application exits.
 
 ## Display Modes
 

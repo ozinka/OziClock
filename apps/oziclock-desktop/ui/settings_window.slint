@@ -12,8 +12,8 @@ export component SettingsWindow inherits Window {
     no-frame: true;
     always-on-top: true;
     icon: @image-url("../../../legacy/dotnet-wpf/Ozi.Clock/Assets/clock.ico");
-    preferred-width: 760px;
-    preferred-height: root.clocks.length > 6 ? root.clocks.length * 43px + 230px : 510px;
+    preferred-width: root.saved-window-width * 1px;
+    preferred-height: root.saved-window-height * 1px;
     min-width: 760px;
     min-height: 510px;
     resize-border-width: 6px;
@@ -30,8 +30,10 @@ export component SettingsWindow inherits Window {
     in-out property <bool> editor-is-main;
     in-out property <bool> show-seconds;
     in-out property <bool> top-most;
+    in-out property <bool> show-in-task-bar;
     in-out property <float> opacity-percent;
     in-out property <bool> compact-mode;
+    in-out property <float> clock-scale-percent: 100;
     in-out property <string> status-message;
     in-out property <bool> color-picker-open: false;
     in-out property <float> picker-hue: 220;
@@ -40,6 +42,8 @@ export component SettingsWindow inherits Window {
     in-out property <color> picker-hue-color: #3c81f6;
     in-out property <color> editor-preview-color: #ffffff;
     in-out property <int> dragging-index: -1;
+    in-out property <float> saved-window-width: 760;
+    in-out property <float> saved-window-height: 510;
     callback request-close();
     callback request-window-drag();
     callback request-select(int);
@@ -62,8 +66,10 @@ export component SettingsWindow inherits Window {
     callback request-color-cancel();
     callback request-set-show-seconds(bool);
     callback request-set-top-most(bool);
+    callback request-set-show-in-task-bar(bool);
     callback request-set-opacity(float);
     callback request-set-compact-mode(bool);
+    callback request-set-clock-scale(float);
 
     Rectangle {
         width: parent.width;
@@ -141,9 +147,14 @@ export component SettingsWindow inherits Window {
         Text { x: 318px; y: 220px; visible: root.selected-section == 0; text: "Show seconds"; color: #d9dce1; font-family: "Calibry"; font-size: 13px; }
         Rectangle { x: 286px; y: 252px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.compact-mode ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.compact-mode ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.compact-mode = !root.compact-mode; root.request-set-compact-mode(root.compact-mode); } } }
         Text { x: 318px; y: 254px; visible: root.selected-section == 0; text: "Compact mode"; color: #d9dce1; font-family: "Calibry"; font-size: 13px; }
-        Text { x: 286px; y: 298px; visible: root.selected-section == 0; text: "Opacity"; color: #afb3bc; font-family: "Calibry"; font-size: 12px; font-weight: 600; }
-        Slider { x: 286px; y: 318px; width: 310px; height: 24px; visible: root.selected-section == 0; minimum: 2; maximum: 100; step: 1; value <=> root.opacity-percent; changed => { root.request-set-opacity(self.value); } }
-        Text { x: 612px; y: 317px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.opacity-percent) + "%"; color: #d9dce1; font-family: "Calibry"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
+        Rectangle { x: 286px; y: 286px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.show-in-task-bar ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.show-in-task-bar ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.show-in-task-bar = !root.show-in-task-bar; root.request-set-show-in-task-bar(root.show-in-task-bar); } } }
+        Text { x: 318px; y: 288px; visible: root.selected-section == 0; text: "Show in taskbar"; color: #d9dce1; font-family: "Calibry"; font-size: 13px; }
+        Text { x: 286px; y: 332px; visible: root.selected-section == 0; text: "Opacity"; color: #afb3bc; font-family: "Calibry"; font-size: 12px; font-weight: 600; }
+        Slider { x: 286px; y: 352px; width: 310px; height: 24px; visible: root.selected-section == 0; minimum: 2; maximum: 100; step: 1; value <=> root.opacity-percent; changed => { root.request-set-opacity(self.value); } }
+        Text { x: 612px; y: 351px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.opacity-percent) + "%"; color: #d9dce1; font-family: "Calibry"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
+        Text { x: 286px; y: 386px; visible: root.selected-section == 0; text: "Clock scale"; color: #afb3bc; font-family: "Calibry"; font-size: 12px; font-weight: 600; }
+        Slider { x: 286px; y: 406px; width: 310px; height: 24px; visible: root.selected-section == 0; minimum: 80; maximum: 150; step: 5; value <=> root.clock-scale-percent; changed => { root.request-set-clock-scale(self.value); } }
+        Text { x: 612px; y: 405px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.clock-scale-percent) + "%"; color: #d9dce1; font-family: "Calibry"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
         Rectangle {
             x: parent.width - 130px; y: parent.height - 58px; width: 102px; height: 42px; border-radius: 6px; background: #3c81f6;
             Text { width: parent.width; height: parent.height; text: "OK"; color: #ffffff; font-family: "Calibry"; font-size: 14px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-save(); } } }

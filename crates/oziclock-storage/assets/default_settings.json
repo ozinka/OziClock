@@ -7,6 +7,9 @@
   "ShowInTaskBar": false,
   "ShowSeconds": true,
   "CompactMode": false,
+  "ClockScale": 1.0,
+  "SettingsWindowWidth": 760.0,
+  "SettingsWindowHeight": 510.0,
   "ClocksSettings": [
     { "Label": "MEX", "TimeZone": "America/Mexico_City", "Color": "#FFFFAA" },
     { "Label": "NYK", "TimeZone": "America/New_York", "Color": "#AAAAFF" },
