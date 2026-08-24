@@ -18,6 +18,8 @@ pub struct AppSettings {
     pub show_seconds: bool,
     #[serde(default)]
     pub compact_mode: bool,
+    #[serde(default)]
+    pub show_rulers: bool,
     #[serde(default = "default_clock_scale")]
     pub clock_scale: f64,
     #[serde(default = "default_settings_window_width")]

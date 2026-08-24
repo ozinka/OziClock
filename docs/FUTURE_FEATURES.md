@@ -8,6 +8,7 @@ This document reserves architectural space without committing the first release 
 
 - **Live edge snapping:** While dragging, visibly snap the clock strip to monitor work-area edges. The implementation must use the platform drag lifecycle rather than cursor polling, preserve compact-mode geometry, and remain smooth on high-DPI displays.
 - **DPI-aware taskbar icon:** Ensure Windows chooses the appropriate frame from the multi-resolution legacy ICO (16/32/48/64) without flattening it to one bitmap. Verify visual parity with the WPF taskbar icon at common display scales before enabling it.
+- **Pixel-perfect ruler ticks:** The Slint ruler prototype has intermittent one-pixel gaps between some 3-pixel-spaced ticks. Revisit this with renderer-level pixel snapping or a verified custom drawing path, and compare at 100%, 125%, 150%, and 200% display scale before enabling the lens effects.
 
 ### Alarms
 

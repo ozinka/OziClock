@@ -1,0 +1,48 @@
+import { Slider } from "std-widgets.slint";
+
+export component TimeSliderWindow inherits Window {
+    title: "OziClock — Time Slider";
+    no-frame: true;
+    always-on-top: true;
+    background: #000000;
+    in property <int> clock-count: 1;
+    in property <[int]> hour-labels;
+    in property <float> clock-scale: 1.0;
+    in-out property <float> time-step: 0;
+    callback request-time-step(float);
+
+    preferred-width: (100px * root.clock-count + 1px) * root.clock-scale;
+    preferred-height: 69px * root.clock-scale;
+    min-width: 101px * root.clock-scale;
+    min-height: 69px * root.clock-scale;
+    max-height: 69px * root.clock-scale;
+
+    Rectangle {
+        x: 1px * root.clock-scale;
+        y: 1px * root.clock-scale;
+        width: parent.width - 2px * root.clock-scale;
+        height: parent.height - 2px * root.clock-scale;
+        background: #383838;
+        Slider {
+            x: 5px * root.clock-scale;
+            y: 10px * root.clock-scale;
+            width: parent.width - 14px * root.clock-scale;
+            height: 28px * root.clock-scale;
+            minimum: 0;
+            maximum: 288;
+            step: 1;
+            value <=> root.time-step;
+            changed => { root.request-time-step(self.value); }
+        }
+        for hour[index] in root.hour-labels: Text {
+            x: 16px * root.clock-scale + index * (parent.width - 36px * root.clock-scale) / (root.hour-labels.length - 1) - 16px * root.clock-scale;
+            y: 41px * root.clock-scale;
+            width: 32px * root.clock-scale;
+            height: 20px * root.clock-scale;
+            text: hour;
+            color: #c7c3c3;
+            font-size: 12px * root.clock-scale;
+            horizontal-alignment: center;
+        }
+    }
+}

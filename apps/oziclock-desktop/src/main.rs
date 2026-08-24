@@ -11,6 +11,7 @@ use std::{
 use chrono::{DateTime, Offset, Utc};
 use chrono_tz::{TZ_VARIANTS, Tz};
 use oziclock_storage::{AppSettings, ClockSettings};
+use slint::winit_030::EventResult;
 use slint::winit_030::WinitWindowAccessor;
 use slint::winit_030::winit::dpi::{PhysicalPosition, PhysicalSize};
 #[cfg(target_os = "windows")]
@@ -41,6 +42,8 @@ fn main() -> Result<(), slint::PlatformError> {
     update_clock_tiles(&window, &settings.clocks_settings, settings.show_seconds);
 
     let settings_window = SettingsWindow::new()?;
+    let rulers_window = RulersWindow::new()?;
+    let time_slider_window = TimeSliderWindow::new()?;
     let now = Utc::now();
     let mut time_zone_options: Vec<(String, String, i32)> = TZ_VARIANTS
         .iter()
@@ -70,12 +73,35 @@ fn main() -> Result<(), slint::PlatformError> {
     settings_window.set_top_most(settings.top_most);
     settings_window.set_show_in_task_bar(settings.show_in_task_bar);
     settings_window.set_compact_mode(settings.compact_mode);
+    settings_window.set_show_rulers(settings.show_rulers);
     settings_window.set_clock_scale_percent((settings.clock_scale.clamp(0.8, 1.5) * 100.0) as f32);
     settings_window.set_opacity_percent((settings.opacity.clamp(0.02, 1.0) * 100.0) as f32);
     update_settings_preview(&settings_window, &settings.clocks_settings);
     select_clock(&settings_window, &settings.clocks_settings, 0);
     settings_window.set_selected_section(0);
+    initialize_ruler_windows(&rulers_window, &time_slider_window, &settings);
     let shared_settings = Rc::new(RefCell::new(settings));
+    let ruler_label_settings = shared_settings.clone();
+    rulers_window.on_format_label(move |column_index, hour| {
+        format_ruler_label(&ruler_label_settings.borrow(), column_index, hour).into()
+    });
+    let slider_for_ruler = time_slider_window.as_weak();
+    let rulers_for_ruler = rulers_window.as_weak();
+    rulers_window.on_request_focus_progress(move |progress| {
+        if let Some(rulers_window) = rulers_for_ruler.upgrade() {
+            rulers_window.set_focus_progress(progress);
+        }
+        if let Some(time_slider_window) = slider_for_ruler.upgrade() {
+            time_slider_window.set_time_step((progress * 288.0).round());
+        }
+    });
+    let rulers_for_slider = rulers_window.as_weak();
+    time_slider_window.on_request_time_step(move |time_step| {
+        if let Some(rulers_window) = rulers_for_slider.upgrade() {
+            rulers_window.set_focus_progress((time_step / 288.0).clamp(0.0, 1.0));
+        }
+    });
+    rulers_window.on_request_focus_column(move |_| {});
     let saved_settings = Rc::new(RefCell::new(shared_settings.borrow().clone()));
     let weak_settings_window = settings_window.as_weak();
     let settings_for_open = shared_settings.clone();
@@ -120,6 +146,8 @@ fn main() -> Result<(), slint::PlatformError> {
     let state = shared_settings.clone();
     let editor = settings_window.as_weak();
     let main_window = window.as_weak();
+    let rulers_for_add = rulers_window.as_weak();
+    let slider_for_add = time_slider_window.as_weak();
     settings_window.on_request_add(move || {
         let mut state = state.borrow_mut();
         state.clocks_settings.push(ClockSettings {
@@ -135,10 +163,17 @@ fn main() -> Result<(), slint::PlatformError> {
             update_clock_tiles(&main_window, &state.clocks_settings, state.show_seconds);
             sync_main_window_size(&main_window);
         }
+        if let (Some(rulers_window), Some(time_slider_window)) =
+            (rulers_for_add.upgrade(), slider_for_add.upgrade())
+        {
+            initialize_ruler_windows(&rulers_window, &time_slider_window, &state);
+        }
     });
     let state = shared_settings.clone();
     let editor = settings_window.as_weak();
     let main_window = window.as_weak();
+    let rulers_for_remove = rulers_window.as_weak();
+    let slider_for_remove = time_slider_window.as_weak();
     settings_window.on_request_remove(move || {
         if let Some(editor) = editor.upgrade() {
             let mut state = state.borrow_mut();
@@ -150,6 +185,11 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some(main_window) = main_window.upgrade() {
                     update_clock_tiles(&main_window, &state.clocks_settings, state.show_seconds);
                     sync_main_window_size(&main_window);
+                }
+                if let (Some(rulers_window), Some(time_slider_window)) =
+                    (rulers_for_remove.upgrade(), slider_for_remove.upgrade())
+                {
+                    initialize_ruler_windows(&rulers_window, &time_slider_window, &state);
                 }
             }
         }
@@ -207,12 +247,43 @@ fn main() -> Result<(), slint::PlatformError> {
     });
     let state = shared_settings.clone();
     let main_window = window.as_weak();
+    let rulers_for_visibility = rulers_window.as_weak();
+    let slider_for_visibility = time_slider_window.as_weak();
+    settings_window.on_request_set_show_rulers(move |show_rulers| {
+        state.borrow_mut().show_rulers = show_rulers;
+        sync_attached_windows(
+            &main_window,
+            &rulers_for_visibility,
+            &slider_for_visibility,
+            show_rulers,
+        );
+    });
+    let state = shared_settings.clone();
+    let main_window = window.as_weak();
+    let rulers_for_scale = rulers_window.as_weak();
+    let slider_for_scale = time_slider_window.as_weak();
     settings_window.on_request_set_clock_scale(move |clock_scale_percent| {
         let clock_scale = (clock_scale_percent / 100.0).clamp(0.8, 1.5);
-        state.borrow_mut().clock_scale = f64::from(clock_scale);
+        let show_rulers = {
+            let mut state = state.borrow_mut();
+            state.clock_scale = f64::from(clock_scale);
+            state.show_rulers
+        };
         if let Some(main_window) = main_window.upgrade() {
             apply_clock_scale(&main_window, clock_scale);
         }
+        if let Some(rulers_window) = rulers_for_scale.upgrade() {
+            rulers_window.set_clock_scale(clock_scale);
+        }
+        if let Some(time_slider_window) = slider_for_scale.upgrade() {
+            time_slider_window.set_clock_scale(clock_scale);
+        }
+        sync_attached_windows(
+            &main_window,
+            &rulers_for_scale,
+            &slider_for_scale,
+            show_rulers,
+        );
     });
     let state = shared_settings.clone();
     let main_window = window.as_weak();
@@ -530,6 +601,26 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
 
+    let main_window_for_attached_layout = window.as_weak();
+    let rulers_for_attached_layout = rulers_window.as_weak();
+    let slider_for_attached_layout = time_slider_window.as_weak();
+    let settings_for_attached_layout = shared_settings.clone();
+    window.window().on_winit_window_event(move |_, event| {
+        if matches!(
+            event,
+            slint::winit_030::winit::event::WindowEvent::Moved(_)
+                | slint::winit_030::winit::event::WindowEvent::Resized(_)
+        ) {
+            sync_attached_windows(
+                &main_window_for_attached_layout,
+                &rulers_for_attached_layout,
+                &slider_for_attached_layout,
+                settings_for_attached_layout.borrow().show_rulers,
+            );
+        }
+        EventResult::Propagate
+    });
+
     window.show()?;
     set_main_window_taskbar_visibility(&window, shared_settings.borrow().show_in_task_bar);
     let saved_position_settings = shared_settings.borrow().clone();
@@ -538,6 +629,18 @@ fn main() -> Result<(), slint::PlatformError> {
         if let Some(window) = weak_window_for_restore.upgrade() {
             restore_main_window_position(&window, &saved_position_settings);
         }
+    });
+    let main_window_for_initial_rulers = window.as_weak();
+    let rulers_for_initial_rulers = rulers_window.as_weak();
+    let slider_for_initial_rulers = time_slider_window.as_weak();
+    let show_initial_rulers = shared_settings.borrow().show_rulers;
+    Timer::single_shot(Duration::from_millis(20), move || {
+        sync_attached_windows(
+            &main_window_for_initial_rulers,
+            &rulers_for_initial_rulers,
+            &slider_for_initial_rulers,
+            show_initial_rulers,
+        );
     });
     #[cfg(target_os = "windows")]
     let _system_tray = create_system_tray(
@@ -817,6 +920,148 @@ fn set_main_window_taskbar_visibility(window: &AppWindow, show_in_task_bar: bool
 fn apply_clock_scale(window: &AppWindow, clock_scale: f32) {
     window.set_clock_scale(clock_scale);
     sync_main_window_size(window);
+}
+
+fn initialize_ruler_windows(
+    rulers_window: &RulersWindow,
+    time_slider_window: &TimeSliderWindow,
+    settings: &AppSettings,
+) {
+    rulers_window.set_label_hours(ModelRc::new(VecModel::from((0..=24).collect::<Vec<i32>>())));
+    rulers_window.set_rulers(ModelRc::new(VecModel::from(
+        settings
+            .clocks_settings
+            .iter()
+            .map(|clock| RulerColumnData {
+                accent: parse_color(&clock.color),
+            })
+            .collect::<Vec<_>>(),
+    )));
+    let focused_column = settings
+        .clocks_settings
+        .iter()
+        .position(|clock| clock.is_main)
+        .unwrap_or(0) as i32;
+    rulers_window.set_focused_column(focused_column);
+    rulers_window.set_clock_scale(settings.clock_scale.clamp(0.8, 1.5) as f32);
+    rulers_window.set_tick_indices(ModelRc::new(VecModel::from(
+        (0..=144).collect::<Vec<i32>>(),
+    )));
+    time_slider_window.set_clock_count(settings.clocks_settings.len() as i32);
+    time_slider_window.set_hour_labels(ModelRc::new(VecModel::from(slider_hour_labels(
+        settings.clocks_settings.len(),
+    ))));
+    time_slider_window.set_clock_scale(settings.clock_scale.clamp(0.8, 1.5) as f32);
+}
+
+fn slider_hour_labels(clock_count: usize) -> Vec<i32> {
+    match clock_count {
+        0 | 1 => vec![0, 12, 24],
+        2 => vec![0, 6, 12, 18, 24],
+        3 => vec![0, 3, 6, 9, 12, 15, 18, 21, 24],
+        _ => (0..=24).step_by(2).collect(),
+    }
+}
+
+fn format_ruler_label(settings: &AppSettings, column_index: i32, hour: i32) -> String {
+    let Some(column) = settings.clocks_settings.get(column_index.max(0) as usize) else {
+        return String::new();
+    };
+    let main_index = settings
+        .clocks_settings
+        .iter()
+        .position(|clock| clock.is_main)
+        .unwrap_or(0);
+    if column_index as usize == main_index && hour == 24 {
+        return "24".into();
+    }
+    let main_zone = settings.clocks_settings[main_index]
+        .time_zone
+        .parse::<Tz>()
+        .ok();
+    let column_zone = column.time_zone.parse::<Tz>().ok();
+    let now = Utc::now();
+    let offset_hours = match (main_zone, column_zone) {
+        (Some(main_zone), Some(column_zone)) => {
+            (now.with_timezone(&column_zone)
+                .offset()
+                .fix()
+                .local_minus_utc()
+                - now
+                    .with_timezone(&main_zone)
+                    .offset()
+                    .fix()
+                    .local_minus_utc()) as f64
+                / 3600.0
+        }
+        _ => 0.0,
+    };
+    let raw = (hour as f64 + offset_hours).rem_euclid(24.0);
+    let whole_hours = raw.floor() as i32;
+    let minutes = ((raw - f64::from(whole_hours)) * 60.0).round() as i32;
+    if minutes == 0 {
+        whole_hours.to_string()
+    } else {
+        format!("{whole_hours}:{minutes:02}")
+    }
+}
+
+fn sync_attached_windows(
+    main_window: &slint::Weak<AppWindow>,
+    rulers_window: &slint::Weak<RulersWindow>,
+    time_slider_window: &slint::Weak<TimeSliderWindow>,
+    show_rulers: bool,
+) {
+    let (Some(main_window), Some(rulers_window), Some(time_slider_window)) = (
+        main_window.upgrade(),
+        rulers_window.upgrade(),
+        time_slider_window.upgrade(),
+    ) else {
+        return;
+    };
+    if !show_rulers {
+        let _ = rulers_window.hide();
+        let _ = time_slider_window.hide();
+        return;
+    }
+    let _ = main_window.window().with_winit_window(|main_native| {
+        let Ok(main_position) = main_native.outer_position() else {
+            return;
+        };
+        let system_scale = main_native.scale_factor() as f32;
+        let main_size = main_native.inner_size();
+        let width = (100.0 * main_window.get_clocks().row_count() as f32 + 1.0)
+            * main_window.get_clock_scale()
+            * system_scale;
+        let ruler_height = 463.0 * main_window.get_clock_scale() * system_scale;
+        let slider_height = 69.0 * main_window.get_clock_scale() * system_scale;
+        let _ = rulers_window.window().with_winit_window(|ruler_native| {
+            let _ = ruler_native.request_inner_size(PhysicalSize::new(
+                width.round() as u32,
+                ruler_height.round() as u32,
+            ));
+            ruler_native.set_outer_position(PhysicalPosition::new(
+                main_position.x,
+                main_position.y + main_size.height as i32,
+            ));
+        });
+        let _ = time_slider_window
+            .window()
+            .with_winit_window(|slider_native| {
+                let _ = slider_native.request_inner_size(PhysicalSize::new(
+                    width.round() as u32,
+                    slider_height.round() as u32,
+                ));
+                slider_native.set_outer_position(PhysicalPosition::new(
+                    main_position.x,
+                    main_position.y + main_size.height as i32 + ruler_height.round() as i32,
+                ));
+            });
+    });
+    hide_auxiliary_window_from_taskbar(rulers_window.window());
+    hide_auxiliary_window_from_taskbar(time_slider_window.window());
+    let _ = rulers_window.show();
+    let _ = time_slider_window.show();
 }
 
 fn sync_main_window_size(window: &AppWindow) {

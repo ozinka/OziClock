@@ -7,6 +7,7 @@
   "ShowInTaskBar": false,
   "ShowSeconds": true,
   "CompactMode": false,
+  "ShowRulers": false,
   "ClockScale": 1.0,
   "SettingsWindowWidth": 760.0,
   "SettingsWindowHeight": 510.0,

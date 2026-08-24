@@ -33,6 +33,7 @@ export component SettingsWindow inherits Window {
     in-out property <bool> show-in-task-bar;
     in-out property <float> opacity-percent;
     in-out property <bool> compact-mode;
+    in-out property <bool> show-rulers;
     in-out property <float> clock-scale-percent: 100;
     in-out property <string> status-message;
     in-out property <bool> color-picker-open: false;
@@ -69,6 +70,7 @@ export component SettingsWindow inherits Window {
     callback request-set-show-in-task-bar(bool);
     callback request-set-opacity(float);
     callback request-set-compact-mode(bool);
+    callback request-set-show-rulers(bool);
     callback request-set-clock-scale(float);
 
     Rectangle {
@@ -147,6 +149,8 @@ export component SettingsWindow inherits Window {
         Text { x: 318px; y: 220px; visible: root.selected-section == 0; text: "Show seconds"; color: #d9dce1; font-family: "Calibry"; font-size: 13px; }
         Rectangle { x: 286px; y: 252px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.compact-mode ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.compact-mode ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.compact-mode = !root.compact-mode; root.request-set-compact-mode(root.compact-mode); } } }
         Text { x: 318px; y: 254px; visible: root.selected-section == 0; text: "Compact mode"; color: #d9dce1; font-family: "Calibry"; font-size: 13px; }
+        Rectangle { x: 510px; y: 252px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.show-rulers ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.show-rulers ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.show-rulers = !root.show-rulers; root.request-set-show-rulers(root.show-rulers); } } }
+        Text { x: 542px; y: 254px; visible: root.selected-section == 0; text: "Show rulers"; color: #d9dce1; font-family: "Calibry"; font-size: 13px; }
         Rectangle { x: 286px; y: 286px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.show-in-task-bar ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.show-in-task-bar ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.show-in-task-bar = !root.show-in-task-bar; root.request-set-show-in-task-bar(root.show-in-task-bar); } } }
         Text { x: 318px; y: 288px; visible: root.selected-section == 0; text: "Show in taskbar"; color: #d9dce1; font-family: "Calibry"; font-size: 13px; }
         Text { x: 286px; y: 332px; visible: root.selected-section == 0; text: "Opacity"; color: #afb3bc; font-family: "Calibry"; font-size: 12px; font-weight: 600; }

@@ -1,0 +1,86 @@
+export struct RulerColumnData {
+    accent: color,
+}
+
+export component RulersWindow inherits Window {
+    title: "OziClock — Rulers";
+    no-frame: true;
+    always-on-top: true;
+    background: transparent;
+    in property <[RulerColumnData]> rulers;
+    in property <[int]> tick-indices;
+    in property <[int]> label-hours;
+    in property <int> focused-column: 0;
+    in property <float> focus-progress: 0;
+    in property <float> clock-scale: 1.0;
+    in-out property <bool> lens-dragging: false;
+    pure callback format-label(int, int) -> string;
+    callback request-focus-column(int);
+    callback request-focus-progress(float);
+
+    preferred-width: (100px * root.rulers.length + 1px) * root.clock-scale;
+    preferred-height: 463px * root.clock-scale;
+    min-width: 101px * root.clock-scale;
+    min-height: 463px * root.clock-scale;
+    max-height: 463px * root.clock-scale;
+
+    Rectangle {
+        width: parent.width;
+        height: parent.height;
+        background: #000000;
+        clip: true;
+
+        for ruler[index] in root.rulers: Rectangle {
+            x: (1px + index * 100px) * root.clock-scale;
+            width: 99px * root.clock-scale;
+            height: parent.height;
+            background: ruler.accent;
+
+            for tick[tick-index] in root.tick-indices: Rectangle {
+                x: 0px;
+                y: (15px + tick * 3px) * root.clock-scale;
+                width: (Math.mod(tick-index, 6) == 0 ? 25px : Math.mod(tick-index, 6) == 3 ? 20px : 15px) * root.clock-scale;
+                height: 1px;
+                background: #000000;
+            }
+            for tick[tick-index] in root.tick-indices: Rectangle {
+                x: parent.width - (Math.mod(tick-index, 6) == 0 ? 25px : Math.mod(tick-index, 6) == 3 ? 20px : 15px) * root.clock-scale;
+                y: (15px + tick * 3px) * root.clock-scale;
+                width: (Math.mod(tick-index, 6) == 0 ? 25px : Math.mod(tick-index, 6) == 3 ? 20px : 15px) * root.clock-scale;
+                height: 1px;
+                background: #000000;
+            }
+            for hour[hour-index] in root.label-hours: Text {
+                x: 0px;
+                y: (6px + hour-index * 18px) * root.clock-scale;
+                width: parent.width;
+                height: 18px * root.clock-scale;
+                text: root.format-label(index, hour);
+                color: #000000;
+                font-family: "Calibry";
+                font-size: 12px * root.clock-scale;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: top;
+            }
+            TouchArea { clicked => { root.request-focus-column(index); } }
+        }
+
+        Rectangle { x: 0px; y: 0px; width: root.focused-column * 100px * root.clock-scale; height: parent.height; background: #88000000; }
+        Rectangle { x: (root.focused-column + 1) * 100px * root.clock-scale; y: 0px; width: parent.width; height: parent.height; background: #88000000; }
+        Rectangle { x: root.focused-column * 100px * root.clock-scale; y: 0px; width: 2px * root.clock-scale; height: parent.height; background: #800000; }
+        Rectangle { x: (root.focused-column + 1) * 100px * root.clock-scale - 2px * root.clock-scale; y: 0px; width: 2px * root.clock-scale; height: parent.height; background: #800000; }
+        TouchArea {
+            width: parent.width;
+            height: parent.height;
+            pointer-event(event) => {
+                if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                    root.lens-dragging = true;
+                    root.request-focus-progress(Math.max(0, Math.min(1, (self.mouse-y / root.clock-scale - 15px) / 433px)));
+                }
+                if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) { root.lens-dragging = false; }
+            }
+            moved => { if (root.lens-dragging) { root.request-focus-progress(Math.max(0, Math.min(1, (self.mouse-y / root.clock-scale - 15px) / 433px))); } }
+        }
+    }
+}

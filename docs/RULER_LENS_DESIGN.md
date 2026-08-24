@@ -6,6 +6,10 @@ Extended mode visualizes the same instant across all configured time zones. Each
 
 The WPF implementation and `legacy/dotnet-wpf/Ozi.Clock/Assets/ozi.clock.large.webp` are the visual references. The rewrite should preserve the visual intent while avoiding dependence on WPF `VisualBrush` behavior.
 
+## Current Visual Reference
+
+`legacy/dotnet-wpf/Ozi.Clock/Assets/ozi.clock.large.webp` is useful historical evidence, but the user-provided screenshots from 2026-08-24 are the current visual reference. In particular, they confirm that the ruler strip and the time slider remain separate frameless windows attached below the clock strip.
+
 ## Legacy Geometry and Effects
 
 - Each ruler column is **99 logical pixels** wide with a one-pixel join.
@@ -17,6 +21,15 @@ The WPF implementation and `legacy/dotnet-wpf/Ozi.Clock/Assets/ozi.clock.large.w
 - Non-focused regions use opacity `0.5` and WPF blur radius `4`.
 - The focused vertical column is bounded by dark-red two-pixel edges.
 - The vertical focus is initially aligned with the selected main clock and may be dragged horizontally within the strip.
+- The ruler surface has a one-pixel black outer border and one-pixel black joins between columns.
+- Every column uses the clock's gradient/color background; it is not a shared neutral background.
+
+### Ruler Content Geometry
+
+- A column is 99 pixels wide. The first tick starts at Y=15; six ticks per hour are spaced 3 pixels apart, using lengths `25, 15, 15, 20, 15, 15` on both left and right edges.
+- There are 25 labels, beginning at Y=6 with an 18-pixel step. Labels are centered in the 99-pixel column.
+- The main clock labels `0…24`, including `24` only at the final label. Every other clock applies its current offset and wraps after `23` to `0`; fractional offsets render labels such as `4:30` and `5:45`.
+- The horizontal slider is 69 pixels high, has a black one-pixel outer edge, and a `#383838` inner surface. Its width is `clock_count × 100 + 1` pixels and it uses 0…288 five-minute steps.
 
 The horizontal lens uses this edge-darkening overlay:
 
@@ -40,6 +53,7 @@ The transparent center preserves sharp labels; the shaded upper and lower edges 
 - All columns show the same UTC instant converted into their own zones. Labels must handle whole-hour, half-hour, and 45-minute offsets.
 - Movement must remain bounded; neither focus may leave the ruler surface.
 - Pointer capture must continue a drag when the pointer temporarily leaves the handle and release cleanly on pointer-up or cancellation.
+- The ruler window is attached directly below the clock strip; the slider window is attached directly below the rulers. Moving the clock strip, changing its scale, changing compact/standard mode, or changing clock count repositions and resizes both attached windows as one visual unit.
 
 ## Slint Rendering Design
 
@@ -64,6 +78,8 @@ RulerPanel
 ```
 
 Implement dimensions and colors as named design tokens rather than scattering constants through components. Calculate tick and label data in Rust; keep positioning, clipping, gradients, and pointer handling in Slint.
+
+The desktop adapter owns three native windows (`AppWindow`, `RulersWindow`, and `TimeSliderWindow`) and one placement coordinator. The coordinator is the only code allowed to position or resize the two attached windows; it receives main-window movement, mode, scale, and clock-count changes. The ruler and slider components exchange a typed selected-time value rather than manipulating each other's widgets.
 
 ## Renderer Decision
 
