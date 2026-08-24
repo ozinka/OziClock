@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            archive: OziClock-${{ github.ref_name }}-windows-x64.zip
+            binary: oziclock-desktop.exe
+          - name: Linux x64
+            os: ubuntu-latest
+            archive: OziClock-${{ github.ref_name }}-linux-x64.tar.gz
+            binary: oziclock-desktop
+          - name: macOS Apple Silicon
+            os: macos-latest
+            archive: OziClock-${{ github.ref_name }}-macos-arm64.tar.gz
+            binary: oziclock-desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install Linux graphics dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libgl1-mesa-dev libxkbcommon-dev
+      - name: Verify formatting
+        run: cargo fmt --check
+      - name: Lint
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --workspace
+      - name: Build release application
+        run: cargo build --release -p oziclock-desktop
+      - name: Package Windows executable
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path target/release/${{ matrix.binary }} -DestinationPath ${{ matrix.archive }}
+      - name: Package Unix executable
+        if: runner.os != 'Windows'
+        run: tar -czf ${{ matrix.archive }} -C target/release ${{ matrix.binary }}
+      - name: Upload release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}
+          path: ${{ matrix.archive }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release archives
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: false
+          body: |
+            ## OziClock 2.0.1
+
+            The first Rust and Slint release of OziClock. It replaces the legacy WPF/.NET implementation with a lightweight native desktop application.
+
+            ### Highlights
+
+            - Cross-platform release archives for Windows, Linux, and macOS.
+            - Configurable multi-time-zone clock strip with portable JSON settings.
+            - Compact mode, rulers, interactive time exploration, tray menu, and redesigned settings.
+            - Windows archive contains one self-contained executable with the Visual C++ runtime linked statically.
+
+            `settings.json` is created beside the executable on first run. The Windows release is x64; macOS release is Apple Silicon.
+          files: release-assets/*

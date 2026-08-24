@@ -3595,6 +3595,7 @@ dependencies = [
  "slint",
  "slint-build",
  "tray-icon",
+ "webbrowser",
  "windows-sys 0.61.2",
 ]
 

@@ -1,10 +1,22 @@
 # OziClock
 
-OziClock is being rebuilt as a lightweight, cross-platform desktop world clock. The target application will use Rust for application logic and Slint for the custom desktop UI.
+OziClock is a lightweight desktop world clock for viewing several time zones at once. Version 2 is a native Rust and Slint rewrite of the original WPF/.NET application.
+
+## Downloads
+
+Download the current release from [GitHub Releases](https://github.com/ozinka/OziClock/releases/latest).
+
+- **Windows x64:** unzip and run `oziclock-desktop.exe`. No .NET or Visual C++ Redistributable installation is required.
+- **Linux x64:** extract the archive, mark `oziclock-desktop` executable if necessary, then run it.
+- **macOS Apple Silicon:** extract the archive and run `oziclock-desktop` from Terminal.
+
+The application creates `settings.json` beside the executable on first launch. Keep that file next to the executable to preserve clocks, placement, and preferences.
+
+The last legacy WPF/.NET release is [v1.0.10](https://github.com/ozinka/OziClock/releases/tag/v1.0.10). Its source is preserved in [`legacy/dotnet-wpf/`](legacy/dotnet-wpf/).
 
 ## Repository Layout
 
-- `apps/oziclock-desktop/` — future native desktop executable.
+- `apps/oziclock-desktop/` — native Rust desktop executable.
 - `crates/` — reusable Rust domain and application modules.
 - `ui/` — shared Slint components and design tokens.
 - `docs/` — requirements, architecture, design specifications, and decisions.
@@ -21,8 +33,23 @@ OziClock is being rebuilt as a lightweight, cross-platform desktop world clock. 
 - [Minimal Windows development environment](docs/DEVELOPMENT_ENVIRONMENT.md)
 - [Rust and Slint stack decision](docs/decisions/0002-rust-slint-stack.md)
 
-The Rust toolchain is required before building the new workspace. The legacy application can still be built from `legacy/dotnet-wpf/` with the .NET 9 SDK.
+The Rust toolchain is required to build the active workspace. The legacy application can still be built from `legacy/dotnet-wpf/` with the .NET 9 SDK.
 
-## Current Prototype
+## Features
 
-The first Rust/Slint slice loads a dynamic clock list from portable JSON settings, renders reusable `ClockTile` components, and updates time once per second. On first launch it creates `settings.json` beside `oziclock-desktop.exe`. Edit this file to add, remove, reorder, recolor, or select the main time zone; use IANA names such as `Europe/Kyiv`.
+- Multiple configurable world clocks using IANA time zones.
+- Frameless, draggable, always-on-top clock strip with compact mode.
+- Portable `settings.json` storage and configurable clock scale.
+- Tray controls, contextual actions, and custom Settings/About windows.
+- Extended ruler mode with an interactive Lens and Column slider for time exploration.
+
+## Build from Source
+
+Install the Rust stable toolchain, then run from the repository root:
+
+```powershell
+cargo run -p oziclock-desktop
+cargo build --release -p oziclock-desktop
+```
+
+Windows builds use a statically linked Visual C++ runtime, so the release executable does not depend on `VCRUNTIME140.dll`.

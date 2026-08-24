@@ -10,6 +10,7 @@ chrono-tz = "0.10.4"
 oziclock-app = { path = "../../crates/oziclock-app" }
 oziclock-storage = { path = "../../crates/oziclock-storage" }
 slint = { version = "1.17.1", default-features = false, features = ["backend-winit", "compat-1-2", "renderer-femtovg", "unstable-winit-030"] }
+webbrowser = "1.2.4"
 
 [build-dependencies]
 slint-build = "1.17.1"

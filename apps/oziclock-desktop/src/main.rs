@@ -745,6 +745,9 @@ fn main() -> Result<(), slint::PlatformError> {
             let _ = about_window.hide();
         }
     });
+    about_window.on_request_open_project_url(|| {
+        let _ = webbrowser::open("https://github.com/ozinka/OziClock");
+    });
 
     let weak_context_menu = context_menu.as_weak();
     let weak_settings_window = settings_window.as_weak();
