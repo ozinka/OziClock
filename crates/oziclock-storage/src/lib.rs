@@ -16,6 +16,8 @@ pub struct AppSettings {
     pub top_most: bool,
     pub show_in_task_bar: bool,
     pub show_seconds: bool,
+    #[serde(default)]
+    pub compact_mode: bool,
     pub clocks_settings: Vec<ClockSettings>,
 }
 

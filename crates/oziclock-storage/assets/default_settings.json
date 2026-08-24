@@ -6,6 +6,7 @@
   "TopMost": true,
   "ShowInTaskBar": false,
   "ShowSeconds": true,
+  "CompactMode": false,
   "ClocksSettings": [
     { "Label": "MEX", "TimeZone": "America/Mexico_City", "Color": "#FFFFAA" },
     { "Label": "NYK", "TimeZone": "America/New_York", "Color": "#AAAAFF" },

@@ -1,6 +1,8 @@
 export component AboutWindow inherits Window {
     title: "About OziClock";
     no-frame: true;
+    always-on-top: true;
+    icon: @image-url("../../../legacy/dotnet-wpf/Ozi.Clock/Assets/clock.ico");
     preferred-width: 430px;
     preferred-height: 280px;
     min-width: 430px;
@@ -21,9 +23,10 @@ export component AboutWindow inherits Window {
         Text { x: 96px; y: 30px; text: "OZI CLOCK"; color: #f4f5f7; font-family: "Calibry"; font-size: 21px; font-weight: 700; }
         Text { x: 96px; y: 58px; text: "A world clock for your desktop"; color: #969aa4; font-family: "Calibry"; font-size: 13px; }
         Rectangle { x: 28px; y: 104px; width: 374px; height: 1px; background: #33353c; }
-        Text { x: 28px; y: 129px; text: "Rust + Slint prototype"; color: #d9dce1; font-family: "Calibry"; font-size: 14px; }
+        Text { x: 28px; y: 129px; text: "Version 2.0.1"; color: #d9dce1; font-family: "Calibry"; font-size: 14px; }
         Text { x: 28px; y: 158px; width: 355px; text: "A lightweight cross-platform clock with multiple time zones."; color: #969aa4; font-family: "Calibry"; font-size: 13px; wrap: word-wrap; }
         Text { x: 28px; y: 229px; text: "© OziClock"; color: #6f747e; font-family: "Calibry"; font-size: 12px; }
+        Rectangle { x: 322px; y: 220px; width: 80px; height: 36px; border-radius: 5px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "OK"; color: white; font-family: "Calibry"; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-close(); } } } }
         Text {
             x: 370px; y: 18px; width: 36px; height: 36px; text: "×"; color: #aeb3bd; font-family: "Calibry"; font-size: 25px; horizontal-alignment: center; vertical-alignment: center;
             TouchArea { clicked => { root.request-close(); } }

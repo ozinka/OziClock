@@ -15,47 +15,76 @@ export component AppWindow inherits Window {
     in property <string> product-name;
     in property <[ClockTileData]> clocks;
     in property <bool> show-seconds: true;
+    in property <bool> top-most: false;
+    in property <float> inactive-opacity: 1;
+    in property <bool> compact-mode: false;
     in-out property <length> menu-x: 0px;
     callback request-window-drag();
     callback request-open-menu();
     callback request-open-settings();
     callback request-open-about();
     callback request-exit();
+    callback request-toggle-compact();
 
     title: product-name;
     no-frame: true;
+    always-on-top: root.top-most;
+    icon: @image-url("../../../legacy/dotnet-wpf/Ozi.Clock/Assets/clock.ico");
     preferred-width: 100px * root.clocks.length + 1px;
-    preferred-height: 62px;
+    preferred-height: root.compact-mode ? 31px : 62px;
+    animate preferred-height { duration: 200ms; easing: ease-in-out; }
     min-width: 101px;
-    min-height: 62px;
+    min-height: 31px;
     max-height: 62px;
-    background: #000000;
+    background: transparent;
 
-    HorizontalLayout {
-        padding: 1px;
-        spacing: 1px;
+    content := Rectangle {
+        width: parent.width;
+        height: parent.height;
+        background: #000000;
+        clip: true;
+        opacity: interaction.has-hover ? 1 : root.inactive-opacity;
+        animate opacity { duration: 300ms; }
 
-        for clock in root.clocks: ClockTile {
-            label: clock.label;
-            month: clock.month;
-            day: clock.day;
-            hour: clock.hour;
-            minute: clock.minute;
-            second: clock.second;
-            accent: clock.accent;
-            main-zone: clock.main-zone;
-            show-seconds: root.show-seconds;
-        }
-    }
+        for clock[index] in root.clocks: Rectangle {
+            x: 1px + index * 100px;
+            y: parent.height - 61px;
+            width: 99px;
+            height: 60px;
 
-    TouchArea {
-        pointer-event(event) => {
-            if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
-                root.request-window-drag();
+            ClockTile {
+                label: clock.label;
+                month: clock.month;
+                day: clock.day;
+                hour: clock.hour;
+                minute: clock.minute;
+                second: clock.second;
+                accent: clock.accent;
+                main-zone: clock.main-zone;
+                show-seconds: root.show-seconds;
             }
-            if (event.kind == PointerEventKind.up && event.button == PointerEventButton.right) {
-                root.menu-x = self.mouse-x;
-                root.request-open-menu();
+        }
+
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: 1px;
+            background: #000000;
+        }
+
+        interaction := TouchArea {
+            pointer-event(event) => {
+                if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                    root.request-window-drag();
+                }
+                if (event.kind == PointerEventKind.up && event.button == PointerEventButton.right) {
+                    root.menu-x = self.mouse-x;
+                    root.request-open-menu();
+                }
+                if (event.kind == PointerEventKind.up && event.button == PointerEventButton.middle) {
+                    root.request-toggle-compact();
+                }
             }
         }
     }

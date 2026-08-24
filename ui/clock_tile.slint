@@ -44,7 +44,7 @@ export component ClockTile inherits Rectangle {
     }
 
     Text {
-        x: 80px;
+        x: 79px;
         y: 5px;
         width: 18px;
         height: 20px;
@@ -68,21 +68,21 @@ export component ClockTile inherits Rectangle {
         font-weight: 600;
         color: #000000;
         horizontal-alignment: right;
-        vertical-alignment: top;
+        vertical-alignment: bottom;
     }
 
     Text {
         x: root.show-seconds ? 30px : 44px;
-        y: 40px;
+        y: 33px;
         width: 9px;
-        height: 19px;
+        height: 25px;
         text: ":";
         font-family: "Calibry";
         font-size: 16px;
         font-weight: 600;
         color: #000000;
         horizontal-alignment: center;
-        vertical-alignment: top;
+        vertical-alignment: bottom;
     }
 
     Text {
@@ -95,35 +95,35 @@ export component ClockTile inherits Rectangle {
         font-size: 22px;
         color: #000000;
         horizontal-alignment: center;
-        vertical-alignment: top;
+        vertical-alignment: bottom;
     }
 
     Text {
         x: 67px;
-        y: 40px;
+        y: 33px;
         width: 9px;
-        height: 19px;
+        height: 25px;
         text: ":";
         font-family: "Calibry";
         font-size: 16px;
         font-weight: 600;
         color: #000000;
         horizontal-alignment: center;
-        vertical-alignment: top;
+        vertical-alignment: bottom;
         visible: root.show-seconds;
     }
 
     Text {
         x: 67px;
-        y: 40px;
+        y: 34px;
         width: 38px;
-        height: 19px;
+        height: 25px;
         text: root.second;
         font-family: "Calibry";
         font-size: 16px;
         color: #000000;
         horizontal-alignment: center;
-        vertical-alignment: top;
+        vertical-alignment: bottom;
         visible: root.show-seconds;
     }
 }
