@@ -101,7 +101,13 @@ fn main() -> Result<(), slint::PlatformError> {
             rulers_window.set_focus_progress((time_step / 288.0).clamp(0.0, 1.0));
         }
     });
-    rulers_window.on_request_focus_column(move |_| {});
+    let rulers_for_focus = rulers_window.as_weak();
+    rulers_window.on_request_focus_column(move |column_index| {
+        if let Some(rulers_window) = rulers_for_focus.upgrade() {
+            let maximum_index = rulers_window.get_rulers().row_count().saturating_sub(1) as i32;
+            rulers_window.set_focused_column(column_index.clamp(0, maximum_index));
+        }
+    });
     let saved_settings = Rc::new(RefCell::new(shared_settings.borrow().clone()));
     let weak_settings_window = settings_window.as_weak();
     let settings_for_open = shared_settings.clone();

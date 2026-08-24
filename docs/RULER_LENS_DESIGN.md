@@ -4,6 +4,8 @@
 
 Extended mode visualizes the same instant across all configured time zones. Each 99-pixel clock tile continues downward as a vertical 24-hour ruler. A movable vertical focus selects one clock-sized column, while a movable horizontal lens selects and magnifies one moment across every column. Together they make offsets, including fractional-hour offsets, immediately comparable.
 
+For future discussion and code labels, call the horizontal time-selection strip the **Lens** and the vertical column focus the **Column slider**. Either control moves only after it is clicked or dragged: the Lens moves vertically and the Column slider moves horizontally. At their intersection, the Lens has priority.
+
 The WPF implementation and `legacy/dotnet-wpf/Ozi.Clock/Assets/ozi.clock.large.webp` are the visual references. The rewrite should preserve the visual intent while avoiding dependence on WPF `VisualBrush` behavior.
 
 ## Current Visual Reference
