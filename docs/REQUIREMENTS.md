@@ -23,6 +23,7 @@ This catalog is derived from the WPF source, its bundled screenshots, and the in
 - **MODE-01 (Legacy):** Standard mode displays the complete 99 × 60 logical-pixel tile: zone label and month/day on top, time below.
 - **MODE-02 (Legacy):** Compact mode folds the strip to approximately 29 logical pixels high, hiding the date/header area and leaving the time visible. Switching is available through General settings and middle-click and uses a 200 ms animation. During the transition, full-height tiles remain bottom-anchored and are clipped by the shrinking window.
 - **MODE-03 (Legacy):** Extended mode attaches separate ruler and time-slider windows below the strip. Switching is available through `Show/Hide Rulers` and double-click. The three windows move, scale, and resize as one visual unit.
+- **MODE-03A:** The clock strip remains fully opaque while rulers are visible, regardless of the configured inactive opacity.
 - **MODE-04:** Mode changes must preserve tile order, selected main zone, window position, colors, and current settings.
 - **MODE-05 (New):** Persist the selected display mode across restarts.
 
@@ -36,7 +37,7 @@ This catalog is derived from the WPF source, its bundled screenshots, and the in
 - **CLK-06 (Legacy):** Exactly one clock is the main zone. Emphasize its label in white and use it as the reference for rulers and shifted time.
 - **CLK-07 (Legacy):** Add a new clock initially as UTC, then immediately open its editor.
 - **CLK-08 (Legacy):** Edit the selected clock’s label, time zone from the supported IANA time-zone list with its current UTC offset (sorted by offset, then name), and accent color with immediate preview.
-- **CLK-09 (Legacy):** Move a clock one position left or right and keep its ruler in the same order.
+- **CLK-09 (Legacy):** Move a clock one position left or right and immediately keep the clock strip and its ruler in the same order.
 - **CLK-10 (Legacy):** Remove a non-main clock only after confirmation. Never remove the last clock or the main clock.
 - **CLK-11:** Persist label, portable time-zone identifier, color, order, main selection, and seconds preference in the per-user JSON settings file. The UI must not hardcode a clock list.
 - **CLK-12:** Convert a UTC instant correctly through daylight-saving transitions and time zones with 30- or 45-minute offsets.
@@ -82,14 +83,16 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **SET-04:** Version the settings schema and import legacy Windows time-zone IDs into IANA IDs.
 - **SET-05 (New):** Persist display mode, ruler/focus position where appropriate, and tray/window visibility.
 - **SET-06:** The settings window separates application-wide controls under General from per-clock controls under Clocks; a clock editor is visible only after selecting that clock.
+- **SET-07:** The Clocks list ends with an in-list `Add clock` action rather than a separate footer action.
 
 ## Auxiliary Windows and Interaction
 
 - **UI-01 (Legacy):** Edit, Settings, About, color picker, rulers, and slider use frameless custom styling and do not create separate taskbar entries; the main clock is the only taskbar entry. Settings and About remain above an always-on-top clock.
 - **UI-02 (Legacy):** Position Edit and Settings near the clock strip, preferring below it, falling back above, and constraining them to the working area.
 - **UI-03 (Legacy):** The color picker offers the existing curated palette, closes after selection, and dismisses when it loses focus.
-- **UI-04:** Dialogs must remain reachable by keyboard; Escape cancels where safe, Enter accepts, and focus indication must be visible.
+- **UI-04:** Dialogs must remain reachable by keyboard; Escape closes Settings, About, and the context menu, Enter accepts Settings and About, and focus indication must be visible.
 - **UI-05:** Context-menu and mouse shortcuts must have discoverable menu equivalents.
+- **UI-06:** Settings, About, and the custom context menu must take foreground focus above the ruler and slider windows whenever they are shown.
 
 ## Cross-Platform Quality Requirements
 

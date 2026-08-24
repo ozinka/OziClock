@@ -17,6 +17,7 @@ export component AppWindow inherits Window {
     in property <bool> show-seconds: true;
     in property <bool> top-most: false;
     in property <float> inactive-opacity: 1;
+    in property <bool> show-rulers: false;
     in property <bool> compact-mode: false;
     in property <float> clock-scale: 1.0;
     in-out property <length> menu-x: 0px;
@@ -44,7 +45,7 @@ export component AppWindow inherits Window {
         height: parent.height;
         background: #000000;
         clip: true;
-        opacity: interaction.has-hover ? 1 : root.inactive-opacity;
+        opacity: root.show-rulers || interaction.has-hover ? 1 : root.inactive-opacity;
         animate opacity { duration: 300ms; }
 
         for clock[index] in root.clocks: Rectangle {

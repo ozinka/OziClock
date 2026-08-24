@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chrono::{DateTime, Offset, Utc};
+use chrono::{DateTime, LocalResult, Offset, TimeZone, Timelike, Utc};
 use chrono_tz::{TZ_VARIANTS, Tz};
 use oziclock_storage::{AppSettings, ClockSettings};
 use slint::winit_030::EventResult;
@@ -16,6 +16,10 @@ use slint::winit_030::WinitWindowAccessor;
 use slint::winit_030::winit::dpi::{PhysicalPosition, PhysicalSize};
 #[cfg(target_os = "windows")]
 use slint::winit_030::winit::platform::windows::{MonitorHandleExtWindows, WindowExtWindows};
+use slint::winit_030::winit::{
+    event::{ElementState, WindowEvent},
+    keyboard::{Key, NamedKey},
+};
 use slint::{Color, Model, ModelRc, Timer, TimerMode, VecModel};
 #[cfg(target_os = "windows")]
 use tray_icon::{
@@ -37,11 +41,30 @@ fn main() -> Result<(), slint::PlatformError> {
     window.set_top_most(settings.top_most);
     window.set_inactive_opacity(settings.opacity.clamp(0.02, 1.0) as f32);
     window.set_show_seconds(settings.show_seconds);
+    window.set_show_rulers(settings.show_rulers);
     window.set_compact_mode(settings.compact_mode);
     apply_clock_scale(&window, settings.clock_scale.clamp(0.8, 1.5) as f32);
     update_clock_tiles(&window, &settings.clocks_settings, settings.show_seconds);
 
     let settings_window = SettingsWindow::new()?;
+    let settings_for_keyboard = settings_window.as_weak();
+    settings_window
+        .window()
+        .on_winit_window_event(move |_, event| {
+            if is_escape_key(event) {
+                if let Some(settings_window) = settings_for_keyboard.upgrade() {
+                    settings_window.invoke_request_close();
+                }
+                return EventResult::PreventDefault;
+            }
+            if is_enter_key(event) {
+                if let Some(settings_window) = settings_for_keyboard.upgrade() {
+                    settings_window.invoke_request_save();
+                }
+                return EventResult::PreventDefault;
+            }
+            EventResult::Propagate
+        });
     let rulers_window = RulersWindow::new()?;
     let time_slider_window = TimeSliderWindow::new()?;
     let now = Utc::now();
@@ -81,24 +104,54 @@ fn main() -> Result<(), slint::PlatformError> {
     settings_window.set_selected_section(0);
     initialize_ruler_windows(&rulers_window, &time_slider_window, &settings);
     let shared_settings = Rc::new(RefCell::new(settings));
+    let explored_time = Rc::new(RefCell::new(None::<DateTime<Utc>>));
     let ruler_label_settings = shared_settings.clone();
     rulers_window.on_format_label(move |column_index, hour| {
         format_ruler_label(&ruler_label_settings.borrow(), column_index, hour).into()
     });
     let slider_for_ruler = time_slider_window.as_weak();
     let rulers_for_ruler = rulers_window.as_weak();
+    let main_window_for_ruler = window.as_weak();
+    let settings_for_ruler = shared_settings.clone();
+    let explored_time_for_ruler = explored_time.clone();
     rulers_window.on_request_focus_progress(move |progress| {
         if let Some(rulers_window) = rulers_for_ruler.upgrade() {
             rulers_window.set_focus_progress(progress);
         }
+        let time_step = (progress * 288.0).round();
         if let Some(time_slider_window) = slider_for_ruler.upgrade() {
-            time_slider_window.set_time_step((progress * 288.0).round());
+            time_slider_window.set_time_step(time_step);
+        }
+        let selected_time = ruler_time_step_to_utc(&settings_for_ruler.borrow(), time_step);
+        *explored_time_for_ruler.borrow_mut() = Some(selected_time);
+        if let Some(main_window) = main_window_for_ruler.upgrade() {
+            let settings = settings_for_ruler.borrow();
+            update_clock_tiles_at(
+                &main_window,
+                &settings.clocks_settings,
+                settings.show_seconds,
+                selected_time,
+            );
         }
     });
     let rulers_for_slider = rulers_window.as_weak();
+    let main_window_for_slider = window.as_weak();
+    let settings_for_slider = shared_settings.clone();
+    let explored_time_for_slider = explored_time.clone();
     time_slider_window.on_request_time_step(move |time_step| {
         if let Some(rulers_window) = rulers_for_slider.upgrade() {
             rulers_window.set_focus_progress((time_step / 288.0).clamp(0.0, 1.0));
+        }
+        let selected_time = ruler_time_step_to_utc(&settings_for_slider.borrow(), time_step);
+        *explored_time_for_slider.borrow_mut() = Some(selected_time);
+        if let Some(main_window) = main_window_for_slider.upgrade() {
+            let settings = settings_for_slider.borrow();
+            update_clock_tiles_at(
+                &main_window,
+                &settings.clocks_settings,
+                settings.show_seconds,
+                selected_time,
+            );
         }
     });
     let rulers_for_focus = rulers_window.as_weak();
@@ -108,6 +161,9 @@ fn main() -> Result<(), slint::PlatformError> {
             rulers_window.set_focused_column(column_index.clamp(0, maximum_index));
         }
     });
+    if shared_settings.borrow().show_rulers {
+        rulers_window.invoke_request_focus_progress(rulers_window.get_focus_progress());
+    }
     let saved_settings = Rc::new(RefCell::new(shared_settings.borrow().clone()));
     let weak_settings_window = settings_window.as_weak();
     let settings_for_open = shared_settings.clone();
@@ -174,6 +230,12 @@ fn main() -> Result<(), slint::PlatformError> {
         {
             initialize_ruler_windows(&rulers_window, &time_slider_window, &state);
         }
+        sync_attached_windows(
+            &main_window,
+            &rulers_for_add,
+            &slider_for_add,
+            state.show_rulers,
+        );
     });
     let state = shared_settings.clone();
     let editor = settings_window.as_weak();
@@ -197,6 +259,12 @@ fn main() -> Result<(), slint::PlatformError> {
                 {
                     initialize_ruler_windows(&rulers_window, &time_slider_window, &state);
                 }
+                sync_attached_windows(
+                    &main_window,
+                    &rulers_for_remove,
+                    &slider_for_remove,
+                    state.show_rulers,
+                );
             }
         }
     });
@@ -255,8 +323,35 @@ fn main() -> Result<(), slint::PlatformError> {
     let main_window = window.as_weak();
     let rulers_for_visibility = rulers_window.as_weak();
     let slider_for_visibility = time_slider_window.as_weak();
+    let explored_time_for_visibility = explored_time.clone();
     settings_window.on_request_set_show_rulers(move |show_rulers| {
-        state.borrow_mut().show_rulers = show_rulers;
+        let settings = {
+            let mut state = state.borrow_mut();
+            state.show_rulers = show_rulers;
+            state.clone()
+        };
+        if show_rulers
+            && let (Some(rulers_window), Some(time_slider_window)) = (
+                rulers_for_visibility.upgrade(),
+                slider_for_visibility.upgrade(),
+            )
+        {
+            initialize_ruler_windows(&rulers_window, &time_slider_window, &settings);
+            rulers_window.invoke_request_focus_progress(rulers_window.get_focus_progress());
+        }
+        if let Some(main_window) = main_window.upgrade() {
+            main_window.set_show_rulers(show_rulers);
+        }
+        if !show_rulers {
+            *explored_time_for_visibility.borrow_mut() = None;
+            if let Some(main_window) = main_window.upgrade() {
+                update_clock_tiles(
+                    &main_window,
+                    &settings.clocks_settings,
+                    settings.show_seconds,
+                );
+            }
+        }
         sync_attached_windows(
             &main_window,
             &rulers_for_visibility,
@@ -269,14 +364,36 @@ fn main() -> Result<(), slint::PlatformError> {
     let main_window = window.as_weak();
     let rulers_for_toggle = rulers_window.as_weak();
     let slider_for_toggle = time_slider_window.as_weak();
+    let explored_time_for_toggle = explored_time.clone();
     window.on_request_toggle_rulers(move || {
-        let show_rulers = {
+        let settings = {
             let mut state = state.borrow_mut();
             state.show_rulers = !state.show_rulers;
-            state.show_rulers
+            state.clone()
         };
+        let show_rulers = settings.show_rulers;
         if let Some(editor) = editor.upgrade() {
             editor.set_show_rulers(show_rulers);
+        }
+        if let Some(main_window) = main_window.upgrade() {
+            main_window.set_show_rulers(show_rulers);
+        }
+        if show_rulers
+            && let (Some(rulers_window), Some(time_slider_window)) =
+                (rulers_for_toggle.upgrade(), slider_for_toggle.upgrade())
+        {
+            initialize_ruler_windows(&rulers_window, &time_slider_window, &settings);
+            rulers_window.invoke_request_focus_progress(rulers_window.get_focus_progress());
+        }
+        if !show_rulers {
+            *explored_time_for_toggle.borrow_mut() = None;
+            if let Some(main_window) = main_window.upgrade() {
+                update_clock_tiles(
+                    &main_window,
+                    &settings.clocks_settings,
+                    settings.show_seconds,
+                );
+            }
         }
         sync_attached_windows(
             &main_window,
@@ -372,16 +489,36 @@ fn main() -> Result<(), slint::PlatformError> {
     let state = shared_settings.clone();
     let saved = saved_settings.clone();
     let editor = settings_window.as_weak();
+    let main_window_for_move_up = window.as_weak();
+    let rulers_for_move_up = rulers_window.as_weak();
+    let slider_for_move_up = time_slider_window.as_weak();
     settings_window.on_request_move_up(move || {
         if let Some(editor) = editor.upgrade() {
-            move_selected_clock(&editor, &mut state.borrow_mut().clocks_settings, -1);
+            let mut state = state.borrow_mut();
+            move_selected_clock(&editor, &mut state.clocks_settings, -1);
+            refresh_clock_order(
+                &main_window_for_move_up,
+                &rulers_for_move_up,
+                &slider_for_move_up,
+                &state,
+            );
         }
     });
     let state = shared_settings.clone();
     let editor = settings_window.as_weak();
+    let main_window_for_move_down = window.as_weak();
+    let rulers_for_move_down = rulers_window.as_weak();
+    let slider_for_move_down = time_slider_window.as_weak();
     settings_window.on_request_move_down(move || {
         if let Some(editor) = editor.upgrade() {
-            move_selected_clock(&editor, &mut state.borrow_mut().clocks_settings, 1);
+            let mut state = state.borrow_mut();
+            move_selected_clock(&editor, &mut state.clocks_settings, 1);
+            refresh_clock_order(
+                &main_window_for_move_down,
+                &rulers_for_move_down,
+                &slider_for_move_down,
+                &state,
+            );
         }
     });
     let drag_index = Rc::new(Cell::new(-1));
@@ -406,17 +543,22 @@ fn main() -> Result<(), slint::PlatformError> {
     let state = shared_settings.clone();
     let editor = settings_window.as_weak();
     let drag_move = drag_index.clone();
+    let main_window_for_drag = window.as_weak();
+    let rulers_for_drag = rulers_window.as_weak();
+    let slider_for_drag = time_slider_window.as_weak();
     settings_window.on_request_drag_clock(move |_index, y| {
         if let Some(editor) = editor.upgrade() {
             let current = drag_move.get();
             let target = (y / 43.0).floor() as i32;
-            move_clock_to(
-                &editor,
-                &mut state.borrow_mut().clocks_settings,
-                current,
-                target,
-            );
             if current != target && target >= 0 {
+                let mut state = state.borrow_mut();
+                move_clock_to(&editor, &mut state.clocks_settings, current, target);
+                refresh_clock_order(
+                    &main_window_for_drag,
+                    &rulers_for_drag,
+                    &slider_for_drag,
+                    &state,
+                );
                 drag_move.set(target);
                 editor.set_dragging_index(target);
             }
@@ -550,6 +692,23 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     let context_menu = ContextMenuWindow::new()?;
+    let menu_for_dismiss = context_menu.as_weak();
+    context_menu
+        .window()
+        .on_winit_window_event(move |_, event| {
+            if matches!(event, WindowEvent::Focused(false))
+                && let Some(context_menu) = menu_for_dismiss.upgrade()
+            {
+                let _ = context_menu.hide();
+            }
+            if is_escape_key(event) {
+                if let Some(context_menu) = menu_for_dismiss.upgrade() {
+                    let _ = context_menu.hide();
+                }
+                return EventResult::PreventDefault;
+            }
+            EventResult::Propagate
+        });
     let weak_context_menu = context_menu.as_weak();
     let weak_window_for_menu = window.as_weak();
     window.on_request_open_menu(move || {
@@ -561,11 +720,23 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     let about_window = AboutWindow::new()?;
+    let about_for_keyboard = about_window.as_weak();
+    about_window
+        .window()
+        .on_winit_window_event(move |_, event| {
+            if is_escape_key(event) || is_enter_key(event) {
+                if let Some(about_window) = about_for_keyboard.upgrade() {
+                    let _ = about_window.hide();
+                }
+                return EventResult::PreventDefault;
+            }
+            EventResult::Propagate
+        });
     let weak_about_window = about_window.as_weak();
+    let main_window_for_about = window.as_weak();
     window.on_request_open_about(move || {
         if let Some(about_window) = weak_about_window.upgrade() {
-            let _ = about_window.show();
-            hide_auxiliary_window_from_taskbar(about_window.window());
+            open_about_window(&about_window, &main_window_for_about);
         }
     });
     let weak_about_window = about_window.as_weak();
@@ -593,13 +764,13 @@ fn main() -> Result<(), slint::PlatformError> {
     });
     let weak_context_menu = context_menu.as_weak();
     let weak_about_window = about_window.as_weak();
+    let main_window_for_context_about = window.as_weak();
     context_menu.on_request_open_about(move || {
         if let Some(context_menu) = weak_context_menu.upgrade() {
             let _ = context_menu.hide();
         }
         if let Some(about_window) = weak_about_window.upgrade() {
-            let _ = about_window.show();
-            hide_auxiliary_window_from_taskbar(about_window.window());
+            open_about_window(&about_window, &main_window_for_context_about);
         }
     });
     let exit_window = window.as_weak();
@@ -620,9 +791,12 @@ fn main() -> Result<(), slint::PlatformError> {
     });
     let state = shared_settings.clone();
     let weak_window = window.as_weak();
+    let explored_time_for_timer = explored_time.clone();
     let timer = Timer::default();
     timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
-        if let Some(window) = weak_window.upgrade() {
+        if explored_time_for_timer.borrow().is_none()
+            && let Some(window) = weak_window.upgrade()
+        {
             let state = state.borrow();
             update_clock_tiles(&window, &state.clocks_settings, state.show_seconds);
         }
@@ -632,7 +806,34 @@ fn main() -> Result<(), slint::PlatformError> {
     let rulers_for_attached_layout = rulers_window.as_weak();
     let slider_for_attached_layout = time_slider_window.as_weak();
     let settings_for_attached_layout = shared_settings.clone();
+    let settings_window_for_shutdown = settings_window.as_weak();
+    let context_menu_for_shutdown = context_menu.as_weak();
+    let about_window_for_shutdown = about_window.as_weak();
     window.window().on_winit_window_event(move |_, event| {
+        if matches!(event, WindowEvent::CloseRequested) {
+            save_state_before_exit(
+                &main_window_for_attached_layout,
+                &settings_window_for_shutdown,
+                &settings_for_attached_layout,
+            );
+            if let Some(settings_window) = settings_window_for_shutdown.upgrade() {
+                let _ = settings_window.hide();
+            }
+            if let Some(context_menu) = context_menu_for_shutdown.upgrade() {
+                let _ = context_menu.hide();
+            }
+            if let Some(about_window) = about_window_for_shutdown.upgrade() {
+                let _ = about_window.hide();
+            }
+            if let Some(rulers_window) = rulers_for_attached_layout.upgrade() {
+                let _ = rulers_window.hide();
+            }
+            if let Some(time_slider_window) = slider_for_attached_layout.upgrade() {
+                let _ = time_slider_window.hide();
+            }
+            let _ = slint::quit_event_loop();
+            return EventResult::PreventDefault;
+        }
         if matches!(
             event,
             slint::winit_030::winit::event::WindowEvent::Moved(_)
@@ -795,7 +996,15 @@ fn open_settings_window(
     restore_settings_window_size(settings_window, settings);
     let _ = settings_window.show();
     hide_auxiliary_window_from_taskbar(settings_window.window());
-    position_settings_near_clock(settings_window, main_window);
+    position_auxiliary_window_near_clock(settings_window.window(), main_window);
+    focus_auxiliary_window(settings_window.window());
+}
+
+fn open_about_window(about_window: &AboutWindow, main_window: &slint::Weak<AppWindow>) {
+    let _ = about_window.show();
+    hide_auxiliary_window_from_taskbar(about_window.window());
+    position_auxiliary_window_near_clock(about_window.window(), main_window);
+    focus_auxiliary_window(about_window.window());
 }
 
 fn animate_main_window_height(
@@ -971,15 +1180,31 @@ fn initialize_ruler_windows(
         .unwrap_or(0) as i32;
     rulers_window.set_focused_column(focused_column);
     rulers_window.set_focus_column_position(focused_column as f32);
+    let initial_time_step = initial_ruler_time_step(settings);
+    rulers_window.set_focus_progress(initial_time_step / 288.0);
     rulers_window.set_clock_scale(settings.clock_scale.clamp(0.8, 1.5) as f32);
     rulers_window.set_tick_indices(ModelRc::new(VecModel::from(
         (0..=144).collect::<Vec<i32>>(),
     )));
     time_slider_window.set_clock_count(settings.clocks_settings.len() as i32);
+    time_slider_window.set_time_step(initial_time_step);
     time_slider_window.set_hour_labels(ModelRc::new(VecModel::from(slider_hour_labels(
         settings.clocks_settings.len(),
     ))));
     time_slider_window.set_clock_scale(settings.clock_scale.clamp(0.8, 1.5) as f32);
+}
+
+fn initial_ruler_time_step(settings: &AppSettings) -> f32 {
+    let main_zone = settings
+        .clocks_settings
+        .iter()
+        .find(|clock| clock.is_main)
+        .or_else(|| settings.clocks_settings.first())
+        .and_then(|clock| clock.time_zone.parse::<Tz>().ok())
+        .unwrap_or(chrono_tz::UTC);
+    let local_now = Utc::now().with_timezone(&main_zone);
+    let rounded_hour = (local_now.hour() + u32::from(local_now.minute() >= 30)) % 24;
+    (rounded_hour * 12) as f32
 }
 
 fn slider_hour_labels(clock_count: usize) -> Vec<i32> {
@@ -1109,7 +1334,7 @@ fn sync_main_window_size(window: &AppWindow) {
     });
 }
 
-fn position_settings_near_clock(settings: &SettingsWindow, owner: &slint::Weak<AppWindow>) {
+fn position_auxiliary_window_near_clock(window: &slint::Window, owner: &slint::Weak<AppWindow>) {
     let Some(owner) = owner.upgrade() else {
         return;
     };
@@ -1121,7 +1346,7 @@ fn position_settings_near_clock(settings: &SettingsWindow, owner: &slint::Weak<A
         let Some(work_area) = monitor_work_area(owner_native) else {
             return;
         };
-        let _ = settings.window().with_winit_window(|settings_native| {
+        let _ = window.with_winit_window(|settings_native| {
             let owner_size = owner_native.outer_size();
             let settings_size = settings_native.outer_size();
             let maximum_left = (work_area.right - settings_size.width as i32).max(work_area.left);
@@ -1207,13 +1432,46 @@ fn monitor_work_area(window: &slint::winit_030::winit::window::Window) -> Option
 }
 
 fn update_clock_tiles(window: &AppWindow, settings: &[ClockSettings], show_seconds: bool) {
-    let now = Utc::now();
+    update_clock_tiles_at(window, settings, show_seconds, Utc::now());
+}
+
+fn update_clock_tiles_at(
+    window: &AppWindow,
+    settings: &[ClockSettings],
+    show_seconds: bool,
+    now: DateTime<Utc>,
+) {
     let clocks: Vec<ClockTileData> = settings
         .iter()
         .map(|settings| to_clock_tile(settings, now, show_seconds))
         .collect();
 
     window.set_clocks(ModelRc::new(VecModel::from(clocks)));
+}
+
+fn ruler_time_step_to_utc(settings: &AppSettings, time_step: f32) -> DateTime<Utc> {
+    let main_zone = settings
+        .clocks_settings
+        .iter()
+        .find(|clock| clock.is_main)
+        .or_else(|| settings.clocks_settings.first())
+        .and_then(|clock| clock.time_zone.parse::<Tz>().ok())
+        .unwrap_or(chrono_tz::UTC);
+    let local_now = Utc::now().with_timezone(&main_zone);
+    let selected_minutes = (time_step.round() as u32).clamp(0, 288) * 5;
+    let selected_local =
+        local_now
+            .date_naive()
+            .and_hms_opt(selected_minutes / 60, selected_minutes % 60, 0);
+    selected_local
+        .and_then(
+            |selected_local| match main_zone.from_local_datetime(&selected_local) {
+                LocalResult::Single(value) => Some(value.with_timezone(&Utc)),
+                LocalResult::Ambiguous(value, _) => Some(value.with_timezone(&Utc)),
+                LocalResult::None => None,
+            },
+        )
+        .unwrap_or_else(Utc::now)
 }
 
 fn update_settings_preview(window: &SettingsWindow, settings: &[ClockSettings]) {
@@ -1306,6 +1564,33 @@ fn move_clock_to(window: &SettingsWindow, settings: &mut [ClockSettings], from: 
     select_clock(window, settings, to);
 }
 
+fn refresh_clock_order(
+    main_window: &slint::Weak<AppWindow>,
+    rulers_window: &slint::Weak<RulersWindow>,
+    time_slider_window: &slint::Weak<TimeSliderWindow>,
+    settings: &AppSettings,
+) {
+    if let Some(main_window) = main_window.upgrade() {
+        update_clock_tiles(
+            &main_window,
+            &settings.clocks_settings,
+            settings.show_seconds,
+        );
+        sync_main_window_size(&main_window);
+    }
+    if let (Some(rulers_window), Some(time_slider_window)) =
+        (rulers_window.upgrade(), time_slider_window.upgrade())
+    {
+        initialize_ruler_windows(&rulers_window, &time_slider_window, settings);
+    }
+    sync_attached_windows(
+        main_window,
+        rulers_window,
+        time_slider_window,
+        settings.show_rulers,
+    );
+}
+
 fn show_context_menu(context_menu: &ContextMenuWindow, owner: &AppWindow) {
     let _ = context_menu.show();
     hide_auxiliary_window_from_taskbar(context_menu.window());
@@ -1332,6 +1617,29 @@ fn show_context_menu(context_menu: &ContextMenuWindow, owner: &AppWindow) {
             menu.set_outer_position(PhysicalPosition::new(left, top));
         });
     });
+    focus_auxiliary_window(context_menu.window());
+}
+
+fn focus_auxiliary_window(window: &slint::Window) {
+    let _ = window.with_winit_window(|window| window.focus_window());
+}
+
+fn is_escape_key(event: &WindowEvent) -> bool {
+    matches!(
+        event,
+        WindowEvent::KeyboardInput { event, .. }
+            if event.state == ElementState::Pressed
+                && matches!(event.logical_key, Key::Named(NamedKey::Escape))
+    )
+}
+
+fn is_enter_key(event: &WindowEvent) -> bool {
+    matches!(
+        event,
+        WindowEvent::KeyboardInput { event, .. }
+            if event.state == ElementState::Pressed
+                && matches!(event.logical_key, Key::Named(NamedKey::Enter))
+    )
 }
 
 #[cfg(target_os = "windows")]
