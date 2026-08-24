@@ -2,7 +2,6 @@ export component ContextMenuWindow inherits Window {
     title: "OziClock menu";
     no-frame: true;
     always-on-top: true;
-    icon: @image-url("../../../legacy/dotnet-wpf/Ozi.Clock/Assets/clock.ico");
     preferred-width: 216px;
     preferred-height: 145px;
     min-width: 216px;
@@ -27,7 +26,7 @@ export component ContextMenuWindow inherits Window {
             x: 15px; y: 10px; width: 186px; height: 34px;
             text: "Clock Settings…";
             color: #f0f1f3;
-            font-family: "Calibry";
+            font-family: "Carlito";
             font-size: 14px;
             vertical-alignment: center;
             TouchArea { clicked => { root.request-open-settings(); } }
@@ -36,7 +35,7 @@ export component ContextMenuWindow inherits Window {
             x: 15px; y: 45px; width: 186px; height: 34px;
             text: "About OziClock";
             color: #d4d7dd;
-            font-family: "Calibry";
+            font-family: "Carlito";
             font-size: 14px;
             vertical-alignment: center;
             TouchArea { clicked => { root.request-open-about(); } }
@@ -46,7 +45,7 @@ export component ContextMenuWindow inherits Window {
             x: 15px; y: 96px; width: 186px; height: 34px;
             text: "Exit";
             color: #f09090;
-            font-family: "Calibry";
+            font-family: "Carlito";
             font-size: 14px;
             vertical-alignment: center;
             TouchArea { clicked => { root.request-exit(); } }

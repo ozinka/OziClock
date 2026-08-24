@@ -21,7 +21,9 @@ export component AppWindow inherits Window {
     in property <bool> compact-mode: false;
     in property <float> clock-scale: 1.0;
     in-out property <length> menu-x: 0px;
-    callback request-window-drag();
+    callback request-window-drag-start(float, float);
+    callback request-window-drag-move(float, float);
+    callback request-window-drag-end();
     callback request-open-menu();
     callback request-open-settings();
     callback request-open-about();
@@ -80,7 +82,10 @@ export component AppWindow inherits Window {
             double-clicked => { root.request-toggle-rulers(); }
             pointer-event(event) => {
                 if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
-                    root.request-window-drag();
+                    root.request-window-drag-start(self.mouse-x / 1px, self.mouse-y / 1px);
+                }
+                if ((event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) && event.button == PointerEventButton.left) {
+                    root.request-window-drag-end();
                 }
                 if (event.kind == PointerEventKind.up && event.button == PointerEventButton.right) {
                     root.menu-x = self.mouse-x;
@@ -90,6 +95,7 @@ export component AppWindow inherits Window {
                     root.request-toggle-compact();
                 }
             }
+            moved => { root.request-window-drag-move(self.mouse-x / 1px, self.mouse-y / 1px); }
         }
     }
 }

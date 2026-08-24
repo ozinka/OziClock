@@ -28,7 +28,7 @@ A tile represents one configured time zone. Tiles have a fixed reference size of
 
 The selected main zone uses stronger white label text; other labels are subdued. Font metrics, baselines, margins, dividers, and gradient stops are product behavior, not incidental styling. Visual-regression snapshots should protect them during migration.
 
-The legacy reference geometry is retained: label `x=4,y=5,w=48`, month `x=51,w=28`, day `x=80,w=18` (all 16 px); hour `x=0,y=35,w=28`, minute `x=34,y=35,w=38` (22 px), and seconds `x=67,y=41,w=38` (16 px). Without seconds, hour/minute shift right by 14 px. Use Calibri, a dark-to-accent vertical gradient, and an unframed draggable window.
+The legacy reference geometry is retained: label `x=4,y=5,w=48`, month `x=51,w=28`, day `x=80,w=18` (all 16 px); hour `x=0,y=35,w=28`, minute `x=34,y=35,w=38` (22 px), and seconds `x=67,y=41,w=38` (16 px). Without seconds, hour/minute shift right by 14 px. Use bundled Carlito, a metric-compatible Calibri alternative, a dark-to-accent vertical gradient, and an unframed draggable window.
 
 ### Clock Strip and Context Menu
 

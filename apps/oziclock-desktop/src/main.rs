@@ -784,14 +784,12 @@ fn main() -> Result<(), slint::PlatformError> {
         let _ = slint::quit_event_loop();
     });
 
-    let drag_window = window.as_weak();
-    window.on_request_window_drag(move || {
-        if let Some(window) = drag_window.upgrade() {
-            let _ = window
-                .window()
-                .with_winit_window(|window| window.drag_window());
-        }
-    });
+    configure_main_window_drag(
+        &window,
+        rulers_window.as_weak(),
+        time_slider_window.as_weak(),
+        shared_settings.clone(),
+    );
     let state = shared_settings.clone();
     let weak_window = window.as_weak();
     let explored_time_for_timer = explored_time.clone();
@@ -1318,6 +1316,130 @@ fn sync_attached_windows(
     hide_auxiliary_window_from_taskbar(time_slider_window.window());
     let _ = rulers_window.show();
     let _ = time_slider_window.show();
+}
+
+#[cfg(target_os = "macos")]
+#[derive(Clone, Copy)]
+struct MacOsDragAnchor {
+    x: f64,
+    y: f64,
+}
+
+#[cfg(target_os = "macos")]
+fn configure_main_window_drag(
+    window: &AppWindow,
+    rulers_window: slint::Weak<RulersWindow>,
+    time_slider_window: slint::Weak<TimeSliderWindow>,
+    settings: Rc<RefCell<AppSettings>>,
+) {
+    let drag_anchor = Rc::new(RefCell::new(None::<MacOsDragAnchor>));
+    let start_window = window.as_weak();
+    let start_anchor = drag_anchor.clone();
+    window.on_request_window_drag_start(move |x, y| {
+        if let Some(window) = start_window.upgrade() {
+            let _ = window.window().with_winit_window(|native| {
+                let scale = native.scale_factor();
+                *start_anchor.borrow_mut() = Some(MacOsDragAnchor {
+                    x: f64::from(x) * scale,
+                    y: f64::from(y) * scale,
+                });
+            });
+        }
+    });
+
+    let move_window = window.as_weak();
+    let move_anchor = drag_anchor.clone();
+    window.on_request_window_drag_move(move |x, y| {
+        let Some(anchor) = *move_anchor.borrow() else {
+            return;
+        };
+        let Some(window) = move_window.upgrade() else {
+            return;
+        };
+        let translation = window
+            .window()
+            .with_winit_window(|native| {
+                let scale = native.scale_factor();
+                let delta_x = (f64::from(x) * scale - anchor.x).round() as i32;
+                let delta_y = (f64::from(y) * scale - anchor.y).round() as i32;
+                if delta_x == 0 && delta_y == 0 {
+                    return None;
+                }
+                let position = native.outer_position().ok()?;
+                native.set_outer_position(PhysicalPosition::new(
+                    position.x + delta_x,
+                    position.y + delta_y,
+                ));
+                Some((delta_x, delta_y))
+            })
+            .flatten();
+        if let Some((delta_x, delta_y)) = translation {
+            translate_attached_windows(
+                &rulers_window,
+                &time_slider_window,
+                delta_x,
+                delta_y,
+                settings.borrow().show_rulers,
+            );
+        }
+    });
+
+    let end_anchor = drag_anchor;
+    window.on_request_window_drag_end(move || {
+        *end_anchor.borrow_mut() = None;
+    });
+}
+
+#[cfg(not(target_os = "macos"))]
+fn configure_main_window_drag(
+    window: &AppWindow,
+    _rulers_window: slint::Weak<RulersWindow>,
+    _time_slider_window: slint::Weak<TimeSliderWindow>,
+    _settings: Rc<RefCell<AppSettings>>,
+) {
+    let drag_window = window.as_weak();
+    window.on_request_window_drag_start(move |_x, _y| {
+        if let Some(window) = drag_window.upgrade() {
+            let _ = window
+                .window()
+                .with_winit_window(|native| native.drag_window());
+        }
+    });
+    window.on_request_window_drag_move(|_x, _y| {});
+    window.on_request_window_drag_end(|| {});
+}
+
+#[cfg(target_os = "macos")]
+fn translate_attached_windows(
+    rulers_window: &slint::Weak<RulersWindow>,
+    time_slider_window: &slint::Weak<TimeSliderWindow>,
+    delta_x: i32,
+    delta_y: i32,
+    show_rulers: bool,
+) {
+    if !show_rulers {
+        return;
+    }
+    if let Some(rulers_window) = rulers_window.upgrade() {
+        let _ = rulers_window.window().with_winit_window(|native| {
+            if let Ok(position) = native.outer_position() {
+                native.set_outer_position(PhysicalPosition::new(
+                    position.x + delta_x,
+                    position.y + delta_y,
+                ));
+            }
+        });
+    }
+    if let Some(time_slider_window) = time_slider_window.upgrade() {
+        let _ = time_slider_window.window().with_winit_window(|native| {
+            if let Ok(position) = native.outer_position() {
+                native.set_outer_position(PhysicalPosition::new(
+                    position.x + delta_x,
+                    position.y + delta_y,
+                ));
+            }
+        });
+    }
 }
 
 fn sync_main_window_size(window: &AppWindow) {

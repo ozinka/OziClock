@@ -58,6 +58,19 @@ fn default_settings_window_height() -> f64 {
 /// Returns the portable settings path beside the running executable.
 pub fn settings_path() -> io::Result<PathBuf> {
     let executable = env::current_exe()?;
+    #[cfg(target_os = "macos")]
+    if let Some(bundle) = executable
+        .ancestors()
+        .find(|path| path.extension().is_some_and(|extension| extension == "app"))
+    {
+        let directory = bundle.parent().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "application bundle has no parent directory",
+            )
+        })?;
+        return Ok(directory.join("settings.json"));
+    }
     let directory = executable.parent().ok_or_else(|| {
         io::Error::new(
             io::ErrorKind::NotFound,

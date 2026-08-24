@@ -47,10 +47,28 @@ jobs:
       - name: Package Windows executable
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path target/release/${{ matrix.binary }} -DestinationPath ${{ matrix.archive }}
+        run: |
+          Copy-Item ui/fonts/OFL.txt target/release/Carlito-OFL.txt
+          Compress-Archive -Path target/release/${{ matrix.binary }},target/release/Carlito-OFL.txt -DestinationPath ${{ matrix.archive }}
       - name: Package Unix executable
-        if: runner.os != 'Windows'
-        run: tar -czf ${{ matrix.archive }} -C target/release ${{ matrix.binary }}
+        if: runner.os == 'Linux'
+        run: |
+          mkdir package
+          cp target/release/${{ matrix.binary }} package/${{ matrix.binary }}
+          cp ui/fonts/OFL.txt package/Carlito-OFL.txt
+          tar -czf ${{ matrix.archive }} -C package .
+      - name: Package macOS application bundle
+        if: runner.os == 'macOS'
+        run: |
+          app_name=OziClock.app
+          mkdir -p "$app_name/Contents/MacOS" "$app_name/Contents/Resources"
+          cp target/release/${{ matrix.binary }} "$app_name/Contents/MacOS/${{ matrix.binary }}"
+          cp apps/oziclock-desktop/macos/Info.plist "$app_name/Contents/Info.plist"
+          cp ui/fonts/OFL.txt "$app_name/Contents/Resources/Carlito-OFL.txt"
+          version="${GITHUB_REF_NAME#v}"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$app_name/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $version" "$app_name/Contents/Info.plist"
+          tar -czf ${{ matrix.archive }} "$app_name"
       - name: Upload release archive
         uses: actions/upload-artifact@v4
         with:
@@ -73,9 +91,9 @@ jobs:
         with:
           generate_release_notes: false
           body: |
-            ## OziClock 2.0.1
+            ## OziClock ${{ github.ref_name }}
 
-            The first Rust and Slint release of OziClock. It replaces the legacy WPF/.NET implementation with a lightweight native desktop application.
+            A native Rust and Slint release of OziClock.
 
             ### Highlights
 
@@ -83,6 +101,9 @@ jobs:
             - Configurable multi-time-zone clock strip with portable JSON settings.
             - Compact mode, rulers, interactive time exploration, tray menu, and redesigned settings.
             - Windows archive contains one self-contained executable with the Visual C++ runtime linked statically.
+            - macOS archive contains `OziClock.app`, which opens directly from Finder without Terminal.
+            - Carlito is embedded for consistent text metrics on Windows, macOS, and Linux.
+            - Rulers and time slider move synchronously with the clock strip on macOS.
 
-            `settings.json` is created beside the executable on first run. The Windows release is x64; macOS release is Apple Silicon.
+            `settings.json` is created beside the executable on Windows and Linux, or beside `OziClock.app` on macOS. The Windows release is x64; macOS release is Apple Silicon.
           files: release-assets/*

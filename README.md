@@ -8,9 +8,9 @@ Download the current release from [GitHub Releases](https://github.com/ozinka/Oz
 
 - **Windows x64:** unzip and run `oziclock-desktop.exe`. No .NET or Visual C++ Redistributable installation is required.
 - **Linux x64:** extract the archive, mark `oziclock-desktop` executable if necessary, then run it.
-- **macOS Apple Silicon:** extract the archive and run `oziclock-desktop` from Terminal.
+- **macOS Apple Silicon:** extract the archive and open `OziClock.app` in Finder. Drag it to Applications if desired.
 
-The application creates `settings.json` beside the executable on first launch. Keep that file next to the executable to preserve clocks, placement, and preferences.
+The application creates `settings.json` on first launch. Keep it beside the executable on Windows and Linux, or beside `OziClock.app` on macOS, to preserve clocks, placement, and preferences.
 
 The last legacy WPF/.NET release is [v1.0.10](https://github.com/ozinka/OziClock/releases/tag/v1.0.10). Its source is preserved in [`legacy/dotnet-wpf/`](legacy/dotnet-wpf/).
 
