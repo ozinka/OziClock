@@ -16,6 +16,7 @@ This catalog is derived from the WPF source, its bundled screenshots, and the in
 - **WIN-11:** Let users set a persisted clock UI scale from 80% to 150% without changing the operating-system display scale.
 - **WIN-12:** Open Settings near the clock while keeping the window entirely within the active monitor's working area.
 - **WIN-13:** Restore the last Settings window size at application startup and persist a changed size only when the application exits.
+- **WIN-14:** Resize the clock strip immediately after adding or removing a clock, leaving no unused background area.
 
 ## Display Modes
 

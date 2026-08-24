@@ -82,11 +82,11 @@ fn main() -> Result<(), slint::PlatformError> {
     let main_window_for_settings = window.as_weak();
     window.on_request_open_settings(move || {
         if let Some(settings_window) = weak_settings_window.upgrade() {
-            let saved_settings = settings_for_open.borrow().clone();
-            restore_settings_window_size(&settings_window, &saved_settings);
-            let _ = settings_window.show();
-            hide_auxiliary_window_from_taskbar(settings_window.window());
-            position_settings_near_clock(&settings_window, &main_window_for_settings);
+            open_settings_window(
+                &settings_window,
+                &main_window_for_settings,
+                &settings_for_open.borrow(),
+            );
         }
     });
     let weak_settings_window = settings_window.as_weak();
@@ -119,6 +119,7 @@ fn main() -> Result<(), slint::PlatformError> {
     });
     let state = shared_settings.clone();
     let editor = settings_window.as_weak();
+    let main_window = window.as_weak();
     settings_window.on_request_add(move || {
         let mut state = state.borrow_mut();
         state.clocks_settings.push(ClockSettings {
@@ -130,9 +131,14 @@ fn main() -> Result<(), slint::PlatformError> {
         let index = state.clocks_settings.len() as i32 - 1;
         update_settings_preview(&editor.upgrade().unwrap(), &state.clocks_settings);
         select_clock(&editor.upgrade().unwrap(), &state.clocks_settings, index);
+        if let Some(main_window) = main_window.upgrade() {
+            update_clock_tiles(&main_window, &state.clocks_settings, state.show_seconds);
+            sync_main_window_size(&main_window);
+        }
     });
     let state = shared_settings.clone();
     let editor = settings_window.as_weak();
+    let main_window = window.as_weak();
     settings_window.on_request_remove(move || {
         if let Some(editor) = editor.upgrade() {
             let mut state = state.borrow_mut();
@@ -141,6 +147,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 state.clocks_settings.remove(index as usize);
                 update_settings_preview(&editor, &state.clocks_settings);
                 select_clock(&editor, &state.clocks_settings, 0);
+                if let Some(main_window) = main_window.upgrade() {
+                    update_clock_tiles(&main_window, &state.clocks_settings, state.show_seconds);
+                    sync_main_window_size(&main_window);
+                }
             }
         }
     });
@@ -469,13 +479,18 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let weak_context_menu = context_menu.as_weak();
     let weak_settings_window = settings_window.as_weak();
+    let main_window_for_context_settings = window.as_weak();
+    let settings_for_context_open = shared_settings.clone();
     context_menu.on_request_open_settings(move || {
         if let Some(context_menu) = weak_context_menu.upgrade() {
             let _ = context_menu.hide();
         }
         if let Some(settings_window) = weak_settings_window.upgrade() {
-            let _ = settings_window.show();
-            hide_auxiliary_window_from_taskbar(settings_window.window());
+            open_settings_window(
+                &settings_window,
+                &main_window_for_context_settings,
+                &settings_for_context_open.borrow(),
+            );
         }
     });
     let weak_context_menu = context_menu.as_weak();
@@ -595,8 +610,7 @@ fn create_system_tray(
                 }
                 "settings" => {
                     if let Some(settings_window) = settings_window.upgrade() {
-                        let _ = settings_window.show();
-                        hide_auxiliary_window_from_taskbar(settings_window.window());
+                        open_settings_window(&settings_window, &main_window, &settings.borrow());
                     }
                 }
                 "always-on-top" => {
@@ -641,6 +655,17 @@ fn save_state_before_exit(
         persist_settings_window_size(&settings_window, &mut settings.borrow_mut());
     }
     let _ = oziclock_storage::save(&settings.borrow());
+}
+
+fn open_settings_window(
+    settings_window: &SettingsWindow,
+    main_window: &slint::Weak<AppWindow>,
+    settings: &AppSettings,
+) {
+    restore_settings_window_size(settings_window, settings);
+    let _ = settings_window.show();
+    hide_auxiliary_window_from_taskbar(settings_window.window());
+    position_settings_near_clock(settings_window, main_window);
 }
 
 fn animate_main_window_height(
@@ -791,8 +816,13 @@ fn set_main_window_taskbar_visibility(window: &AppWindow, show_in_task_bar: bool
 
 fn apply_clock_scale(window: &AppWindow, clock_scale: f32) {
     window.set_clock_scale(clock_scale);
+    sync_main_window_size(window);
+}
+
+fn sync_main_window_size(window: &AppWindow) {
     let _ = window.window().with_winit_window(|native| {
         let system_scale = native.scale_factor() as f32;
+        let clock_scale = window.get_clock_scale();
         let logical_width = 1.0 + 100.0 * window.get_clocks().row_count() as f32;
         let logical_height = if window.get_compact_mode() {
             31.0
