@@ -271,22 +271,51 @@ fn main() -> Result<(), slint::PlatformError> {
     let state = shared_settings.clone();
     let editor = settings_window.as_weak();
     let main_window = window.as_weak();
+    let rulers_for_apply = rulers_window.as_weak();
+    let slider_for_apply = time_slider_window.as_weak();
     settings_window.on_request_apply(move || {
         if let Some(editor) = editor.upgrade() {
             let index = editor.get_selected_index();
-            if let Some(clock) = state
-                .borrow_mut()
-                .clocks_settings
-                .get_mut(index.max(0) as usize)
-            {
-                clock.label = editor.get_editor_label().to_string();
-                clock.time_zone = editor.get_editor_time_zone().to_string();
-                clock.color = editor.get_editor_color().to_string();
-                clock.is_main = editor.get_editor_is_main();
+            let selected_index = index.max(0) as usize;
+            let make_main = editor.get_editor_is_main();
+            let (settings, main_clock_changed) = {
+                let mut state = state.borrow_mut();
+                let previous_main_clock = main_clock_index(&state.clocks_settings);
+                if let Some(clock) = state.clocks_settings.get_mut(selected_index) {
+                    clock.label = editor.get_editor_label().to_string();
+                    clock.time_zone = editor.get_editor_time_zone().to_string();
+                    clock.color = editor.get_editor_color().to_string();
+                }
+                if selected_index < state.clocks_settings.len() {
+                    if make_main {
+                        for (other_index, other) in state.clocks_settings.iter_mut().enumerate() {
+                            other.is_main = other_index == selected_index;
+                        }
+                    } else if previous_main_clock == selected_index {
+                        editor.set_editor_is_main(true);
+                    } else if let Some(clock) = state.clocks_settings.get_mut(selected_index) {
+                        clock.is_main = false;
+                    }
+                }
+                let main_clock_changed =
+                    previous_main_clock != main_clock_index(&state.clocks_settings);
+                (state.clone(), main_clock_changed)
+            };
+            if main_clock_changed {
+                update_settings_preview(&editor, &settings.clocks_settings);
+                if let (Some(rulers_window), Some(time_slider_window)) = (
+                    rulers_for_apply.upgrade(),
+                    slider_for_apply.upgrade(),
+                ) {
+                    initialize_ruler_windows(&rulers_window, &time_slider_window, &settings);
+                    if settings.show_rulers {
+                        rulers_window
+                            .invoke_request_focus_progress(rulers_window.get_focus_progress());
+                    }
+                }
             }
             if let Some(main_window) = main_window.upgrade() {
-                let state = state.borrow();
-                update_clock_tiles(&main_window, &state.clocks_settings, state.show_seconds);
+                update_clock_tiles(&main_window, &settings.clocks_settings, settings.show_seconds);
             }
         }
     });
@@ -1193,6 +1222,10 @@ fn initialize_ruler_windows(
         settings.clocks_settings.len(),
     ))));
     time_slider_window.set_clock_scale(settings.clock_scale.clamp(0.8, 1.5) as f32);
+}
+
+fn main_clock_index(clocks: &[ClockSettings]) -> usize {
+    clocks.iter().position(|clock| clock.is_main).unwrap_or(0)
 }
 
 fn initial_ruler_time_step(settings: &AppSettings) -> f32 {
