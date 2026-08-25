@@ -20,7 +20,7 @@ The WPF implementation and `legacy/dotnet-wpf/Ozi.Clock/Assets/ozi.clock.large.w
 - Its vertical focus position moves through `0…433` logical pixels.
 - Content inside the horizontal lens is magnified **1.6× vertically**; it is not enlarged horizontally.
 - The legacy transform also applies a relative vertical translation of `-0.25`.
-- Non-focused regions use opacity `0.5` and WPF blur radius `4`.
+- Non-focused regions use opacity `0.56` and WPF blur radius `4`.
 - The focused vertical column is bounded by dark-red two-pixel edges.
 - The vertical focus is initially aligned with the selected main clock and may be dragged horizontally within the strip.
 - The ruler surface has a one-pixel black outer border and one-pixel black joins between columns.

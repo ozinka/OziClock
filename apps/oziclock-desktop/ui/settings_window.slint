@@ -14,7 +14,7 @@ export component SettingsWindow inherits Window {
     preferred-width: root.saved-window-width * 1px;
     preferred-height: root.saved-window-height * 1px;
     min-width: 760px;
-    min-height: 510px;
+    min-height: 620px;
     resize-border-width: 6px;
     background: #17181c;
 
@@ -43,7 +43,7 @@ export component SettingsWindow inherits Window {
     in-out property <color> editor-preview-color: #ffffff;
     in-out property <int> dragging-index: -1;
     in-out property <float> saved-window-width: 760;
-    in-out property <float> saved-window-height: 510;
+    in-out property <float> saved-window-height: 620;
     callback request-close();
     callback request-window-drag();
     callback request-select(int);
@@ -144,7 +144,7 @@ export component SettingsWindow inherits Window {
         Rectangle { x: 606px; y: 207px; visible: root.selected-section == 1; width: 126px; height: 42px; border-radius: 6px; background: transparent; LineEdit { x: 0px; y: 0px; width: parent.width; height: parent.height; text <=> root.editor-color; edited => { root.request-apply(); } } }
         Text { x: 606px; y: 256px; visible: root.selected-section == 1; width: 126px; height: 24px; text: "Pick color…"; color: #9cc3ff; font-family: "Carlito"; font-size: 13px; vertical-alignment: center; TouchArea { clicked => { root.request-open-color-picker(); } } }
         Rectangle {
-            x: 278px; y: 120px; width: 462px; height: 330px; visible: root.selected-section == 1 && root.color-picker-open; border-radius: 8px; border-width: 1px; border-color: #4a4e58; background: #25272d;
+            x: 278px; y: 165px; width: 462px; height: 330px; visible: root.selected-section == 1 && root.color-picker-open; border-radius: 8px; border-width: 1px; border-color: #4a4e58; background: #25272d;
             Text { x: 18px; y: 14px; text: "Choose color"; color: #f0f1f3; font-size: 16px; font-weight: 700; }
             Rectangle { x: 18px; y: 50px; width: 426px; height: 180px; background: root.picker-hue-color;
                 Rectangle { width: parent.width; height: parent.height; background: @linear-gradient(90deg, #ffffffff, #ffffff00); }

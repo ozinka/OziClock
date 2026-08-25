@@ -70,10 +70,10 @@ export component RulersWindow inherits Window {
             TouchArea { clicked => { root.request-focus-column(index); } }
         }
 
-        Rectangle { x: 0px; y: 0px; width: root.focus-column-position * 100px * root.clock-scale; height: root.focus-progress * 433px * root.clock-scale; background: #00000080; }
-        Rectangle { x: (root.focus-column-position + 1) * 100px * root.clock-scale; y: 0px; width: parent.width; height: root.focus-progress * 433px * root.clock-scale; background: #00000080; }
-        Rectangle { x: 0px; y: root.focus-progress * 433px * root.clock-scale + 30px * root.clock-scale; width: root.focus-column-position * 100px * root.clock-scale; height: parent.height; background: #00000080; }
-        Rectangle { x: (root.focus-column-position + 1) * 100px * root.clock-scale; y: root.focus-progress * 433px * root.clock-scale + 30px * root.clock-scale; width: parent.width; height: parent.height; background: #00000080; }
+        Rectangle { x: 0px; y: 0px; width: root.focus-column-position * 100px * root.clock-scale; height: root.focus-progress * 433px * root.clock-scale; background: #00000090; }
+        Rectangle { x: (root.focus-column-position + 1) * 100px * root.clock-scale; y: 0px; width: parent.width; height: root.focus-progress * 433px * root.clock-scale; background: #00000090; }
+        Rectangle { x: 0px; y: root.focus-progress * 433px * root.clock-scale + 30px * root.clock-scale; width: root.focus-column-position * 100px * root.clock-scale; height: parent.height; background: #00000090; }
+        Rectangle { x: (root.focus-column-position + 1) * 100px * root.clock-scale; y: root.focus-progress * 433px * root.clock-scale + 30px * root.clock-scale; width: parent.width; height: parent.height; background: #00000090; }
         Rectangle { x: root.focus-column-position * 100px * root.clock-scale; y: 0px; width: 2px * root.clock-scale; height: parent.height; background: #800000; }
         Rectangle { x: (root.focus-column-position + 1) * 100px * root.clock-scale - 2px * root.clock-scale; y: 0px; width: 2px * root.clock-scale; height: parent.height; background: #800000; }
         lens := Rectangle {

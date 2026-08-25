@@ -64,6 +64,7 @@ jobs:
           mkdir -p "$app_name/Contents/MacOS" "$app_name/Contents/Resources"
           cp target/release/${{ matrix.binary }} "$app_name/Contents/MacOS/${{ matrix.binary }}"
           cp apps/oziclock-desktop/macos/Info.plist "$app_name/Contents/Info.plist"
+          cp apps/oziclock-desktop/macos/OziClock.icns "$app_name/Contents/Resources/OziClock.icns"
           cp ui/fonts/OFL.txt "$app_name/Contents/Resources/Carlito-OFL.txt"
           version="${GITHUB_REF_NAME#v}"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$app_name/Contents/Info.plist"

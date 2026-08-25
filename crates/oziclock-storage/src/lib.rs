@@ -52,7 +52,7 @@ fn default_clock_scale() -> f64 {
 }
 
 fn default_settings_window_height() -> f64 {
-    510.0
+    620.0
 }
 
 /// Returns the portable settings path beside the running executable.

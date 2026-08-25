@@ -10,6 +10,8 @@
     <string>oziclock-desktop</string>
     <key>CFBundleIdentifier</key>
     <string>com.ozinka.oziclock</string>
+    <key>CFBundleIconFile</key>
+    <string>OziClock</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
@@ -17,9 +19,9 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.0.3</string>
+    <string>2.0.4</string>
     <key>CFBundleVersion</key>
-    <string>2.0.3</string>
+    <string>2.0.4</string>
     <key>LSMinimumSystemVersion</key>
     <string>11.0</string>
     <key>NSHighResolutionCapable</key>

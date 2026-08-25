@@ -13,7 +13,7 @@ use chrono_tz::{TZ_VARIANTS, Tz};
 use oziclock_storage::{AppSettings, ClockSettings};
 use slint::winit_030::EventResult;
 use slint::winit_030::WinitWindowAccessor;
-use slint::winit_030::winit::dpi::{PhysicalPosition, PhysicalSize};
+use slint::winit_030::winit::dpi::{LogicalPosition, PhysicalPosition, PhysicalSize};
 #[cfg(target_os = "windows")]
 use slint::winit_030::winit::platform::windows::{MonitorHandleExtWindows, WindowExtWindows};
 use slint::winit_030::winit::{
@@ -27,15 +27,25 @@ use tray_icon::{
     menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem},
 };
 #[cfg(target_os = "windows")]
-use windows_sys::Win32::{
-    Foundation::POINT,
-    Graphics::Gdi::{GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromPoint},
-};
+use windows_sys::Win32::Graphics::Gdi::{GetMonitorInfoW, MONITORINFO};
 
 fn main() -> Result<(), slint::PlatformError> {
     let settings = oziclock_storage::load_or_initialize().map_err(|error| {
         slint::PlatformError::Other(format!("could not load OziClock settings: {error}"))
     })?;
+    let initial_main_window_position =
+        LogicalPosition::new(settings.main_wnd_left, settings.main_wnd_top);
+    let is_first_native_window = Rc::new(Cell::new(true));
+    let first_native_window_for_hook = is_first_native_window.clone();
+    slint::BackendSelector::new()
+        .with_winit_window_attributes_hook(move |attributes| {
+            if first_native_window_for_hook.replace(false) {
+                attributes.with_position(initial_main_window_position)
+            } else {
+                attributes
+            }
+        })
+        .select()?;
     let window = AppWindow::new()?;
     window.set_product_name(oziclock_app::application_name().into());
     window.set_top_most(settings.top_most);
@@ -178,8 +188,12 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
     let weak_settings_window = settings_window.as_weak();
+    let settings_for_close = shared_settings.clone();
     settings_window.on_request_close(move || {
         if let Some(settings_window) = weak_settings_window.upgrade() {
+            let mut settings = settings_for_close.borrow_mut();
+            persist_settings_window_size(&settings_window, &mut settings);
+            let _ = oziclock_storage::save(&settings);
             let _ = settings_window.hide();
         }
     });
@@ -604,12 +618,27 @@ fn main() -> Result<(), slint::PlatformError> {
             editor.set_dragging_index(-1);
         }
     });
+    let hue = Rc::new(Cell::new(220.0_f32));
+    let saturation = Rc::new(Cell::new(70.0_f32));
+    let value = Rc::new(Cell::new(90.0_f32));
     let pending_color = Rc::new(RefCell::new(String::new()));
     let editor = settings_window.as_weak();
     let pending_color_for_open = pending_color.clone();
+    let hue_for_open = hue.clone();
+    let saturation_for_open = saturation.clone();
+    let value_for_open = value.clone();
     settings_window.on_request_open_color_picker(move || {
         if let Some(editor) = editor.upgrade() {
-            *pending_color_for_open.borrow_mut() = editor.get_editor_color().to_string();
+            let color = editor.get_editor_color().to_string();
+            let (selected_hue, selected_saturation, selected_value) = color_to_hsv(&color);
+            *pending_color_for_open.borrow_mut() = color;
+            hue_for_open.set(selected_hue);
+            saturation_for_open.set(selected_saturation);
+            value_for_open.set(selected_value);
+            editor.set_picker_hue(selected_hue);
+            editor.set_picker_saturation(selected_saturation);
+            editor.set_picker_value(selected_value);
+            editor.set_picker_hue_color(hsv_color(selected_hue, 100.0, 100.0));
             editor.set_color_picker_open(true);
         }
     });
@@ -626,6 +655,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let color = pending_color_for_cancel.borrow().clone();
             editor.set_editor_preview_color(parse_color(&color));
             editor.set_editor_color(color.into());
+            editor.invoke_request_apply();
             editor.set_color_picker_open(false);
         }
     });
@@ -638,9 +668,6 @@ fn main() -> Result<(), slint::PlatformError> {
             editor.set_color_picker_open(false);
         }
     });
-    let hue = Rc::new(Cell::new(220.0_f32));
-    let saturation = Rc::new(Cell::new(70.0_f32));
-    let value = Rc::new(Cell::new(90.0_f32));
     let editor = settings_window.as_weak();
     let hue_for_color = hue.clone();
     let saturation_for_color = saturation.clone();
@@ -706,6 +733,7 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(main_window) = main_window.upgrade() {
                 persist_main_window_position(&main_window, &mut state);
             }
+            persist_settings_window_size(&editor, &mut state);
             match oziclock_storage::save(&state) {
                 Ok(()) => {
                     *saved.borrow_mut() = state.clone();
@@ -884,25 +912,6 @@ fn main() -> Result<(), slint::PlatformError> {
 
     window.show()?;
     set_main_window_taskbar_visibility(&window, shared_settings.borrow().show_in_task_bar);
-    let saved_position_settings = shared_settings.borrow().clone();
-    let weak_window_for_restore = window.as_weak();
-    Timer::single_shot(Duration::from_millis(10), move || {
-        if let Some(window) = weak_window_for_restore.upgrade() {
-            restore_main_window_position(&window, &saved_position_settings);
-        }
-    });
-    let main_window_for_initial_rulers = window.as_weak();
-    let rulers_for_initial_rulers = rulers_window.as_weak();
-    let slider_for_initial_rulers = time_slider_window.as_weak();
-    let show_initial_rulers = shared_settings.borrow().show_rulers;
-    Timer::single_shot(Duration::from_millis(20), move || {
-        sync_attached_windows(
-            &main_window_for_initial_rulers,
-            &rulers_for_initial_rulers,
-            &slider_for_initial_rulers,
-            show_initial_rulers,
-        );
-    });
     #[cfg(target_os = "windows")]
     let _system_tray = create_system_tray(
         window.as_weak(),
@@ -1026,8 +1035,8 @@ fn open_settings_window(
     main_window: &slint::Weak<AppWindow>,
     settings: &AppSettings,
 ) {
-    restore_settings_window_size(settings_window, settings);
     let _ = settings_window.show();
+    restore_settings_window_size(settings_window, settings);
     hide_auxiliary_window_from_taskbar(settings_window.window());
     position_auxiliary_window_near_clock(settings_window.window(), main_window);
     focus_auxiliary_window(settings_window.window());
@@ -1108,26 +1117,6 @@ fn set_main_window_height(window: &AppWindow, height: f32) {
     });
 }
 
-fn restore_main_window_position(window: &AppWindow, settings: &AppSettings) {
-    let _ = window.window().with_winit_window(|native| {
-        let scale_factor = native.scale_factor();
-        let saved_position = PhysicalPosition::new(
-            (settings.main_wnd_left * scale_factor).round() as i32,
-            (settings.main_wnd_top * scale_factor).round() as i32,
-        );
-        let work_area =
-            work_area_for_saved_position(saved_position).or_else(|| monitor_work_area(native));
-        let Some(work_area) = work_area else {
-            return;
-        };
-        native.set_outer_position(clamp_window_position(
-            saved_position,
-            native.outer_size(),
-            work_area,
-        ));
-    });
-}
-
 fn persist_main_window_position(window: &AppWindow, settings: &mut AppSettings) {
     let _ = window.window().with_winit_window(|native| {
         if let Ok(position) = native.outer_position() {
@@ -1140,7 +1129,7 @@ fn persist_main_window_position(window: &AppWindow, settings: &mut AppSettings) 
 
 fn restore_settings_window_size(window: &SettingsWindow, settings: &AppSettings) {
     let width = settings.settings_window_width.max(760.0);
-    let height = settings.settings_window_height.max(510.0);
+    let height = settings.settings_window_height.max(620.0);
     window.set_saved_window_width(width as f32);
     window.set_saved_window_height(height as f32);
     let _ = window.window().with_winit_window(|native| {
@@ -1161,19 +1150,6 @@ fn persist_settings_window_size(window: &SettingsWindow, settings: &mut AppSetti
         window.set_saved_window_width(settings.settings_window_width as f32);
         window.set_saved_window_height(settings.settings_window_height as f32);
     });
-}
-
-fn clamp_window_position(
-    position: PhysicalPosition<i32>,
-    size: PhysicalSize<u32>,
-    work_area: WorkArea,
-) -> PhysicalPosition<i32> {
-    let maximum_left = (work_area.right - size.width as i32).max(work_area.left);
-    let maximum_top = (work_area.bottom - size.height as i32).max(work_area.top);
-    PhysicalPosition::new(
-        position.x.clamp(work_area.left, maximum_left),
-        position.y.clamp(work_area.top, maximum_top),
-    )
 }
 
 fn set_main_window_taskbar_visibility(window: &AppWindow, show_in_task_bar: bool) {
@@ -1392,29 +1368,30 @@ fn configure_main_window_drag(
         let Some(window) = move_window.upgrade() else {
             return;
         };
-        let translation = window
+        let moved = window
             .window()
             .with_winit_window(|native| {
                 let scale = native.scale_factor();
                 let delta_x = (f64::from(x) * scale - anchor.x).round() as i32;
                 let delta_y = (f64::from(y) * scale - anchor.y).round() as i32;
                 if delta_x == 0 && delta_y == 0 {
-                    return None;
+                    return false;
                 }
-                let position = native.outer_position().ok()?;
+                let Ok(position) = native.outer_position() else {
+                    return false;
+                };
                 native.set_outer_position(PhysicalPosition::new(
                     position.x + delta_x,
                     position.y + delta_y,
                 ));
-                Some((delta_x, delta_y))
+                true
             })
-            .flatten();
-        if let Some((delta_x, delta_y)) = translation {
-            translate_attached_windows(
+            .unwrap_or(false);
+        if moved {
+            sync_attached_windows(
+                &window.as_weak(),
                 &rulers_window,
                 &time_slider_window,
-                delta_x,
-                delta_y,
                 settings.borrow().show_rulers,
             );
         }
@@ -1443,39 +1420,6 @@ fn configure_main_window_drag(
     });
     window.on_request_window_drag_move(|_x, _y| {});
     window.on_request_window_drag_end(|| {});
-}
-
-#[cfg(target_os = "macos")]
-fn translate_attached_windows(
-    rulers_window: &slint::Weak<RulersWindow>,
-    time_slider_window: &slint::Weak<TimeSliderWindow>,
-    delta_x: i32,
-    delta_y: i32,
-    show_rulers: bool,
-) {
-    if !show_rulers {
-        return;
-    }
-    if let Some(rulers_window) = rulers_window.upgrade() {
-        let _ = rulers_window.window().with_winit_window(|native| {
-            if let Ok(position) = native.outer_position() {
-                native.set_outer_position(PhysicalPosition::new(
-                    position.x + delta_x,
-                    position.y + delta_y,
-                ));
-            }
-        });
-    }
-    if let Some(time_slider_window) = time_slider_window.upgrade() {
-        let _ = time_slider_window.window().with_winit_window(|native| {
-            if let Ok(position) = native.outer_position() {
-                native.set_outer_position(PhysicalPosition::new(
-                    position.x + delta_x,
-                    position.y + delta_y,
-                ));
-            }
-        });
-    }
 }
 
 fn sync_main_window_size(window: &AppWindow) {
@@ -1558,25 +1502,6 @@ fn monitor_work_area_for_handle(monitor: *mut std::ffi::c_void) -> Option<WorkAr
         right: info.rcWork.right,
         bottom: info.rcWork.bottom,
     })
-}
-
-#[cfg(target_os = "windows")]
-fn work_area_for_saved_position(position: PhysicalPosition<i32>) -> Option<WorkArea> {
-    let monitor = unsafe {
-        MonitorFromPoint(
-            POINT {
-                x: position.x,
-                y: position.y,
-            },
-            MONITOR_DEFAULTTONEAREST,
-        )
-    };
-    monitor_work_area_for_handle(monitor)
-}
-
-#[cfg(not(target_os = "windows"))]
-fn work_area_for_saved_position(_position: PhysicalPosition<i32>) -> Option<WorkArea> {
-    None
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -1849,6 +1774,32 @@ fn parse_color(value: &str) -> Color {
     rgb.map_or(Color::from_rgb_u8(255, 255, 255), |(red, green, blue)| {
         Color::from_rgb_u8(red as u8, green as u8, blue as u8)
     })
+}
+
+fn color_to_hsv(value: &str) -> (f32, f32, f32) {
+    let color = parse_color(value);
+    let red = f32::from(color.red()) / 255.0;
+    let green = f32::from(color.green()) / 255.0;
+    let blue = f32::from(color.blue()) / 255.0;
+    let maximum = red.max(green).max(blue);
+    let minimum = red.min(green).min(blue);
+    let chroma = maximum - minimum;
+    let hue = if chroma == 0.0 {
+        0.0
+    } else if maximum == red {
+        60.0 * ((green - blue) / chroma).rem_euclid(6.0)
+    } else if maximum == green {
+        60.0 * ((blue - red) / chroma + 2.0)
+    } else {
+        60.0 * ((red - green) / chroma + 4.0)
+    };
+    let saturation = if maximum == 0.0 {
+        0.0
+    } else {
+        chroma / maximum * 100.0
+    };
+
+    (hue, saturation, maximum * 100.0)
 }
 
 fn hsv_hex(hue: f32, saturation: f32, value: f32) -> String {
