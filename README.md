@@ -8,7 +8,17 @@ Download the current release from [GitHub Releases](https://github.com/ozinka/Oz
 
 - **Windows x64:** unzip and run `oziclock-desktop.exe`. No .NET or Visual C++ Redistributable installation is required.
 - **Linux x64:** extract the archive, mark `oziclock-desktop` executable if necessary, then run it.
-- **macOS Apple Silicon:** extract the archive and open `OziClock.app` in Finder. Drag it to Applications if desired.
+- **macOS Apple Silicon:** extract the archive and drag `OziClock.app` to the **Applications** folder. The application is currently not signed or notarized. If macOS prevents it from opening, run this once in Terminal:
+
+  ```sh
+  xattr -dr com.apple.quarantine /Applications/OziClock.app
+  ```
+
+  Then open `OziClock.app` from Applications. This removes only the quarantine attribute that macOS adds to files downloaded from the Internet.
+
+  | Gatekeeper cannot verify the application | macOS reports that the application is damaged |
+  | --- | --- |
+  | ![Gatekeeper cannot verify OziClock](docs/assets/macos-gatekeeper-not-opened.png) | ![Gatekeeper reports OziClock as damaged](docs/assets/macos-gatekeeper-damaged.png) |
 
 The application creates `settings.json` on first launch. Keep it beside the executable on Windows and Linux, or beside `OziClock.app` on macOS, to preserve clocks, placement, and preferences.
 
