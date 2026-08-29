@@ -30,13 +30,15 @@ export component AppWindow inherits Window {
     callback request-exit();
     callback request-toggle-compact();
     callback request-toggle-rulers();
+    callback request-toggle-top-most();
+    callback request-tray-exit();
+    callback request-refresh-time();
 
     title: product-name;
     no-frame: true;
     always-on-top: root.top-most;
     preferred-width: (100px * root.clocks.length + 1px) * root.clock-scale;
     preferred-height: (root.compact-mode ? 31px : 62px) * root.clock-scale;
-    animate preferred-height { duration: 200ms; easing: ease-in-out; }
     min-width: 101px * root.clock-scale;
     min-height: 31px * root.clock-scale;
     max-height: 62px * root.clock-scale;
