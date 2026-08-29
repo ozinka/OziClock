@@ -46,14 +46,14 @@ export component AppWindow inherits Window {
     max-height: 62px * root.clock-scale;
     background: transparent;
 
-    Rectangle { y: parent.height - root.corner-radius * 1px * root.clock-scale; width: root.corner-radius * 1px * root.clock-scale; height: root.corner-radius * 1px * root.clock-scale; visible: root.show-rulers; background: #000000; }
-    Rectangle { x: parent.width - root.corner-radius * 1px * root.clock-scale; y: parent.height - root.corner-radius * 1px * root.clock-scale; width: root.corner-radius * 1px * root.clock-scale; height: root.corner-radius * 1px * root.clock-scale; visible: root.show-rulers; background: #000000; }
-
     content := Rectangle {
         width: parent.width;
         height: parent.height;
         background: #000000;
-        border-radius: root.corner-radius * 1px * root.clock-scale;
+        border-top-left-radius: root.corner-radius * 1px * root.clock-scale;
+        border-top-right-radius: root.corner-radius * 1px * root.clock-scale;
+        border-bottom-left-radius: root.show-rulers ? 0px : root.corner-radius * 1px * root.clock-scale;
+        border-bottom-right-radius: root.show-rulers ? 0px : root.corner-radius * 1px * root.clock-scale;
         clip: true;
         opacity: root.show-rulers || interaction.has-hover ? 1 : root.inactive-opacity;
         animate opacity { duration: 300ms; }
@@ -61,10 +61,11 @@ export component AppWindow inherits Window {
         for clock[index] in root.clocks: Rectangle {
             x: (1px + index * 100px) * root.clock-scale;
             y: parent.height - 61px * root.clock-scale;
-            width: 99px * root.clock-scale;
+            width: index == root.clocks.length - 1 ? parent.width - self.x : 99px * root.clock-scale;
             height: 60px * root.clock-scale;
 
             ClockTile {
+                width: parent.width;
                 label: clock.label;
                 month: clock.month;
                 day: clock.day;
@@ -105,6 +106,20 @@ export component AppWindow inherits Window {
                 }
             }
             moved => { root.request-window-drag-move(self.mouse-x / 1px, self.mouse-y / 1px); }
+        }
+
+        Rectangle {
+            x: 0.5px * root.clock-scale;
+            y: 0.5px * root.clock-scale;
+            width: parent.width - 1px * root.clock-scale;
+            height: parent.height - 1px * root.clock-scale;
+            background: transparent;
+            border-width: 1px * root.clock-scale;
+            border-color: #000000;
+            border-top-left-radius: root.corner-radius * 1px * root.clock-scale;
+            border-top-right-radius: root.corner-radius * 1px * root.clock-scale;
+            border-bottom-left-radius: root.show-rulers ? 0px : root.corner-radius * 1px * root.clock-scale;
+            border-bottom-right-radius: root.show-rulers ? 0px : root.corner-radius * 1px * root.clock-scale;
         }
     }
 }

@@ -184,7 +184,7 @@ export component SettingsWindow inherits Window {
         Text { x: 612px; y: 405px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.clock-scale-percent) + "%"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
         Text { x: 286px; y: 440px; visible: root.selected-section == 0; text: "Corner radius"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         Slider { x: 286px; y: 460px; width: 310px; height: 24px; visible: root.selected-section == 0; minimum: 0; maximum: 15.5; step: 0.5; value <=> root.corner-radius; changed => { root.request-set-corner-radius(self.value); } }
-        Text { x: 612px; y: 459px; width: 64px; height: 24px; visible: root.selected-section == 0; text: root.corner-radius + " px"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
+        Text { x: 612px; y: 459px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.corner-radius) + " px"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
         Rectangle {
             x: parent.width - 130px; y: parent.height - 58px; width: 102px; height: 42px; border-radius: 6px; background: #3c81f6;
             Text { width: parent.width; height: parent.height; text: "OK"; color: #ffffff; font-family: "Carlito"; font-size: 14px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-save(); } } }

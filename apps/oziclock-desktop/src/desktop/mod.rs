@@ -1003,6 +1003,12 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
 
     window.show()?;
     set_main_window_taskbar_visibility(&window, shared_settings.borrow().show_in_task_bar);
+    sync_attached_windows(
+        &window.as_weak(),
+        &rulers_window.as_weak(),
+        &time_slider_window.as_weak(),
+        shared_settings.borrow().show_rulers,
+    );
     #[cfg(target_os = "windows")]
     let _system_tray = create_system_tray(window.as_weak(), shared_settings.borrow().top_most)?;
     window.run()
