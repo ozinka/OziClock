@@ -109,13 +109,18 @@ jobs:
 
             ### Highlights
 
-            - Cross-platform release archives for Windows, Linux, and macOS.
-            - Configurable multi-time-zone clock strip with portable JSON settings.
-            - Compact mode, rulers, interactive time exploration, tray menu, and redesigned settings.
+            - Adjustable clock scale from 80% to 150% and configurable outer-corner radius.
+            - Optional soft clock color style with updated typography and larger time numerals.
+            - Correct rounded outlines in standard, compact, and extended ruler modes.
+            - Rulers and the time slider now restore correctly after restarting in extended mode.
+            - More efficient desktop event scheduling and cleaner platform integration.
+            - Cross-platform release archives for Windows x64, Linux x64, and macOS Apple Silicon.
+
+            ### Packaging
+
             - Windows archive contains one self-contained executable with the Visual C++ runtime linked statically.
             - macOS archive contains `OziClock.app`, which opens directly from Finder without Terminal.
             - Carlito is embedded for consistent text metrics on Windows, macOS, and Linux.
-            - Rulers and time slider move synchronously with the clock strip on macOS.
 
             `settings.json` is created beside the executable on Windows and Linux, or beside `OziClock.app` on macOS. The Windows release is x64; macOS release is Apple Silicon.
           files: release-assets/*
