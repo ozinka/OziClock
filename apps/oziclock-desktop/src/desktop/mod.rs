@@ -21,6 +21,7 @@ use window_drag::configure_main_window_drag;
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
+    time::{Duration, Instant},
 };
 
 use chrono::{DateTime, LocalResult, Offset, TimeZone, Timelike, Utc};
@@ -41,9 +42,11 @@ use slint::{Model, ModelRc, Timer, VecModel};
 use windows_sys::Win32::Graphics::Gdi::{GetMonitorInfoW, MONITORINFO};
 
 pub(crate) fn run() -> Result<(), slint::PlatformError> {
-    let settings = oziclock_storage::load_or_initialize().map_err(|error| {
+    let mut settings = oziclock_storage::load_or_initialize().map_err(|error| {
         slint::PlatformError::Other(format!("could not load OziClock settings: {error}"))
     })?;
+    let clock_scale_percent = normalize_clock_scale_percent((settings.clock_scale * 100.0) as f32);
+    settings.clock_scale = f64::from(clock_scale_percent / 100.0);
     let initial_main_window_position =
         LogicalPosition::new(settings.main_wnd_left, settings.main_wnd_top);
     let is_first_native_window = Rc::new(Cell::new(true));
@@ -64,6 +67,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     window.set_show_seconds(settings.show_seconds);
     window.set_show_rulers(settings.show_rulers);
     window.set_compact_mode(settings.compact_mode);
+    window.set_compact_progress(if settings.compact_mode { 1.0 } else { 0.0 });
     window.set_corner_radius(settings.corner_radius.clamp(0.0, 15.5) as f32);
     window.set_soft_clock_style(settings.soft_clock_style);
     apply_clock_scale(&window, settings.clock_scale.clamp(0.8, 1.5) as f32);
@@ -118,7 +122,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.set_show_in_task_bar(settings.show_in_task_bar);
     settings_window.set_compact_mode(settings.compact_mode);
     settings_window.set_show_rulers(settings.show_rulers);
-    settings_window.set_clock_scale_percent((settings.clock_scale.clamp(0.8, 1.5) * 100.0) as f32);
+    settings_window.set_clock_scale_percent(clock_scale_percent);
     settings_window.set_corner_radius(settings.corner_radius.clamp(0.0, 15.5) as f32);
     settings_window.set_soft_clock_style(settings.soft_clock_style);
     settings_window.set_opacity_percent((settings.opacity.clamp(0.02, 1.0) * 100.0) as f32);
@@ -352,8 +356,10 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             explored_time_for_seconds.clone(),
         );
     });
+    let compact_animation_generation = Rc::new(Cell::new(0_u64));
     let state = shared_settings.clone();
     let main_window = window.as_weak();
+    let compact_animation_for_settings = compact_animation_generation.clone();
     settings_window.on_request_set_compact_mode(move |compact_mode| {
         {
             let mut state = state.borrow_mut();
@@ -361,7 +367,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         }
         if let Some(main_window) = main_window.upgrade() {
             main_window.set_compact_mode(compact_mode);
-            sync_main_window_size(&main_window);
+            animate_compact_mode(
+                main_window.as_weak(),
+                compact_mode,
+                compact_animation_for_settings.clone(),
+            );
         }
     });
     let state = shared_settings.clone();
@@ -427,11 +437,16 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     });
     let state = shared_settings.clone();
     let main_window = window.as_weak();
+    let editor = settings_window.as_weak();
     settings_window.on_request_set_clock_scale(move |clock_scale_percent| {
-        let clock_scale = (clock_scale_percent / 100.0).clamp(0.8, 1.5);
+        let clock_scale_percent = normalize_clock_scale_percent(clock_scale_percent);
+        let clock_scale = clock_scale_percent / 100.0;
         {
             let mut state = state.borrow_mut();
             state.clock_scale = f64::from(clock_scale);
+        }
+        if let Some(editor) = editor.upgrade() {
+            editor.set_clock_scale_percent(clock_scale_percent);
         }
         if let Some(main_window) = main_window.upgrade() {
             apply_clock_scale(&main_window, clock_scale);
@@ -490,6 +505,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let state = shared_settings.clone();
     let main_window = window.as_weak();
     let editor = settings_window.as_weak();
+    let compact_animation_for_middle_click = compact_animation_generation.clone();
     window.on_request_toggle_compact(move || {
         let compact_mode = {
             let mut state = state.borrow_mut();
@@ -498,7 +514,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         };
         if let Some(main_window) = main_window.upgrade() {
             main_window.set_compact_mode(compact_mode);
-            sync_main_window_size(&main_window);
+            animate_compact_mode(
+                main_window.as_weak(),
+                compact_mode,
+                compact_animation_for_middle_click.clone(),
+            );
         }
         if let Some(editor) = editor.upgrade() {
             editor.set_compact_mode(compact_mode);
@@ -939,6 +959,10 @@ fn apply_clock_scale(window: &AppWindow, clock_scale: f32) {
     sync_main_window_size(window);
 }
 
+fn normalize_clock_scale_percent(clock_scale_percent: f32) -> f32 {
+    ((clock_scale_percent / 5.0).round() * 5.0).clamp(80.0, 150.0)
+}
+
 fn initialize_ruler_content(window: &AppWindow, settings: &AppSettings) {
     window.set_label_hours(ModelRc::new(VecModel::from((0..=24).collect::<Vec<i32>>())));
     window.set_rulers(ModelRc::new(VecModel::from(
@@ -1031,6 +1055,73 @@ fn format_ruler_label(settings: &AppSettings, column_index: i32, hour: i32) -> S
     } else {
         format!("{whole_hours}:{minutes:02}")
     }
+}
+
+fn animate_compact_mode(
+    window: slint::Weak<AppWindow>,
+    compact_mode: bool,
+    generation: Rc<Cell<u64>>,
+) {
+    let revision = generation.get().wrapping_add(1);
+    generation.set(revision);
+    let start_progress = window
+        .upgrade()
+        .map(|window| window.get_compact_progress())
+        .unwrap_or(if compact_mode { 1.0 } else { 0.0 });
+    animate_compact_mode_frame(
+        window,
+        start_progress,
+        if compact_mode { 1.0 } else { 0.0 },
+        Instant::now(),
+        revision,
+        generation,
+    );
+}
+
+fn animate_compact_mode_frame(
+    window: slint::Weak<AppWindow>,
+    start_progress: f32,
+    target_progress: f32,
+    start: Instant,
+    revision: u64,
+    generation: Rc<Cell<u64>>,
+) {
+    let progress = (start.elapsed().as_secs_f32() / 0.2).clamp(0.0, 1.0);
+    let eased = progress * progress * (3.0 - 2.0 * progress);
+    let compact_progress = start_progress + (target_progress - start_progress) * eased;
+    if let Some(window) = window.upgrade() {
+        window.set_compact_progress(compact_progress);
+        set_main_window_height_for_compact_progress(&window, compact_progress);
+    }
+    if progress < 1.0 {
+        Timer::single_shot(Duration::from_millis(16), move || {
+            if generation.get() == revision {
+                animate_compact_mode_frame(
+                    window,
+                    start_progress,
+                    target_progress,
+                    start,
+                    revision,
+                    generation,
+                );
+            }
+        });
+    }
+}
+
+fn set_main_window_height_for_compact_progress(window: &AppWindow, compact_progress: f32) {
+    let _ = window.window().with_winit_window(|native| {
+        let logical_clock_height = 62.0 - 31.0 * compact_progress;
+        let logical_height =
+            logical_clock_height + if window.get_show_rulers() { 532.0 } else { 0.0 };
+        let physical_height =
+            (logical_height * window.get_clock_scale() * native.scale_factor() as f32).round()
+                as u32;
+        let _ = native.request_inner_size(PhysicalSize::new(
+            native.inner_size().width,
+            physical_height,
+        ));
+    });
 }
 
 fn sync_main_window_size(window: &AppWindow) {

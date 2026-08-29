@@ -109,11 +109,12 @@ jobs:
 
             ### Highlights
 
-            - Adjustable clock scale from 80% to 150% and configurable outer-corner radius.
-            - Optional soft clock color style with updated typography and larger time numerals.
-            - Correct rounded outlines in standard, compact, and extended ruler modes.
-            - Rulers and the time slider now restore correctly after restarting in extended mode.
-            - More efficient desktop event scheduling and cleaner platform integration.
+            - Clock tiles, rulers, and the time slider now share one seamless native window.
+            - Compact clock height and ruler visibility can be switched independently with middle-click and double-click.
+            - Smooth compact-to-standard transitions work both with and without visible rulers.
+            - Settings, About, and the context menu open next to the clock instead of below the rulers.
+            - Refined one-pixel rounded outline and larger, better-aligned primary time numerals in both clock styles.
+            - About displays the package version automatically.
             - Cross-platform release archives for Windows x64, Linux x64, and macOS Apple Silicon.
 
             ### Packaging
