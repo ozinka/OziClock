@@ -10,7 +10,7 @@ The WPF implementation and `legacy/dotnet-wpf/Ozi.Clock/Assets/ozi.clock.large.w
 
 ## Current Visual Reference
 
-`legacy/dotnet-wpf/Ozi.Clock/Assets/ozi.clock.large.webp` is useful historical evidence, but the user-provided screenshots from 2026-08-24 are the current visual reference. In particular, they confirm that the ruler strip and the time slider remain separate frameless windows attached below the clock strip.
+`legacy/dotnet-wpf/Ozi.Clock/Assets/ozi.clock.large.webp` and the user-provided screenshots from 2026-08-24 are visual references for ruler geometry and styling. The current architecture composes the clock strip, ruler strip, and time slider inside one clipped native window to avoid platform-dependent seams.
 
 ## Legacy Geometry and Effects
 
@@ -56,7 +56,7 @@ The transparent center preserves sharp labels; the shaded upper and lower edges 
 - All columns show the same UTC instant converted into their own zones. Labels must handle whole-hour, half-hour, and 45-minute offsets.
 - Movement must remain bounded; neither focus may leave the ruler surface.
 - Pointer capture must continue a drag when the pointer temporarily leaves the handle and release cleanly on pointer-up or cancellation.
-- The ruler window is attached directly below the clock strip; the slider window is attached directly below the rulers. Moving the clock strip, changing its scale, changing compact/standard mode, or changing clock count repositions and resizes both attached windows as one visual unit.
+- The ruler panel is positioned directly below the clock strip; the slider panel is positioned directly below the rulers. The single native window resizes its clipped viewport when the mode, scale, or clock count changes.
 
 ## Slint Rendering Design
 
@@ -82,7 +82,7 @@ RulerPanel
 
 Implement dimensions and colors as named design tokens rather than scattering constants through components. Calculate tick and label data in Rust; keep positioning, clipping, gradients, and pointer handling in Slint.
 
-The desktop adapter owns three native windows (`AppWindow`, `RulersWindow`, and `TimeSliderWindow`) and one placement coordinator. The coordinator is the only code allowed to position or resize the two attached windows; it receives main-window movement, mode, scale, and clock-count changes. The ruler and slider components exchange a typed selected-time value rather than manipulating each other's widgets.
+The desktop adapter owns one native `AppWindow` for the complete clock construction. Its shell composes reusable clock, ruler, and slider panels and resizes one clipped viewport for compact, standard, and extended modes. The ruler and slider components exchange a typed selected-time value rather than manipulating each other's widgets.
 
 ## Renderer Decision
 

@@ -2,11 +2,7 @@ export struct RulerColumnData {
     accent: color,
 }
 
-export component RulersWindow inherits Window {
-    title: "OziClock — Rulers";
-    no-frame: true;
-    always-on-top: true;
-    background: transparent;
+export component RulersPanel inherits Rectangle {
     in property <[RulerColumnData]> rulers;
     in property <[int]> tick-indices;
     in property <[int]> label-hours;
@@ -22,11 +18,8 @@ export component RulersWindow inherits Window {
     callback request-focus-column(int);
     callback request-focus-progress(float);
 
-    preferred-width: (100px * root.rulers.length + 1px) * root.clock-scale;
-    preferred-height: 463px * root.clock-scale;
-    min-width: 101px * root.clock-scale;
-    min-height: 463px * root.clock-scale;
-    max-height: 463px * root.clock-scale;
+    width: (100px * root.rulers.length + 1px) * root.clock-scale;
+    height: 463px * root.clock-scale;
 
     Rectangle {
         width: parent.width;

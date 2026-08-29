@@ -15,6 +15,9 @@ pub(super) fn open_settings_window(
     main_window: &slint::Weak<AppWindow>,
     settings: &AppSettings,
 ) {
+    if let Some(main_window) = main_window.upgrade() {
+        main_window.set_modal_open(true);
+    }
     let _ = settings_window.show();
     restore_settings_window_size(settings_window, settings);
     hide_auxiliary_window_from_taskbar(settings_window.window());

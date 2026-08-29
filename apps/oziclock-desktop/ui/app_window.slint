@@ -1,4 +1,6 @@
 import { ClockTile } from "../../../ui/clock_tile.slint";
+import { RulersPanel, RulerColumnData } from "rulers_window.slint";
+import { TimeSliderPanel } from "time_slider_window.slint";
 
 export struct ClockTileData {
     label: string,
@@ -22,7 +24,20 @@ export component AppWindow inherits Window {
     in property <float> clock-scale: 1.0;
     in property <float> corner-radius: 12;
     in property <bool> soft-clock-style: false;
+    in property <bool> modal-open: false;
+    in property <[RulerColumnData]> rulers;
+    in property <[int]> tick-indices;
+    in property <[int]> label-hours;
+    in property <[int]> hour-labels;
+    in property <int> focused-column: 0;
+    in-out property <float> focus-column-position: 0;
+    in-out property <float> focus-progress: 0;
+    in-out property <float> time-step: 0;
     in-out property <length> menu-x: 0px;
+    pure callback format-label(int, int) -> string;
+    callback request-focus-column(int);
+    callback request-focus-progress(float);
+    callback request-time-step(float);
     callback request-window-drag-start(float, float);
     callback request-window-drag-move(float, float);
     callback request-window-drag-end();
@@ -40,86 +55,107 @@ export component AppWindow inherits Window {
     no-frame: true;
     always-on-top: root.top-most;
     preferred-width: (100px * root.clocks.length + 1px) * root.clock-scale;
-    preferred-height: (root.compact-mode ? 31px : 62px) * root.clock-scale;
+    preferred-height: (root.show-rulers ? 594px : root.compact-mode ? 31px : 62px) * root.clock-scale;
     min-width: 101px * root.clock-scale;
     min-height: 31px * root.clock-scale;
-    max-height: 62px * root.clock-scale;
+    max-height: 594px * root.clock-scale;
     background: transparent;
 
     content := Rectangle {
         width: parent.width;
         height: parent.height;
         background: #000000;
-        border-top-left-radius: root.corner-radius * 1px * root.clock-scale;
-        border-top-right-radius: root.corner-radius * 1px * root.clock-scale;
-        border-bottom-left-radius: root.show-rulers ? 0px : root.corner-radius * 1px * root.clock-scale;
-        border-bottom-right-radius: root.show-rulers ? 0px : root.corner-radius * 1px * root.clock-scale;
+        border-radius: root.corner-radius * 1px * root.clock-scale;
         clip: true;
         opacity: root.show-rulers || interaction.has-hover ? 1 : root.inactive-opacity;
         animate opacity { duration: 300ms; }
 
-        for clock[index] in root.clocks: Rectangle {
-            x: (1px + index * 100px) * root.clock-scale;
-            y: parent.height - 61px * root.clock-scale;
-            width: index == root.clocks.length - 1 ? parent.width - self.x : 99px * root.clock-scale;
-            height: 60px * root.clock-scale;
-
-            ClockTile {
-                width: parent.width;
-                label: clock.label;
-                month: clock.month;
-                day: clock.day;
-                hour: clock.hour;
-                minute: clock.minute;
-                second: clock.second;
-                accent: clock.accent;
-                main-zone: clock.main-zone;
-                show-seconds: root.show-seconds;
-                clock-scale: root.clock-scale;
-                soft-style: root.soft-clock-style;
-            }
-        }
-
-        Rectangle {
-            x: 0px;
-            y: 0px;
+        clock-strip := Rectangle {
+            y: root.compact-mode && !root.show-rulers ? -31px * root.clock-scale : 0px;
             width: parent.width;
-            height: 1px;
+            height: 62px * root.clock-scale;
             background: #000000;
-        }
 
-        interaction := TouchArea {
-            double-clicked => { root.request-toggle-rulers(); }
-            pointer-event(event) => {
-                if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
-                    root.request-window-drag-start(self.mouse-x / 1px, self.mouse-y / 1px);
-                }
-                if ((event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) && event.button == PointerEventButton.left) {
-                    root.request-window-drag-end();
-                }
-                if (event.kind == PointerEventKind.up && event.button == PointerEventButton.right) {
-                    root.menu-x = self.mouse-x;
-                    root.request-open-menu();
-                }
-                if (event.kind == PointerEventKind.up && event.button == PointerEventButton.middle) {
-                    root.request-toggle-compact();
+            for clock[index] in root.clocks: Rectangle {
+                x: (1px + index * 100px) * root.clock-scale;
+                y: 1px * root.clock-scale;
+                width: index == root.clocks.length - 1 ? parent.width - self.x : 99px * root.clock-scale;
+                height: 60px * root.clock-scale;
+
+                ClockTile {
+                    width: parent.width;
+                    label: clock.label;
+                    month: clock.month;
+                    day: clock.day;
+                    hour: clock.hour;
+                    minute: clock.minute;
+                    second: clock.second;
+                    accent: clock.accent;
+                    main-zone: clock.main-zone;
+                    show-seconds: root.show-seconds;
+                    clock-scale: root.clock-scale;
+                    soft-style: root.soft-clock-style;
                 }
             }
-            moved => { root.request-window-drag-move(self.mouse-x / 1px, self.mouse-y / 1px); }
+
+            interaction := TouchArea {
+                double-clicked => { root.request-toggle-rulers(); }
+                pointer-event(event) => {
+                    if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                        root.request-window-drag-start(self.mouse-x / 1px, self.mouse-y / 1px);
+                    }
+                    if ((event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) && event.button == PointerEventButton.left) {
+                        root.request-window-drag-end();
+                    }
+                    if (event.kind == PointerEventKind.up && event.button == PointerEventButton.right) {
+                        root.menu-x = self.mouse-x;
+                        root.request-open-menu();
+                    }
+                    if (event.kind == PointerEventKind.up && event.button == PointerEventButton.middle) {
+                        root.request-toggle-compact();
+                    }
+                }
+                moved => { root.request-window-drag-move(self.mouse-x / 1px, self.mouse-y / 1px); }
+            }
+        }
+
+        RulersPanel {
+            y: 62px * root.clock-scale;
+            visible: root.show-rulers;
+            rulers: root.rulers;
+            tick-indices: root.tick-indices;
+            label-hours: root.label-hours;
+            focused-column: root.focused-column;
+            focus-column-position <=> root.focus-column-position;
+            focus-progress: root.focus-progress;
+            clock-scale: root.clock-scale;
+            format-label(column-index, hour) => { return root.format-label(column-index, hour); }
+            request-focus-column(column-index) => { root.request-focus-column(column-index); }
+            request-focus-progress(progress) => { root.request-focus-progress(progress); }
+        }
+
+        TimeSliderPanel {
+            y: 525px * root.clock-scale;
+            visible: root.show-rulers;
+            clock-count: root.clocks.length;
+            hour-labels: root.hour-labels;
+            clock-scale: root.clock-scale;
+            corner-radius: root.corner-radius;
+            time-step <=> root.time-step;
+            request-time-step(value) => { root.request-time-step(value); }
         }
 
         Rectangle {
-            x: 0.5px * root.clock-scale;
-            y: 0.5px * root.clock-scale;
-            width: parent.width - 1px * root.clock-scale;
-            height: parent.height - 1px * root.clock-scale;
+            x: 0.5px;
+            y: 0.5px;
+            width: parent.width - 1px;
+            height: parent.height - 1px;
             background: transparent;
-            border-width: 1px * root.clock-scale;
+            border-width: 1px;
             border-color: #000000;
-            border-top-left-radius: root.corner-radius * 1px * root.clock-scale;
-            border-top-right-radius: root.corner-radius * 1px * root.clock-scale;
-            border-bottom-left-radius: root.show-rulers ? 0px : root.corner-radius * 1px * root.clock-scale;
-            border-bottom-right-radius: root.show-rulers ? 0px : root.corner-radius * 1px * root.clock-scale;
+            border-radius: Math.max(0px, root.corner-radius * 1px * root.clock-scale - 0.5px);
         }
+
+        TouchArea { visible: root.modal-open; }
     }
 }
