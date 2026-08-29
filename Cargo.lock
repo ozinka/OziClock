@@ -3602,11 +3602,15 @@ dependencies = [
 [[package]]
 name = "oziclock-domain"
 version = "0.1.0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "oziclock-storage"
 version = "0.1.0"
 dependencies = [
+ "oziclock-domain",
  "serde",
  "serde_json",
 ]

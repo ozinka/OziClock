@@ -35,6 +35,14 @@ legacy/dotnet-wpf/           Preserved WPF reference implementation
 
 Do not create all crates before they carry real behavior. Begin with `domain`, `app`, `ui`, and the desktop composition root; extract platform and storage crates when their adapters are implemented.
 
+## Current Rewrite Structure
+
+The executable entry point in `apps/oziclock-desktop/src/main.rs` is intentionally limited to starting the desktop adapter. Slint callback wiring and desktop-only integration live under `apps/oziclock-desktop/src/desktop/`; new framework-free behavior must not be added there.
+
+The world-clock model and collection invariants are owned by `oziclock-domain`. Clock editing enters through typed commands in `oziclock-app`. `oziclock-storage` owns the serialized settings document and reuses the domain clock type through its serialization feature. This feature boundary keeps serialization support optional for other domain consumers.
+
+Further desktop modules should be extracted when a responsibility becomes independently testable or gains a platform boundary. File count alone is not a reason to introduce a new crate.
+
 ## Domain Modules
 
 ### World Clock
