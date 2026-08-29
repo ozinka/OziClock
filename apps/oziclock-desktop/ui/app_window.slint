@@ -46,6 +46,9 @@ export component AppWindow inherits Window {
     max-height: 62px * root.clock-scale;
     background: transparent;
 
+    Rectangle { y: parent.height - root.corner-radius * 1px * root.clock-scale; width: root.corner-radius * 1px * root.clock-scale; height: root.corner-radius * 1px * root.clock-scale; visible: root.show-rulers; background: #000000; }
+    Rectangle { x: parent.width - root.corner-radius * 1px * root.clock-scale; y: parent.height - root.corner-radius * 1px * root.clock-scale; width: root.corner-radius * 1px * root.clock-scale; height: root.corner-radius * 1px * root.clock-scale; visible: root.show-rulers; background: #000000; }
+
     content := Rectangle {
         width: parent.width;
         height: parent.height;
@@ -104,6 +107,4 @@ export component AppWindow inherits Window {
             moved => { root.request-window-drag-move(self.mouse-x / 1px, self.mouse-y / 1px); }
         }
     }
-    Rectangle { y: parent.height - root.corner-radius * 1px * root.clock-scale; width: root.corner-radius * 1px * root.clock-scale; height: root.corner-radius * 1px * root.clock-scale; visible: root.show-rulers; background: #000000; }
-    Rectangle { x: parent.width - root.corner-radius * 1px * root.clock-scale; y: parent.height - root.corner-radius * 1px * root.clock-scale; width: root.corner-radius * 1px * root.clock-scale; height: root.corner-radius * 1px * root.clock-scale; visible: root.show-rulers; background: #000000; }
 }

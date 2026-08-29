@@ -18,6 +18,9 @@ export component TimeSliderWindow inherits Window {
     min-height: 69px * root.clock-scale;
     max-height: 69px * root.clock-scale;
 
+    Rectangle { width: root.corner-radius * 1px * root.clock-scale; height: root.corner-radius * 1px * root.clock-scale; background: #000000; }
+    Rectangle { x: parent.width - root.corner-radius * 1px * root.clock-scale; width: root.corner-radius * 1px * root.clock-scale; height: root.corner-radius * 1px * root.clock-scale; background: #000000; }
+
     surface := Rectangle {
         width: parent.width;
         height: parent.height;
@@ -54,6 +57,4 @@ export component TimeSliderWindow inherits Window {
             }
         }
     }
-    Rectangle { width: root.corner-radius * 1px * root.clock-scale; height: root.corner-radius * 1px * root.clock-scale; background: #000000; }
-    Rectangle { x: parent.width - root.corner-radius * 1px * root.clock-scale; width: root.corner-radius * 1px * root.clock-scale; height: root.corner-radius * 1px * root.clock-scale; background: #000000; }
 }
