@@ -24,6 +24,10 @@ pub struct AppSettings {
     pub show_rulers: bool,
     #[serde(default = "default_clock_scale")]
     pub clock_scale: f64,
+    #[serde(default = "default_corner_radius")]
+    pub corner_radius: f64,
+    #[serde(default)]
+    pub soft_clock_style: bool,
     #[serde(default = "default_settings_window_width")]
     pub settings_window_width: f64,
     #[serde(default = "default_settings_window_height")]
@@ -41,6 +45,10 @@ fn default_settings_window_width() -> f64 {
 
 fn default_clock_scale() -> f64 {
     1.0
+}
+
+fn default_corner_radius() -> f64 {
+    12.0
 }
 
 fn default_settings_window_height() -> f64 {
@@ -109,5 +117,19 @@ mod tests {
 
         assert!(!settings.clocks_settings.is_empty());
         assert!(settings.clocks_settings.iter().any(|clock| clock.is_main));
+        assert_eq!(settings.corner_radius, 12.0);
+        assert!(!settings.soft_clock_style);
+    }
+
+    #[test]
+    fn appearance_defaults_are_added_to_older_settings() {
+        let mut legacy: serde_json::Value = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
+        let document = legacy.as_object_mut().unwrap();
+        document.remove("CornerRadius");
+        document.remove("SoftClockStyle");
+        let settings: AppSettings = serde_json::from_value(legacy).unwrap();
+
+        assert_eq!(settings.corner_radius, 12.0);
+        assert!(!settings.soft_clock_style);
     }
 }

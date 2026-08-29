@@ -9,10 +9,11 @@ export component ClockTile inherits Rectangle {
     in property <bool> main-zone: false;
     in property <bool> show-seconds: true;
     in property <float> clock-scale: 1.0;
+    in property <bool> soft-style: false;
 
     width: 99px * root.clock-scale;
     height: 60px * root.clock-scale;
-    background: @linear-gradient(180deg, #383838 45.3%, accent 77.6%);
+    background: root.soft-style ? accent : @linear-gradient(180deg, #383838 45.3%, accent 77.6%);
     clip: true;
 
     Text {
@@ -22,9 +23,9 @@ export component ClockTile inherits Rectangle {
         height: 20px * root.clock-scale;
         text: root.label;
         font-family: "Carlito";
-        font-size: 16px * root.clock-scale;
+        font-size: (root.soft-style ? 12px : 16px) * root.clock-scale;
         font-weight: root.main-zone ? 600 : 400;
-        color: root.main-zone ? #ffffff : #b9b9b9;
+        color: root.soft-style ? #111111 : root.main-zone ? #ffffff : #b9b9b9;
         horizontal-alignment: left;
         vertical-alignment: top;
         overflow: elide;
@@ -37,9 +38,9 @@ export component ClockTile inherits Rectangle {
         height: 20px * root.clock-scale;
         text: root.month;
         font-family: "Carlito";
-        font-size: 16px * root.clock-scale;
+        font-size: (root.soft-style ? 12px : 16px) * root.clock-scale;
         font-weight: 600;
-        color: #b9b9b9;
+        color: root.soft-style ? #222222 : #b9b9b9;
         horizontal-alignment: right;
         vertical-alignment: top;
     }
@@ -51,9 +52,9 @@ export component ClockTile inherits Rectangle {
         height: 20px * root.clock-scale;
         text: root.day;
         font-family: "Carlito";
-        font-size: 16px * root.clock-scale;
+        font-size: (root.soft-style ? 12px : 16px) * root.clock-scale;
         font-weight: 600;
-        color: #b9b9b9;
+        color: root.soft-style ? #222222 : #b9b9b9;
         horizontal-alignment: left;
         vertical-alignment: top;
     }
@@ -65,7 +66,7 @@ export component ClockTile inherits Rectangle {
         height: 25px * root.clock-scale;
         text: root.hour;
         font-family: "Carlito";
-        font-size: 22px * root.clock-scale;
+        font-size: (root.soft-style ? 25px : 22px) * root.clock-scale;
         font-weight: 600;
         color: #000000;
         horizontal-alignment: right;
@@ -93,7 +94,7 @@ export component ClockTile inherits Rectangle {
         height: 25px * root.clock-scale;
         text: root.minute;
         font-family: "Carlito";
-        font-size: 22px * root.clock-scale;
+        font-size: (root.soft-style ? 25px : 22px) * root.clock-scale;
         color: #000000;
         horizontal-alignment: center;
         vertical-alignment: bottom;

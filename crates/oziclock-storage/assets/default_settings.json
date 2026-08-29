@@ -9,6 +9,8 @@
   "CompactMode": false,
   "ShowRulers": false,
   "ClockScale": 1.0,
+  "CornerRadius": 12.0,
+  "SoftClockStyle": false,
   "SettingsWindowWidth": 760.0,
   "SettingsWindowHeight": 510.0,
   "ClocksSettings": [

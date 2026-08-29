@@ -65,6 +65,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     window.set_show_seconds(settings.show_seconds);
     window.set_show_rulers(settings.show_rulers);
     window.set_compact_mode(settings.compact_mode);
+    window.set_corner_radius(settings.corner_radius.clamp(0.0, 15.5) as f32);
+    window.set_soft_clock_style(settings.soft_clock_style);
     apply_clock_scale(&window, settings.clock_scale.clamp(0.8, 1.5) as f32);
     update_clock_tiles(&window, &settings.clocks_settings, settings.show_seconds);
 
@@ -120,6 +122,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.set_compact_mode(settings.compact_mode);
     settings_window.set_show_rulers(settings.show_rulers);
     settings_window.set_clock_scale_percent((settings.clock_scale.clamp(0.8, 1.5) * 100.0) as f32);
+    settings_window.set_corner_radius(settings.corner_radius.clamp(0.0, 15.5) as f32);
+    settings_window.set_soft_clock_style(settings.soft_clock_style);
     settings_window.set_opacity_percent((settings.opacity.clamp(0.02, 1.0) * 100.0) as f32);
     update_settings_preview(&settings_window, &settings.clocks_settings);
     select_clock(&settings_window, &settings.clocks_settings, 0);
@@ -509,6 +513,27 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             &slider_for_scale,
             show_rulers,
         );
+    });
+    let state = shared_settings.clone();
+    let main_window = window.as_weak();
+    let slider_for_radius = time_slider_window.as_weak();
+    settings_window.on_request_set_corner_radius(move |corner_radius| {
+        let corner_radius = corner_radius.clamp(0.0, 15.5);
+        state.borrow_mut().corner_radius = f64::from(corner_radius);
+        if let Some(main_window) = main_window.upgrade() {
+            main_window.set_corner_radius(corner_radius);
+        }
+        if let Some(time_slider_window) = slider_for_radius.upgrade() {
+            time_slider_window.set_corner_radius(corner_radius);
+        }
+    });
+    let state = shared_settings.clone();
+    let main_window = window.as_weak();
+    settings_window.on_request_set_soft_clock_style(move |soft_clock_style| {
+        state.borrow_mut().soft_clock_style = soft_clock_style;
+        if let Some(main_window) = main_window.upgrade() {
+            main_window.set_soft_clock_style(soft_clock_style);
+        }
     });
     let state = shared_settings.clone();
     let main_window = window.as_weak();
@@ -1131,6 +1156,7 @@ fn initialize_ruler_windows(
         settings.clocks_settings.len(),
     ))));
     time_slider_window.set_clock_scale(settings.clock_scale.clamp(0.8, 1.5) as f32);
+    time_slider_window.set_corner_radius(settings.corner_radius.clamp(0.0, 15.5) as f32);
 }
 
 fn initial_ruler_time_step(settings: &AppSettings) -> f32 {

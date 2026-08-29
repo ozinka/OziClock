@@ -20,6 +20,8 @@ export component AppWindow inherits Window {
     in property <bool> show-rulers: false;
     in property <bool> compact-mode: false;
     in property <float> clock-scale: 1.0;
+    in property <float> corner-radius: 12;
+    in property <bool> soft-clock-style: false;
     in-out property <length> menu-x: 0px;
     callback request-window-drag-start(float, float);
     callback request-window-drag-move(float, float);
@@ -48,6 +50,7 @@ export component AppWindow inherits Window {
         width: parent.width;
         height: parent.height;
         background: #000000;
+        border-radius: root.corner-radius * 1px * root.clock-scale;
         clip: true;
         opacity: root.show-rulers || interaction.has-hover ? 1 : root.inactive-opacity;
         animate opacity { duration: 300ms; }
@@ -69,6 +72,7 @@ export component AppWindow inherits Window {
                 main-zone: clock.main-zone;
                 show-seconds: root.show-seconds;
                 clock-scale: root.clock-scale;
+                soft-style: root.soft-clock-style;
             }
         }
 
@@ -100,4 +104,6 @@ export component AppWindow inherits Window {
             moved => { root.request-window-drag-move(self.mouse-x / 1px, self.mouse-y / 1px); }
         }
     }
+    Rectangle { y: parent.height - root.corner-radius * 1px * root.clock-scale; width: root.corner-radius * 1px * root.clock-scale; height: root.corner-radius * 1px * root.clock-scale; visible: root.show-rulers; background: #000000; }
+    Rectangle { x: parent.width - root.corner-radius * 1px * root.clock-scale; y: parent.height - root.corner-radius * 1px * root.clock-scale; width: root.corner-radius * 1px * root.clock-scale; height: root.corner-radius * 1px * root.clock-scale; visible: root.show-rulers; background: #000000; }
 }
