@@ -146,6 +146,11 @@ export component AppWindow inherits Window {
             request-time-step(value) => { root.request-time-step(value); }
         }
 
+        Rectangle { x: 0px; y: 0px; width: 1px; height: parent.height; background: #000000; }
+        Rectangle { x: parent.width - 1px; y: 0px; width: 1px; height: parent.height; background: #000000; }
+        Rectangle { x: 0px; y: 0px; width: parent.width; height: 1px; background: #000000; }
+        Rectangle { x: 0px; y: parent.height - 1px; width: parent.width; height: 1px; background: #000000; }
+
         Rectangle {
             x: 0.5px;
             y: 0.5px;
