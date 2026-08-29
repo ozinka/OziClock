@@ -1,8 +1,22 @@
 slint::include_modules!();
 
+mod clock_refresh;
 mod colors;
+mod settings_bindings;
+#[cfg(target_os = "windows")]
+mod tray;
+mod window_drag;
 
+use clock_refresh::schedule_clock_refresh;
 use colors::{color_to_hsv, hsv_color, hsv_hex, parse_color};
+use settings_bindings::{
+    main_clock_index, move_clock_to, move_selected_clock, open_settings_window,
+    persist_settings_window_size, select_clock, time_zone_display_name, time_zone_offset_seconds,
+    update_settings_preview,
+};
+#[cfg(target_os = "windows")]
+use tray::create_system_tray;
+use window_drag::{configure_main_window_drag, position_attached_windows};
 
 use std::{
     cell::{Cell, RefCell},
@@ -23,12 +37,7 @@ use slint::winit_030::winit::{
     event::{ElementState, WindowEvent},
     keyboard::{Key, NamedKey},
 };
-use slint::{Model, ModelRc, Timer, TimerMode, VecModel};
-#[cfg(target_os = "windows")]
-use tray_icon::{
-    Icon, TrayIcon, TrayIconBuilder,
-    menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem},
-};
+use slint::{Model, ModelRc, Timer, VecModel};
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::Graphics::Gdi::{GetMonitorInfoW, MONITORINFO};
 
@@ -900,7 +909,6 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         &window,
         rulers_window.as_weak(),
         time_slider_window.as_weak(),
-        shared_settings.clone(),
     );
     let state = shared_settings.clone();
     let weak_window = window.as_weak();
@@ -975,77 +983,6 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     window.run()
 }
 
-#[cfg(target_os = "windows")]
-struct SystemTray {
-    _icon: TrayIcon,
-}
-
-#[cfg(target_os = "windows")]
-fn create_system_tray(
-    main_window: slint::Weak<AppWindow>,
-    top_most: bool,
-) -> Result<SystemTray, slint::PlatformError> {
-    let menu = Menu::new();
-    let show_hide = MenuItem::with_id("show-hide", "Show/Hide", true, None);
-    let open_settings = MenuItem::with_id("settings", "Settings", true, None);
-    let always_on_top =
-        CheckMenuItem::with_id("always-on-top", "Always on top", true, top_most, None);
-    let exit = MenuItem::with_id("exit", "Exit", true, None);
-    menu.append_items(&[
-        &show_hide,
-        &open_settings,
-        &always_on_top,
-        &PredefinedMenuItem::separator(),
-        &exit,
-    ])
-    .map_err(|error| slint::PlatformError::Other(format!("could not create tray menu: {error}")))?;
-    let icon = Icon::from_resource_name("IDI_APP_ICON", Some((32, 32))).map_err(|error| {
-        slint::PlatformError::Other(format!("could not load tray icon resource: {error}"))
-    })?;
-    let icon = TrayIconBuilder::new()
-        .with_tooltip("OziClock")
-        .with_menu(Box::new(menu))
-        .with_icon(icon)
-        .build()
-        .map_err(|error| {
-            slint::PlatformError::Other(format!("could not create system tray icon: {error}"))
-        })?;
-
-    MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
-        let main_window = main_window.clone();
-        let _ = slint::invoke_from_event_loop(move || match event.id().0.as_str() {
-            "show-hide" => {
-                if let Some(main_window) = main_window.upgrade() {
-                    if main_window.window().is_visible() {
-                        let _ = main_window.hide();
-                    } else {
-                        let _ = main_window.show();
-                        main_window.invoke_request_refresh_time();
-                    }
-                }
-            }
-            "settings" => {
-                if let Some(main_window) = main_window.upgrade() {
-                    main_window.invoke_request_open_settings();
-                }
-            }
-            "always-on-top" => {
-                if let Some(main_window) = main_window.upgrade() {
-                    main_window.invoke_request_toggle_top_most();
-                }
-            }
-            "exit" => {
-                if let Some(main_window) = main_window.upgrade() {
-                    main_window.invoke_request_tray_exit();
-                }
-            }
-            _ => {}
-        });
-    }));
-
-    Ok(SystemTray { _icon: icon })
-}
-
 fn save_state_before_exit(
     window: &slint::Weak<AppWindow>,
     settings_window: &slint::Weak<SettingsWindow>,
@@ -1058,53 +995,6 @@ fn save_state_before_exit(
         persist_settings_window_size(&settings_window, &mut settings.borrow_mut());
     }
     let _ = oziclock_storage::save(&settings.borrow());
-}
-
-fn schedule_clock_refresh(
-    timer: Rc<Timer>,
-    window: slint::Weak<AppWindow>,
-    settings: Rc<RefCell<AppSettings>>,
-    explored_time: Rc<RefCell<Option<DateTime<Utc>>>>,
-) {
-    let now = Utc::now();
-    let show_seconds = settings.borrow().show_seconds;
-    let milliseconds = if show_seconds {
-        1_000 - i64::from(now.timestamp_subsec_millis())
-    } else {
-        (60 - i64::from(now.second())) * 1_000 - i64::from(now.timestamp_subsec_millis())
-    };
-    let timer_for_callback = timer.clone();
-    timer.start(
-        TimerMode::SingleShot,
-        Duration::from_millis(milliseconds.max(1) as u64),
-        move || {
-            if explored_time.borrow().is_none()
-                && let Some(window) = window.upgrade()
-                && window.window().is_visible()
-            {
-                let settings = settings.borrow();
-                update_clock_tiles(&window, &settings.clocks_settings, settings.show_seconds);
-            }
-            schedule_clock_refresh(
-                timer_for_callback.clone(),
-                window.clone(),
-                settings.clone(),
-                explored_time.clone(),
-            );
-        },
-    );
-}
-
-fn open_settings_window(
-    settings_window: &SettingsWindow,
-    main_window: &slint::Weak<AppWindow>,
-    settings: &AppSettings,
-) {
-    let _ = settings_window.show();
-    restore_settings_window_size(settings_window, settings);
-    hide_auxiliary_window_from_taskbar(settings_window.window());
-    position_auxiliary_window_near_clock(settings_window.window(), main_window);
-    focus_auxiliary_window(settings_window.window());
 }
 
 fn open_about_window(about_window: &AboutWindow, main_window: &slint::Weak<AppWindow>) {
@@ -1192,31 +1082,6 @@ fn persist_main_window_position(window: &AppWindow, settings: &mut AppSettings) 
     });
 }
 
-fn restore_settings_window_size(window: &SettingsWindow, settings: &AppSettings) {
-    let width = settings.settings_window_width.max(760.0);
-    let height = settings.settings_window_height.max(620.0);
-    window.set_saved_window_width(width as f32);
-    window.set_saved_window_height(height as f32);
-    let _ = window.window().with_winit_window(|native| {
-        let scale_factor = native.scale_factor();
-        let _ = native.request_inner_size(PhysicalSize::new(
-            (width * scale_factor).round() as u32,
-            (height * scale_factor).round() as u32,
-        ));
-    });
-}
-
-fn persist_settings_window_size(window: &SettingsWindow, settings: &mut AppSettings) {
-    let _ = window.window().with_winit_window(|native| {
-        let scale_factor = native.scale_factor();
-        let size = native.inner_size();
-        settings.settings_window_width = size.width as f64 / scale_factor;
-        settings.settings_window_height = size.height as f64 / scale_factor;
-        window.set_saved_window_width(settings.settings_window_width as f32);
-        window.set_saved_window_height(settings.settings_window_height as f32);
-    });
-}
-
 fn set_main_window_taskbar_visibility(window: &AppWindow, show_in_task_bar: bool) {
     #[cfg(target_os = "windows")]
     let _ = window
@@ -1266,10 +1131,6 @@ fn initialize_ruler_windows(
         settings.clocks_settings.len(),
     ))));
     time_slider_window.set_clock_scale(settings.clock_scale.clamp(0.8, 1.5) as f32);
-}
-
-fn main_clock_index(clocks: &[ClockSettings]) -> usize {
-    clocks.iter().position(|clock| clock.is_main).unwrap_or(0)
 }
 
 fn initial_ruler_time_step(settings: &AppSettings) -> f32 {
@@ -1393,130 +1254,6 @@ fn sync_attached_windows(
     hide_auxiliary_window_from_taskbar(time_slider_window.window());
     let _ = rulers_window.show();
     let _ = time_slider_window.show();
-}
-
-#[cfg(target_os = "macos")]
-#[derive(Clone, Copy)]
-struct MacOsDragAnchor {
-    x: f64,
-    y: f64,
-}
-
-#[cfg(target_os = "macos")]
-fn configure_main_window_drag(
-    window: &AppWindow,
-    rulers_window: slint::Weak<RulersWindow>,
-    time_slider_window: slint::Weak<TimeSliderWindow>,
-    settings: Rc<RefCell<AppSettings>>,
-) {
-    let drag_anchor = Rc::new(RefCell::new(None::<MacOsDragAnchor>));
-    let start_window = window.as_weak();
-    let start_anchor = drag_anchor.clone();
-    window.on_request_window_drag_start(move |x, y| {
-        if let Some(window) = start_window.upgrade() {
-            let _ = window.window().with_winit_window(|native| {
-                let scale = native.scale_factor();
-                *start_anchor.borrow_mut() = Some(MacOsDragAnchor {
-                    x: f64::from(x) * scale,
-                    y: f64::from(y) * scale,
-                });
-            });
-        }
-    });
-
-    let move_window = window.as_weak();
-    let move_anchor = drag_anchor.clone();
-    window.on_request_window_drag_move(move |x, y| {
-        let Some(anchor) = *move_anchor.borrow() else {
-            return;
-        };
-        let Some(window) = move_window.upgrade() else {
-            return;
-        };
-        let moved = window
-            .window()
-            .with_winit_window(|native| {
-                let scale = native.scale_factor();
-                let delta_x = (f64::from(x) * scale - anchor.x).round() as i32;
-                let delta_y = (f64::from(y) * scale - anchor.y).round() as i32;
-                if delta_x == 0 && delta_y == 0 {
-                    return false;
-                }
-                let Ok(position) = native.outer_position() else {
-                    return false;
-                };
-                native.set_outer_position(PhysicalPosition::new(
-                    position.x + delta_x,
-                    position.y + delta_y,
-                ));
-                true
-            })
-            .unwrap_or(false);
-        if moved && settings.borrow().show_rulers {
-            position_attached_windows(&window.as_weak(), &rulers_window, &time_slider_window);
-        }
-    });
-
-    let end_anchor = drag_anchor;
-    window.on_request_window_drag_end(move || {
-        *end_anchor.borrow_mut() = None;
-    });
-}
-
-#[cfg(not(target_os = "macos"))]
-fn configure_main_window_drag(
-    window: &AppWindow,
-    _rulers_window: slint::Weak<RulersWindow>,
-    _time_slider_window: slint::Weak<TimeSliderWindow>,
-    _settings: Rc<RefCell<AppSettings>>,
-) {
-    let drag_window = window.as_weak();
-    window.on_request_window_drag_start(move |_x, _y| {
-        if let Some(window) = drag_window.upgrade() {
-            let _ = window
-                .window()
-                .with_winit_window(|native| native.drag_window());
-        }
-    });
-    window.on_request_window_drag_move(|_x, _y| {});
-    window.on_request_window_drag_end(|| {});
-}
-
-fn position_attached_windows(
-    main_window: &slint::Weak<AppWindow>,
-    rulers_window: &slint::Weak<RulersWindow>,
-    time_slider_window: &slint::Weak<TimeSliderWindow>,
-) {
-    let (Some(main_window), Some(rulers_window), Some(time_slider_window)) = (
-        main_window.upgrade(),
-        rulers_window.upgrade(),
-        time_slider_window.upgrade(),
-    ) else {
-        return;
-    };
-    let _ = main_window.window().with_winit_window(|main_native| {
-        let Ok(main_position) = main_native.outer_position() else {
-            return;
-        };
-        let main_height = main_native.inner_size().height as i32;
-        let ruler_height =
-            (463.0 * main_window.get_clock_scale() * main_native.scale_factor() as f32).round()
-                as i32;
-        let _ = rulers_window.window().with_winit_window(|ruler_native| {
-            ruler_native.set_outer_position(PhysicalPosition::new(
-                main_position.x,
-                main_position.y + main_height,
-            ));
-        });
-        let _ = time_slider_window
-            .window()
-            .with_winit_window(|slider_native| {
-                slider_native.set_outer_position(PhysicalPosition::new(
-                    main_position.x,
-                    main_position.y + main_height + ruler_height,
-                ));
-            });
-    });
 }
 
 fn sync_main_window_size(window: &AppWindow) {
@@ -1655,108 +1392,6 @@ fn ruler_time_step_to_utc(settings: &AppSettings, time_step: f32) -> DateTime<Ut
             },
         )
         .unwrap_or_else(Utc::now)
-}
-
-fn update_settings_preview(window: &SettingsWindow, settings: &[ClockSettings]) {
-    let clocks: Vec<ClockListItem> = settings
-        .iter()
-        .map(|settings| ClockListItem {
-            label: settings.label.clone().into(),
-            time_zone: settings.time_zone.clone().into(),
-            accent: parse_color(&settings.color),
-            is_main: settings.is_main,
-        })
-        .collect();
-
-    window.set_clocks(ModelRc::new(VecModel::from(clocks)));
-}
-
-fn select_clock(window: &SettingsWindow, settings: &[ClockSettings], index: i32) {
-    if let Some(clock) = settings.get(index.max(0) as usize) {
-        window.set_selected_section(1);
-        window.set_selected_index(index.max(0));
-        window.set_editor_label(clock.label.clone().into());
-        window.set_editor_time_zone(clock.time_zone.clone().into());
-        window.set_selected_time_zone_index(time_zone_index(&clock.time_zone));
-        window.set_editor_color(clock.color.clone().into());
-        window.set_editor_preview_color(parse_color(&clock.color));
-        window.set_editor_is_main(clock.is_main);
-        window.set_status_message("".into());
-    }
-}
-
-fn time_zone_index(time_zone: &str) -> i32 {
-    let now = Utc::now();
-    let mut time_zones: Vec<(String, i32)> = TZ_VARIANTS
-        .iter()
-        .map(|candidate| {
-            (
-                candidate.to_string(),
-                time_zone_offset_seconds(*candidate, now),
-            )
-        })
-        .collect();
-    time_zones.sort_by(|left, right| left.1.cmp(&right.1).then_with(|| left.0.cmp(&right.0)));
-    time_zones
-        .iter()
-        .position(|(candidate, _)| candidate == time_zone)
-        .map(|index| index as i32)
-        .unwrap_or(-1)
-}
-
-fn time_zone_display_name(time_zone: Tz, now: DateTime<Utc>) -> String {
-    let offset_seconds = time_zone_offset_seconds(time_zone, now);
-    let sign = if offset_seconds < 0 { '-' } else { '+' };
-    let total_minutes = offset_seconds.unsigned_abs() / 60;
-    format!(
-        "(UTC{sign}{:02}:{:02}) {time_zone}",
-        total_minutes / 60,
-        total_minutes % 60
-    )
-}
-
-fn time_zone_offset_seconds(time_zone: Tz, now: DateTime<Utc>) -> i32 {
-    now.with_timezone(&time_zone)
-        .offset()
-        .fix()
-        .local_minus_utc()
-}
-
-fn move_selected_clock(window: &SettingsWindow, settings: &mut Vec<ClockSettings>, direction: i32) {
-    let from = window.get_selected_index();
-    let to = from + direction;
-    if from < 0 || to < 0 || to >= settings.len() as i32 {
-        return;
-    }
-    execute_clock_command(
-        settings,
-        ClockCommand::Move {
-            from: from as usize,
-            to: to as usize,
-        },
-    );
-    update_settings_preview(window, settings);
-    select_clock(window, settings, to);
-}
-
-fn move_clock_to(window: &SettingsWindow, settings: &mut Vec<ClockSettings>, from: i32, to: i32) {
-    if from < 0
-        || to < 0
-        || from >= settings.len() as i32
-        || to >= settings.len() as i32
-        || from == to
-    {
-        return;
-    }
-    execute_clock_command(
-        settings,
-        ClockCommand::Move {
-            from: from as usize,
-            to: to as usize,
-        },
-    );
-    update_settings_preview(window, settings);
-    select_clock(window, settings, to);
 }
 
 fn refresh_clock_order(

@@ -37,7 +37,7 @@ Do not create all crates before they carry real behavior. Begin with `domain`, `
 
 ## Current Rewrite Structure
 
-The executable entry point in `apps/oziclock-desktop/src/main.rs` is intentionally limited to starting the desktop adapter. Slint callback wiring and desktop-only integration live under `apps/oziclock-desktop/src/desktop/`; new framework-free behavior must not be added there.
+The executable entry point in `apps/oziclock-desktop/src/main.rs` is intentionally limited to starting the desktop adapter. Slint callback wiring and desktop-only integration live under `apps/oziclock-desktop/src/desktop/`; new framework-free behavior must not be added there. Within that adapter, system tray events, clock refresh scheduling, native window dragging, settings bindings, and color conversion are isolated in focused modules.
 
 The world-clock model and collection invariants are owned by `oziclock-domain`. Clock editing enters through typed commands in `oziclock-app`. `oziclock-storage` owns the serialized settings document and reuses the domain clock type through its serialization feature. This feature boundary keeps serialization support optional for other domain consumers.
 
