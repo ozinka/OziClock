@@ -56,7 +56,7 @@ The transparent center preserves sharp labels; the shaded upper and lower edges 
 - All columns show the same UTC instant converted into their own zones. Labels must handle whole-hour, half-hour, and 45-minute offsets.
 - Movement must remain bounded; neither focus may leave the ruler surface.
 - Pointer capture must continue a drag when the pointer temporarily leaves the handle and release cleanly on pointer-up or cancellation.
-- The ruler panel is positioned directly below the clock strip; the slider panel is positioned directly below the rulers. The single native window resizes its clipped viewport when the mode, scale, or clock count changes.
+- The ruler panel is positioned directly below the currently visible compact or standard clock strip; the slider panel is positioned directly below the rulers. Compact/standard clock height is independent of ruler visibility, and the single native window resizes its clipped viewport when either state, scale, or clock count changes.
 
 ## Slint Rendering Design
 

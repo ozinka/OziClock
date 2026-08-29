@@ -34,6 +34,7 @@ export component AppWindow inherits Window {
     in-out property <float> focus-progress: 0;
     in-out property <float> time-step: 0;
     in-out property <length> menu-x: 0px;
+    property <length> visible-clock-height: root.compact-mode ? 31px : 62px;
     pure callback format-label(int, int) -> string;
     callback request-focus-column(int);
     callback request-focus-progress(float);
@@ -55,7 +56,7 @@ export component AppWindow inherits Window {
     no-frame: true;
     always-on-top: root.top-most;
     preferred-width: (100px * root.clocks.length + 1px) * root.clock-scale;
-    preferred-height: (root.show-rulers ? 594px : root.compact-mode ? 31px : 62px) * root.clock-scale;
+    preferred-height: (root.visible-clock-height + (root.show-rulers ? 532px : 0px)) * root.clock-scale;
     min-width: 101px * root.clock-scale;
     min-height: 31px * root.clock-scale;
     max-height: 594px * root.clock-scale;
@@ -71,7 +72,7 @@ export component AppWindow inherits Window {
         animate opacity { duration: 300ms; }
 
         clock-strip := Rectangle {
-            y: root.compact-mode && !root.show-rulers ? -31px * root.clock-scale : 0px;
+            y: root.compact-mode ? -31px * root.clock-scale : 0px;
             width: parent.width;
             height: 62px * root.clock-scale;
             background: #000000;
@@ -120,7 +121,7 @@ export component AppWindow inherits Window {
         }
 
         RulersPanel {
-            y: 62px * root.clock-scale;
+            y: root.visible-clock-height * root.clock-scale;
             visible: root.show-rulers;
             rulers: root.rulers;
             tick-indices: root.tick-indices;
@@ -135,7 +136,7 @@ export component AppWindow inherits Window {
         }
 
         TimeSliderPanel {
-            y: 525px * root.clock-scale;
+            y: (root.visible-clock-height + 463px) * root.clock-scale;
             visible: root.show-rulers;
             clock-count: root.clocks.length;
             hour-labels: root.hour-labels;

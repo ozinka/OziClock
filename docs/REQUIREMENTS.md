@@ -23,7 +23,7 @@ This catalog is derived from the WPF source, its bundled screenshots, and the in
 
 - **MODE-01 (Legacy):** Standard mode displays the complete 99 × 60 logical-pixel tile: zone label and month/day on top, time below.
 - **MODE-02 (Legacy):** Compact mode folds the strip to approximately 29 logical pixels high, hiding the date/header area and leaving the time visible. Switching is available through General settings and middle-click and uses a 200 ms animation. During the transition, full-height tiles remain bottom-anchored and are clipped by the shrinking window.
-- **MODE-03:** The clock strip, rulers, and time slider share one native window and one clipped viewport. Compact, standard, and extended modes resize that viewport to reveal the required portion of a single composed surface. Switching is available through `Show/Hide Rulers` and double-click.
+- **MODE-03:** The clock strip, rulers, and time slider share one native window and one clipped viewport. Compact/standard clock height and ruler visibility are independent states: middle-click changes only clock height, while `Show/Hide Rulers` and double-click change only ruler visibility. The viewport resizes to reveal the resulting portion of a single composed surface, including compact clocks with visible rulers.
 - **MODE-03A:** The clock strip remains fully opaque while rulers are visible, regardless of the configured inactive opacity.
 - **MODE-04:** Mode changes must preserve tile order, selected main zone, window position, colors, and current settings.
 - **MODE-05 (New):** Persist the selected display mode across restarts.

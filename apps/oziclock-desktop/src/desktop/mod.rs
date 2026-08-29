@@ -1038,13 +1038,12 @@ fn sync_main_window_size(window: &AppWindow) {
         let system_scale = native.scale_factor() as f32;
         let clock_scale = window.get_clock_scale();
         let logical_width = 1.0 + 100.0 * window.get_clocks().row_count() as f32;
-        let logical_height = if window.get_show_rulers() {
-            594.0
-        } else if window.get_compact_mode() {
+        let clock_height = if window.get_compact_mode() {
             31.0
         } else {
             62.0
         };
+        let logical_height = clock_height + if window.get_show_rulers() { 532.0 } else { 0.0 };
         let _ = native.request_inner_size(PhysicalSize::new(
             (logical_width * clock_scale * system_scale).round() as u32,
             (logical_height * clock_scale * system_scale).round() as u32,
@@ -1071,11 +1070,7 @@ fn position_auxiliary_window_near_clock(window: &slint::Window, owner: &slint::W
             let maximum_top = (work_area.bottom - settings_size.height as i32).max(work_area.top);
             let preferred_left =
                 owner_position.x + (owner_size.width as i32 - settings_size.width as i32) / 2;
-            let clock_height = if owner.get_compact_mode() && !owner.get_show_rulers() {
-                31.0
-            } else {
-                62.0
-            };
+            let clock_height = if owner.get_compact_mode() { 31.0 } else { 62.0 };
             let below_owner = owner_position.y
                 + (clock_height * owner.get_clock_scale() * owner_native.scale_factor() as f32)
                     .round() as i32
@@ -1208,11 +1203,7 @@ fn show_context_menu(context_menu: &ContextMenuWindow, owner: &AppWindow) {
             let requested_left = owner_position.x + (requested_x * scale_factor as f32) as i32;
             let maximum_left = work_area.right - menu_size.width as i32;
             let left = requested_left.clamp(work_area.left, maximum_left);
-            let clock_height = if owner.get_compact_mode() && !owner.get_show_rulers() {
-                31.0
-            } else {
-                62.0
-            };
+            let clock_height = if owner.get_compact_mode() { 31.0 } else { 62.0 };
             let below = owner_position.y
                 + (clock_height * owner.get_clock_scale() * scale_factor as f32).round() as i32;
             let above = owner_position.y - menu_size.height as i32;
