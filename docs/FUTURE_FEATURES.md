@@ -17,6 +17,18 @@ This document reserves architectural space without committing the first release 
 - **Time-zone search:** Add a searchable IANA time-zone picker that preserves the current offset-then-name ordering, matches both identifiers and display names, and remains keyboard accessible.
 - **Color-picker initial state:** When opening the custom color picker, initialize its hue, saturation, value, and selection marker from the clock's existing accent color instead of its default palette position.
 
+### Calendar Panel
+
+- Add an optional calendar panel for quickly checking dates without turning the clock strip into a permanent dashboard.
+- Explore week, month, and year views. The month view is the likely default; week and year views should reuse the same navigation and selection language.
+- Visually distinguish weekends while keeping ordinary weekdays quiet. The first day of the week must be configurable as Monday or Sunday, with Monday as the default.
+- Reuse the visual character of the clock: compact typography, a pleasant dark-to-accent surface, and subtle edge shading or fading. Derive the accent from the main clock by default while preserving readable contrast.
+- Keep date selection and calendar navigation independent from reminder behavior. A selected date may become an entry point for reminders later, but the first calendar iteration does not create or schedule them.
+- Prototype the interaction and proportions in HTML before implementing the Slint component. Compare attached-panel and independently positioned variants, all three time ranges, weekend emphasis, navigation density, and behavior at different clock scales.
+- Avoid background polling. The panel should derive its current-date state from the shared application clock and request refresh only at the next relevant date boundary or when opened.
+
+Open design decisions include whether the panel attaches below the whole clock strip or the main tile, whether week and year are persistent modes or temporary zoom levels, how adjacent-month days appear, and whether weekend definitions should later follow locale-specific rules.
+
 ### Alarms
 
 - One-time or recurring local-time alarms.
