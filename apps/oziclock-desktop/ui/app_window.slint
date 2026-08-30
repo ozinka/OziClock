@@ -45,6 +45,8 @@ export component AppWindow inherits Window {
     callback request-window-drag-start(float, float);
     callback request-window-drag-move(float, float);
     callback request-window-drag-end();
+    callback request-clock-click();
+    callback request-clock-double-click();
     callback request-open-menu();
     callback request-open-settings();
     callback request-open-about();
@@ -110,12 +112,22 @@ export component AppWindow inherits Window {
             }
 
             interaction := TouchArea {
-                double-clicked => { root.request-toggle-rulers(); }
+                property <bool> left-pressed: false;
+                property <bool> dragged: false;
+                property <float> press-x: 0;
+                property <float> press-y: 0;
+                clicked => { if (!self.dragged) { root.request-clock-click(); } }
+                double-clicked => { root.request-clock-double-click(); root.request-toggle-rulers(); }
                 pointer-event(event) => {
                     if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                        self.left-pressed = true;
+                        self.dragged = false;
+                        self.press-x = self.mouse-x / 1px;
+                        self.press-y = self.mouse-y / 1px;
                         root.request-window-drag-start(self.mouse-x / 1px, self.mouse-y / 1px);
                     }
                     if ((event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) && event.button == PointerEventButton.left) {
+                        self.left-pressed = false;
                         root.request-window-drag-end();
                     }
                     if (event.kind == PointerEventKind.up && event.button == PointerEventButton.right) {
@@ -126,7 +138,12 @@ export component AppWindow inherits Window {
                         root.request-toggle-compact();
                     }
                 }
-                moved => { root.request-window-drag-move(self.mouse-x / 1px, self.mouse-y / 1px); }
+                moved => {
+                    if (self.left-pressed && (abs(self.mouse-x / 1px - self.press-x) > 4 || abs(self.mouse-y / 1px - self.press-y) > 4)) {
+                        self.dragged = true;
+                    }
+                    root.request-window-drag-move(self.mouse-x / 1px, self.mouse-y / 1px);
+                }
             }
         }
 

@@ -930,14 +930,24 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     });
 
     let calendar_refresh_generation = Rc::new(Cell::new(0_u64));
+    let calendar_recently_lost_focus = Rc::new(Cell::new(false));
     let calendar_for_keyboard = calendar_window.as_weak();
     let calendar_generation_for_keyboard = calendar_refresh_generation.clone();
+    let calendar_focus_guard = calendar_recently_lost_focus.clone();
     calendar_window
         .window()
         .on_winit_window_event(move |_, event| {
-            if is_escape_key(event) || matches!(event, WindowEvent::CloseRequested) {
+            let lost_focus = matches!(event, WindowEvent::Focused(false));
+            if is_escape_key(event) || matches!(event, WindowEvent::CloseRequested) || lost_focus {
                 if let Some(calendar) = calendar_for_keyboard.upgrade() {
                     let _ = calendar.hide();
+                }
+                if lost_focus {
+                    calendar_focus_guard.set(true);
+                    let guard = calendar_focus_guard.clone();
+                    slint::Timer::single_shot(Duration::from_millis(500), move || {
+                        guard.set(false);
+                    });
                 }
                 calendar_generation_for_keyboard
                     .set(calendar_generation_for_keyboard.get().wrapping_add(1));
@@ -1085,42 +1095,52 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             let _ = menu.hide();
         }
         if let Some(calendar) = calendar_for_menu.upgrade() {
-            {
-                let settings = settings_for_calendar_menu.borrow();
-                let mut state = calendar_state_for_menu.borrow_mut();
-                state.light_theme = settings.calendar_light_theme;
-                state.monday_first = settings.calendar_monday_first;
-            }
-            calendar.set_accent(main_clock_accent(&settings_for_calendar_menu.borrow()));
-            calendar.set_corner_radius(
-                settings_for_calendar_menu
-                    .borrow()
-                    .corner_radius
-                    .clamp(0.0, 15.5) as f32,
-            );
-            refresh_calendar_from_settings(
+            open_calendar_window(
                 &calendar,
-                &calendar_state_for_menu.borrow(),
-                &settings_for_calendar_menu.borrow(),
-            );
-            if calendar_state_for_menu.borrow().view == CalendarView::Week {
-                let now = calendar_local_now(&settings_for_calendar_menu.borrow());
-                calendar.set_week_scroll_y(initial_week_scroll_y(now));
-            }
-            let _ = calendar.show();
-            hide_auxiliary_window_from_taskbar(calendar.window());
-            position_calendar_window(calendar.window(), &main_for_calendar);
-            focus_auxiliary_window(calendar.window());
-            let revision = calendar_generation_for_menu.get().wrapping_add(1);
-            calendar_generation_for_menu.set(revision);
-            schedule_calendar_boundary_refresh(
-                calendar.as_weak(),
-                calendar_state_for_menu.clone(),
-                settings_for_calendar_menu.clone(),
-                calendar_generation_for_menu.clone(),
-                revision,
+                &main_for_calendar,
+                &calendar_state_for_menu,
+                &settings_for_calendar_menu,
+                &calendar_generation_for_menu,
             );
         }
+    });
+    let clock_click_generation = Rc::new(Cell::new(0_u64));
+    let click_generation_for_double = clock_click_generation.clone();
+    window.on_request_clock_double_click(move || {
+        click_generation_for_double.set(click_generation_for_double.get().wrapping_add(1));
+    });
+    let calendar_for_clock_click = calendar_window.as_weak();
+    let main_for_clock_click = window.as_weak();
+    let state_for_clock_click = calendar_state.clone();
+    let settings_for_clock_click = shared_settings.clone();
+    let calendar_refresh_for_clock_click = calendar_refresh_generation.clone();
+    let click_generation = clock_click_generation.clone();
+    let focus_guard_for_click = calendar_recently_lost_focus.clone();
+    window.on_request_clock_click(move || {
+        if focus_guard_for_click.replace(false) {
+            return;
+        }
+        let revision = click_generation.get().wrapping_add(1);
+        click_generation.set(revision);
+        let calendar = calendar_for_clock_click.clone();
+        let main = main_for_clock_click.clone();
+        let state = state_for_clock_click.clone();
+        let settings = settings_for_clock_click.clone();
+        let calendar_refresh = calendar_refresh_for_clock_click.clone();
+        let generation = click_generation.clone();
+        slint::Timer::single_shot(Duration::from_millis(450), move || {
+            if generation.get() != revision {
+                return;
+            }
+            if let Some(calendar) = calendar.upgrade() {
+                if calendar.window().is_visible() {
+                    let _ = calendar.hide();
+                    calendar_refresh.set(calendar_refresh.get().wrapping_add(1));
+                } else {
+                    open_calendar_window(&calendar, &main, &state, &settings, &calendar_refresh);
+                }
+            }
+        });
     });
 
     let about_window = AboutWindow::new()?;
@@ -1538,6 +1558,42 @@ fn position_auxiliary_window_near_clock(window: &slint::Window, owner: &slint::W
             ));
         });
     });
+}
+
+fn open_calendar_window(
+    calendar: &CalendarWindow,
+    owner: &slint::Weak<AppWindow>,
+    state: &Rc<RefCell<CalendarState>>,
+    settings: &Rc<RefCell<AppSettings>>,
+    refresh_generation: &Rc<Cell<u64>>,
+) {
+    {
+        let settings = settings.borrow();
+        let mut state = state.borrow_mut();
+        state.light_theme = settings.calendar_light_theme;
+        state.monday_first = settings.calendar_monday_first;
+    }
+    calendar.set_accent(main_clock_accent(&settings.borrow()));
+    calendar.set_corner_radius(settings.borrow().corner_radius.clamp(0.0, 15.5) as f32);
+    refresh_calendar_from_settings(calendar, &state.borrow(), &settings.borrow());
+    if state.borrow().view == CalendarView::Week {
+        calendar.set_week_scroll_y(initial_week_scroll_y(calendar_local_now(
+            &settings.borrow(),
+        )));
+    }
+    let _ = calendar.show();
+    hide_auxiliary_window_from_taskbar(calendar.window());
+    position_calendar_window(calendar.window(), owner);
+    focus_auxiliary_window(calendar.window());
+    let revision = refresh_generation.get().wrapping_add(1);
+    refresh_generation.set(revision);
+    schedule_calendar_boundary_refresh(
+        calendar.as_weak(),
+        state.clone(),
+        settings.clone(),
+        refresh_generation.clone(),
+        revision,
+    );
 }
 
 fn position_calendar_window(window: &slint::Window, owner: &slint::Weak<AppWindow>) {
