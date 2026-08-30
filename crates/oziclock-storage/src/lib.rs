@@ -141,7 +141,10 @@ pub fn settings_path() -> io::Result<PathBuf> {
         )
     })?;
 
-    Ok(directory.join("settings.json"))
+    #[cfg(not(target_os = "macos"))]
+    {
+        Ok(directory.join("settings.json"))
+    }
 }
 
 /// Loads settings, creating the default JSON file on first launch.
