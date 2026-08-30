@@ -1,5 +1,6 @@
 slint::include_modules!();
 
+mod calendar_bindings;
 mod clock_refresh;
 mod colors;
 mod settings_bindings;
@@ -7,6 +8,10 @@ mod settings_bindings;
 mod tray;
 mod window_drag;
 
+use calendar_bindings::{
+    CalendarState, CalendarView, initial_week_scroll_y, normalize_week_scroll,
+    refresh_calendar_window,
+};
 use clock_refresh::schedule_clock_refresh;
 use colors::{color_to_hsv, hsv_color, hsv_hex, parse_color};
 use settings_bindings::{
@@ -24,8 +29,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chrono::{DateTime, LocalResult, Offset, TimeZone, Timelike, Utc};
+use chrono::{DateTime, Datelike, LocalResult, NaiveDateTime, Offset, TimeZone, Timelike, Utc};
 use chrono_tz::Tz;
+use oziclock_app::calendar::CalendarDate;
 use oziclock_app::{ClockCommand, execute_clock_command};
 use oziclock_storage::{AppSettings, ClockSettings};
 use slint::winit_030::EventResult;
@@ -116,12 +122,37 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.set_border_color_value(settings.border_color.clone().into());
     settings_window.set_border_preview_color(parse_color(&settings.border_color));
     settings_window.set_non_main_dimming(settings.non_main_dimming as f32);
+    settings_window.set_calendar_light_theme(settings.calendar_light_theme);
+    settings_window.set_calendar_monday_first(settings.calendar_monday_first);
+    settings_window.set_calendar_hour_range(i32::from(settings.calendar_hour_range.min(2)));
     settings_window.set_opacity_percent((settings.opacity.clamp(0.02, 1.0) * 100.0) as f32);
     update_settings_preview(&settings_window, &settings.clocks_settings);
     select_clock(&settings_window, &settings.clocks_settings, 0);
     settings_window.set_selected_section(0);
     initialize_ruler_content(&window, &settings);
     let shared_settings = Rc::new(RefCell::new(settings));
+    let calendar_window = CalendarWindow::new()?;
+    let initial_calendar_now = calendar_local_now(&shared_settings.borrow());
+    let initial_calendar_date = CalendarDate::new(
+        initial_calendar_now.year(),
+        initial_calendar_now.month(),
+        initial_calendar_now.day(),
+    )
+    .expect("current local date is valid");
+    let mut initial_calendar_state = CalendarState::new(initial_calendar_date);
+    initial_calendar_state.light_theme = shared_settings.borrow().calendar_light_theme;
+    initial_calendar_state.monday_first = shared_settings.borrow().calendar_monday_first;
+    let calendar_state = Rc::new(RefCell::new(initial_calendar_state));
+    calendar_window.set_accent(main_clock_accent(&shared_settings.borrow()));
+    calendar_window
+        .set_corner_radius(shared_settings.borrow().corner_radius.clamp(0.0, 15.5) as f32);
+    refresh_calendar_window(
+        &calendar_window,
+        &calendar_state.borrow(),
+        initial_calendar_date,
+        initial_calendar_now,
+    );
+    calendar_window.set_week_scroll_y(initial_week_scroll_y(initial_calendar_now));
     let explored_time = Rc::new(RefCell::new(None::<DateTime<Utc>>));
     let clock_timer = Rc::new(Timer::default());
     let ruler_label_settings = shared_settings.clone();
@@ -224,6 +255,13 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.on_request_select_general(move || {
         if let Some(editor) = editor.upgrade() {
             editor.set_selected_section(0);
+            editor.set_color_picker_open(false);
+        }
+    });
+    let editor = settings_window.as_weak();
+    settings_window.on_request_select_calendar(move || {
+        if let Some(editor) = editor.upgrade() {
+            editor.set_selected_section(2);
             editor.set_color_picker_open(false);
         }
     });
@@ -553,6 +591,38 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             main_window.set_inactive_opacity(opacity);
         }
     });
+    let state = shared_settings.clone();
+    let calendar = calendar_window.as_weak();
+    let calendar_state_for_theme = calendar_state.clone();
+    settings_window.on_request_set_calendar_light_theme(move |light_theme| {
+        state.borrow_mut().calendar_light_theme = light_theme;
+        calendar_state_for_theme.borrow_mut().light_theme = light_theme;
+        if let Some(calendar) = calendar.upgrade() {
+            refresh_calendar_from_settings(
+                &calendar,
+                &calendar_state_for_theme.borrow(),
+                &state.borrow(),
+            );
+        }
+    });
+    let state = shared_settings.clone();
+    let calendar = calendar_window.as_weak();
+    let calendar_state_for_week_start = calendar_state.clone();
+    settings_window.on_request_set_calendar_monday_first(move |monday_first| {
+        state.borrow_mut().calendar_monday_first = monday_first;
+        calendar_state_for_week_start.borrow_mut().monday_first = monday_first;
+        if let Some(calendar) = calendar.upgrade() {
+            refresh_calendar_from_settings(
+                &calendar,
+                &calendar_state_for_week_start.borrow(),
+                &state.borrow(),
+            );
+        }
+    });
+    let state = shared_settings.clone();
+    settings_window.on_request_set_calendar_hour_range(move |hour_range| {
+        state.borrow_mut().calendar_hour_range = hour_range.clamp(0, 2) as u8;
+    });
     let editor = settings_window.as_weak();
     settings_window.on_request_select_time_zone(move |index| {
         if let Some(editor) = editor.upgrade()
@@ -773,6 +843,21 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.on_request_save(move || {
         if let Some(editor) = editor.upgrade() {
             let mut state = state.borrow_mut();
+            if editor.get_selected_section() != 1 {
+                if let Some(main_window) = main_window.upgrade() {
+                    persist_main_window_position(&main_window, &mut state);
+                }
+                persist_settings_window_size(&editor, &mut state);
+                match oziclock_storage::save(&state) {
+                    Ok(()) => {
+                        *saved.borrow_mut() = state.clone();
+                        let _ = editor.hide();
+                        set_main_window_modal(&main_window_for_save_modal, false);
+                    }
+                    Err(error) => editor.set_status_message(format!("Save failed: {error}").into()),
+                }
+                return;
+            }
             let index = editor.get_selected_index();
             if index < 0 || editor.get_editor_time_zone().parse::<Tz>().is_err() {
                 editor.set_status_message(
@@ -841,6 +926,200 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             (weak_context_menu.upgrade(), weak_window_for_menu.upgrade())
         {
             show_context_menu(&context_menu, &window);
+        }
+    });
+
+    let calendar_refresh_generation = Rc::new(Cell::new(0_u64));
+    let calendar_for_keyboard = calendar_window.as_weak();
+    let calendar_generation_for_keyboard = calendar_refresh_generation.clone();
+    calendar_window
+        .window()
+        .on_winit_window_event(move |_, event| {
+            if is_escape_key(event) || matches!(event, WindowEvent::CloseRequested) {
+                if let Some(calendar) = calendar_for_keyboard.upgrade() {
+                    let _ = calendar.hide();
+                }
+                calendar_generation_for_keyboard
+                    .set(calendar_generation_for_keyboard.get().wrapping_add(1));
+                return EventResult::PreventDefault;
+            }
+            EventResult::Propagate
+        });
+    let calendar_for_close = calendar_window.as_weak();
+    let calendar_generation_for_close = calendar_refresh_generation.clone();
+    calendar_window.on_request_close(move || {
+        if let Some(calendar) = calendar_for_close.upgrade() {
+            let _ = calendar.hide();
+        }
+        calendar_generation_for_close.set(calendar_generation_for_close.get().wrapping_add(1));
+    });
+    let calendar_for_drag = calendar_window.as_weak();
+    calendar_window.on_request_window_drag(move || {
+        if let Some(calendar) = calendar_for_drag.upgrade() {
+            let _ = calendar
+                .window()
+                .with_winit_window(|window| window.drag_window());
+        }
+    });
+    let calendar_for_view = calendar_window.as_weak();
+    let calendar_state_for_view = calendar_state.clone();
+    let settings_for_calendar_view = shared_settings.clone();
+    calendar_window.on_request_view(move |view| {
+        if let Some(calendar) = calendar_for_view.upgrade() {
+            let now = calendar_local_now(&settings_for_calendar_view.borrow());
+            let next_view = CalendarView::from_index(view);
+            {
+                let mut state = calendar_state_for_view.borrow_mut();
+                state.view = next_view;
+                if next_view == CalendarView::Week {
+                    state.cursor = CalendarDate::new(now.year(), now.month(), now.day())
+                        .expect("current date is valid");
+                }
+            }
+            refresh_calendar_from_settings(
+                &calendar,
+                &calendar_state_for_view.borrow(),
+                &settings_for_calendar_view.borrow(),
+            );
+            if next_view == CalendarView::Week {
+                calendar.set_week_scroll_y(initial_week_scroll_y(now));
+            }
+        }
+    });
+    let calendar_for_previous = calendar_window.as_weak();
+    let calendar_state_for_previous = calendar_state.clone();
+    let settings_for_calendar_previous = shared_settings.clone();
+    calendar_window.on_request_previous(move || {
+        if let Some(calendar) = calendar_for_previous.upgrade() {
+            calendar_state_for_previous.borrow_mut().navigate(-1);
+            refresh_calendar_from_settings(
+                &calendar,
+                &calendar_state_for_previous.borrow(),
+                &settings_for_calendar_previous.borrow(),
+            );
+        }
+    });
+    let calendar_for_next = calendar_window.as_weak();
+    let calendar_state_for_next = calendar_state.clone();
+    let settings_for_calendar_next = shared_settings.clone();
+    calendar_window.on_request_next(move || {
+        if let Some(calendar) = calendar_for_next.upgrade() {
+            calendar_state_for_next.borrow_mut().navigate(1);
+            refresh_calendar_from_settings(
+                &calendar,
+                &calendar_state_for_next.borrow(),
+                &settings_for_calendar_next.borrow(),
+            );
+        }
+    });
+    let calendar_for_today = calendar_window.as_weak();
+    let calendar_state_for_today = calendar_state.clone();
+    let settings_for_calendar_today = shared_settings.clone();
+    calendar_window.on_request_today(move || {
+        if let Some(calendar) = calendar_for_today.upgrade() {
+            let now = calendar_local_now(&settings_for_calendar_today.borrow());
+            let today = CalendarDate::new(now.year(), now.month(), now.day())
+                .expect("current date is valid");
+            let mut state = calendar_state_for_today.borrow_mut();
+            state.cursor = today;
+            state.selected = today;
+            refresh_calendar_window(&calendar, &state, today, now);
+            if state.view == CalendarView::Week {
+                calendar.set_week_scroll_y(initial_week_scroll_y(now));
+            }
+        }
+    });
+    let calendar_for_date = calendar_window.as_weak();
+    let calendar_state_for_date = calendar_state.clone();
+    let settings_for_calendar_date = shared_settings.clone();
+    calendar_window.on_request_select_date(move |date_id| {
+        if let Some(calendar) = calendar_for_date.upgrade() {
+            calendar_state_for_date
+                .borrow_mut()
+                .select_date(date_id.as_str());
+            refresh_calendar_from_settings(
+                &calendar,
+                &calendar_state_for_date.borrow(),
+                &settings_for_calendar_date.borrow(),
+            );
+        }
+    });
+    let calendar_for_month = calendar_window.as_weak();
+    let calendar_state_for_month = calendar_state.clone();
+    let settings_for_calendar_month = shared_settings.clone();
+    calendar_window.on_request_select_month(move |month| {
+        if let Some(calendar) = calendar_for_month.upgrade() {
+            calendar_state_for_month.borrow_mut().select_month(month);
+            refresh_calendar_from_settings(
+                &calendar,
+                &calendar_state_for_month.borrow(),
+                &settings_for_calendar_month.borrow(),
+            );
+        }
+    });
+    let calendar_for_scroll = calendar_window.as_weak();
+    let calendar_state_for_scroll = calendar_state.clone();
+    let settings_for_calendar_scroll = shared_settings.clone();
+    calendar_window.on_request_week_scroll(move |y| {
+        if let Some(calendar) = calendar_for_scroll.upgrade() {
+            let (adjusted, shifted) =
+                normalize_week_scroll(&mut calendar_state_for_scroll.borrow_mut(), y);
+            if shifted {
+                refresh_calendar_from_settings(
+                    &calendar,
+                    &calendar_state_for_scroll.borrow(),
+                    &settings_for_calendar_scroll.borrow(),
+                );
+                calendar.set_week_scroll_y(adjusted);
+            }
+        }
+    });
+    let weak_context_for_calendar = context_menu.as_weak();
+    let calendar_for_menu = calendar_window.as_weak();
+    let main_for_calendar = window.as_weak();
+    let calendar_state_for_menu = calendar_state.clone();
+    let settings_for_calendar_menu = shared_settings.clone();
+    let calendar_generation_for_menu = calendar_refresh_generation.clone();
+    context_menu.on_request_open_calendar(move || {
+        if let Some(menu) = weak_context_for_calendar.upgrade() {
+            let _ = menu.hide();
+        }
+        if let Some(calendar) = calendar_for_menu.upgrade() {
+            {
+                let settings = settings_for_calendar_menu.borrow();
+                let mut state = calendar_state_for_menu.borrow_mut();
+                state.light_theme = settings.calendar_light_theme;
+                state.monday_first = settings.calendar_monday_first;
+            }
+            calendar.set_accent(main_clock_accent(&settings_for_calendar_menu.borrow()));
+            calendar.set_corner_radius(
+                settings_for_calendar_menu
+                    .borrow()
+                    .corner_radius
+                    .clamp(0.0, 15.5) as f32,
+            );
+            refresh_calendar_from_settings(
+                &calendar,
+                &calendar_state_for_menu.borrow(),
+                &settings_for_calendar_menu.borrow(),
+            );
+            if calendar_state_for_menu.borrow().view == CalendarView::Week {
+                let now = calendar_local_now(&settings_for_calendar_menu.borrow());
+                calendar.set_week_scroll_y(initial_week_scroll_y(now));
+            }
+            let _ = calendar.show();
+            hide_auxiliary_window_from_taskbar(calendar.window());
+            position_calendar_window(calendar.window(), &main_for_calendar);
+            focus_auxiliary_window(calendar.window());
+            let revision = calendar_generation_for_menu.get().wrapping_add(1);
+            calendar_generation_for_menu.set(revision);
+            schedule_calendar_boundary_refresh(
+                calendar.as_weak(),
+                calendar_state_for_menu.clone(),
+                settings_for_calendar_menu.clone(),
+                calendar_generation_for_menu.clone(),
+                revision,
+            );
         }
     });
 
@@ -947,6 +1226,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let settings_window_for_shutdown = settings_window.as_weak();
     let context_menu_for_shutdown = context_menu.as_weak();
     let about_window_for_shutdown = about_window.as_weak();
+    let calendar_window_for_shutdown = calendar_window.as_weak();
     window.window().on_winit_window_event(move |_, event| {
         if matches!(event, WindowEvent::CloseRequested) {
             save_state_before_exit(
@@ -962,6 +1242,9 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             }
             if let Some(about_window) = about_window_for_shutdown.upgrade() {
                 let _ = about_window.hide();
+            }
+            if let Some(calendar_window) = calendar_window_for_shutdown.upgrade() {
+                let _ = calendar_window.hide();
             }
             let _ = slint::quit_event_loop();
             return EventResult::PreventDefault;
@@ -1255,6 +1538,94 @@ fn position_auxiliary_window_near_clock(window: &slint::Window, owner: &slint::W
             ));
         });
     });
+}
+
+fn position_calendar_window(window: &slint::Window, owner: &slint::Weak<AppWindow>) {
+    let Some(owner) = owner.upgrade() else {
+        return;
+    };
+    let _ = owner.window().with_winit_window(|owner_native| {
+        let Ok(owner_position) = owner_native.outer_position() else {
+            return;
+        };
+        let Some(work_area) = monitor_work_area(owner_native) else {
+            return;
+        };
+        let _ = window.with_winit_window(|calendar| {
+            let owner_size = owner_native.outer_size();
+            let calendar_size = calendar.outer_size();
+            let centered_left =
+                owner_position.x + (owner_size.width as i32 - calendar_size.width as i32) / 2;
+            let left = centered_left.clamp(
+                work_area.left,
+                (work_area.right - calendar_size.width as i32).max(work_area.left),
+            );
+            let below = owner_position.y + owner_size.height as i32;
+            let above = owner_position.y - calendar_size.height as i32;
+            let top = if below + calendar_size.height as i32 <= work_area.bottom {
+                below
+            } else {
+                above.max(work_area.top)
+            };
+            calendar.set_outer_position(PhysicalPosition::new(left, top));
+        });
+    });
+}
+
+fn calendar_local_now(settings: &AppSettings) -> NaiveDateTime {
+    let zone = settings
+        .clocks_settings
+        .iter()
+        .find(|clock| clock.is_main)
+        .and_then(|clock| clock.time_zone.parse::<Tz>().ok())
+        .unwrap_or(chrono_tz::UTC);
+    Utc::now().with_timezone(&zone).naive_local()
+}
+
+fn refresh_calendar_from_settings(
+    window: &CalendarWindow,
+    state: &CalendarState,
+    settings: &AppSettings,
+) {
+    let now = calendar_local_now(settings);
+    let today =
+        CalendarDate::new(now.year(), now.month(), now.day()).expect("current local date is valid");
+    refresh_calendar_window(window, state, today, now);
+}
+
+fn schedule_calendar_boundary_refresh(
+    window: slint::Weak<CalendarWindow>,
+    state: Rc<RefCell<CalendarState>>,
+    settings: Rc<RefCell<AppSettings>>,
+    generation: Rc<Cell<u64>>,
+    revision: u64,
+) {
+    let seconds = 60 - Utc::now().second() as u64;
+    Timer::single_shot(Duration::from_secs(seconds), move || {
+        if generation.get() != revision {
+            return;
+        }
+        if let Some(window) = window.upgrade() {
+            refresh_calendar_from_settings(&window, &state.borrow(), &settings.borrow());
+            schedule_calendar_boundary_refresh(
+                window.as_weak(),
+                state,
+                settings,
+                generation,
+                revision,
+            );
+        }
+    });
+}
+
+fn main_clock_accent(settings: &AppSettings) -> slint::Color {
+    settings
+        .clocks_settings
+        .iter()
+        .find(|clock| clock.is_main)
+        .or_else(|| settings.clocks_settings.first())
+        .map(|clock| parse_color(&clock.color))
+        .unwrap_or(slint::Color::from_rgb_u8(158, 233, 228))
 }
 
 struct WorkArea {

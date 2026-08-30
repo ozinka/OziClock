@@ -1,5 +1,7 @@
 //! Application-layer composition points for OziClock use cases.
 
+pub mod calendar;
+
 use oziclock_domain::{Clock, ClockCollection};
 
 /// Typed clock-editing intents issued by presentation adapters.

@@ -44,6 +44,9 @@ export component SettingsWindow inherits Window {
     in-out property <string> border-color-value: "#000000";
     in-out property <color> border-preview-color: #000000;
     in-out property <float> non-main-dimming: 0;
+    in-out property <bool> calendar-light-theme: true;
+    in-out property <bool> calendar-monday-first: true;
+    in-out property <int> calendar-hour-range: 0;
     in-out property <string> status-message;
     in-out property <bool> color-picker-open: false;
     in-out property <bool> picking-border-color: false;
@@ -59,6 +62,7 @@ export component SettingsWindow inherits Window {
     callback request-window-drag();
     callback request-select(int);
     callback request-select-general();
+    callback request-select-calendar();
     callback request-add();
     callback request-remove();
     callback request-save();
@@ -88,6 +92,9 @@ export component SettingsWindow inherits Window {
     callback request-set-soft-clock-style(bool);
     callback request-set-border-color(string);
     callback request-set-non-main-dimming(float);
+    callback request-set-calendar-light-theme(bool);
+    callback request-set-calendar-monday-first(bool);
+    callback request-set-calendar-hour-range(int);
 
     Rectangle {
         width: parent.width;
@@ -102,11 +109,12 @@ export component SettingsWindow inherits Window {
         ClockTile { x: parent.width - 127px; y: 94px; visible: root.selected-section == 1; label: root.editor-label; month: "08/"; day: "24"; hour: "12"; minute: "34"; second: "56"; accent: root.editor-preview-color; main-zone: root.editor-is-main; soft-style: root.soft-clock-style; }
         Rectangle { x: 0px; y: 82px; width: 260px; height: parent.height - 82px; background: #202126; }
         Rectangle { x: 14px; y: 120px; width: 232px; height: 37px; border-radius: 6px; background: root.selected-section == 0 ? #31343c : #202126; Text { x: 10px; y: 9px; text: "General"; color: #d7d9de; font-family: "Carlito"; font-size: 14px; } TouchArea { clicked => { root.request-select-general(); } } }
-        Text { x: 28px; y: 174px; text: "CLOCKS"; color: #8f949e; font-family: "Carlito"; font-size: 11px; font-weight: 700; }
+        Rectangle { x: 14px; y: 163px; width: 232px; height: 37px; border-radius: 6px; background: root.selected-section == 2 ? #31343c : #202126; Text { x: 10px; y: 9px; text: "Calendar"; color: #d7d9de; font-family: "Carlito"; font-size: 14px; } TouchArea { clicked => { root.request-select-calendar(); } } }
+        Text { x: 28px; y: 217px; text: "CLOCKS"; color: #8f949e; font-family: "Carlito"; font-size: 11px; font-weight: 700; }
 
         Rectangle {
             x: 14px;
-            y: 195px;
+            y: 238px;
             width: 232px;
             height: 37px;
             border-radius: 6px;
@@ -116,9 +124,9 @@ export component SettingsWindow inherits Window {
         }
         ScrollView {
             x: 0px;
-            y: 240px;
+            y: 283px;
             width: 260px;
-            height: parent.height - 240px;
+            height: parent.height - 283px;
             viewport-width: 260px;
             viewport-height: root.clocks.length * 43px;
             vertical-scrollbar-policy: ScrollBarPolicy.always-on;
@@ -146,7 +154,7 @@ export component SettingsWindow inherits Window {
         }
 
         Rectangle { x: 286px; y: 82px; width: 446px; height: 1px; background: #33353c; }
-        Text { x: 286px; y: 107px; text: root.selected-section == 0 ? "General" : "Edit clock"; color: #f2f3f5; font-family: "Carlito"; font-size: 21px; font-weight: 700; }
+        Text { x: 286px; y: 107px; text: root.selected-section == 0 ? "General" : (root.selected-section == 2 ? "Calendar" : "Edit clock"); color: #f2f3f5; font-family: "Carlito"; font-size: 21px; font-weight: 700; }
         Text { x: 286px; y: 139px; visible: root.selected-section == 1; text: root.status-message; color: #969aa4; font-family: "Carlito"; font-size: 13px; }
         Text { x: 286px; y: 145px; visible: root.selected-section == 0; text: "Application behavior"; color: #969aa4; font-family: "Carlito"; font-size: 13px; }
         Text { x: 286px; y: 185px; visible: root.selected-section == 1; text: "Name"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
@@ -199,6 +207,13 @@ export component SettingsWindow inherits Window {
         Text { x: 286px; y: 568px; visible: root.selected-section == 0; text: "Dim non-primary clocks"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         Slider { x: 286px; y: 588px; width: 310px; height: 24px; visible: root.selected-section == 0; minimum: 0; maximum: 80; step: 5; value <=> root.non-main-dimming; changed => { root.request-set-non-main-dimming(self.value); } }
         Text { x: 612px; y: 587px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.non-main-dimming) + "%"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
+        Text { x: 286px; y: 145px; visible: root.selected-section == 2; text: "Calendar appearance and week layout"; color: #969aa4; font-family: "Carlito"; font-size: 13px; }
+        Text { x: 286px; y: 192px; visible: root.selected-section == 2; text: "Theme"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
+        ComboBox { x: 286px; y: 214px; visible: root.selected-section == 2; width: 240px; height: 40px; model: ["Light", "Dark"]; current-index: root.calendar-light-theme ? 0 : 1; selected => { root.calendar-light-theme = self.current-index == 0; root.request-set-calendar-light-theme(root.calendar-light-theme); } }
+        Text { x: 286px; y: 278px; visible: root.selected-section == 2; text: "First day of week"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
+        ComboBox { x: 286px; y: 300px; visible: root.selected-section == 2; width: 240px; height: 40px; model: ["Monday", "Sunday"]; current-index: root.calendar-monday-first ? 0 : 1; selected => { root.calendar-monday-first = self.current-index == 0; root.request-set-calendar-monday-first(root.calendar-monday-first); } }
+        Text { x: 286px; y: 364px; visible: root.selected-section == 2; text: "Week view"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
+        Text { x: 286px; y: 386px; visible: root.selected-section == 2; text: "Fixed 12-hour viewport · continuous day-by-day scrolling"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; }
         Rectangle {
             x: parent.width - 130px; y: parent.height - 58px; width: 102px; height: 42px; border-radius: 6px; background: #3c81f6;
             Text { width: parent.width; height: parent.height; text: "OK"; color: #ffffff; font-family: "Carlito"; font-size: 14px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-save(); } } }

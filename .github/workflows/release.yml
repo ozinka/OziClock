@@ -80,6 +80,8 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$app_name/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $version" "$app_name/Contents/Info.plist"
+          codesign --force --deep --sign - "$app_name"
+          codesign --verify --deep --strict --verbose=2 "$app_name"
           tar -czf ${{ matrix.archive }} "$app_name"
       - name: Upload release archive
         uses: actions/upload-artifact@v4
@@ -127,5 +129,5 @@ jobs:
             - macOS archive contains `OziClock.app`, which opens directly from Finder without Terminal.
             - Carlito is embedded for consistent text metrics on Windows, macOS, and Linux.
 
-            `settings.json` is created beside the executable on Windows and Linux, or beside `OziClock.app` on macOS. The Windows release is x64; macOS release is Apple Silicon.
+            `settings.json` is created beside the executable on Windows and Linux, or under `~/Library/Application Support/OziClock` on macOS. The Windows release is x64; macOS release is Apple Silicon.
           files: release-assets/*

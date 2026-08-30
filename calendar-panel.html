@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OziClock Calendar Panel Prototype</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111216;
+      --surface: #1a1c21;
+      --surface-raised: #22252b;
+      --line: #353941;
+      --text: #f1f3f5;
+      --muted: #969ca7;
+      --quiet: #656b75;
+      --accent: #81e6df;
+      --accent-strong: #36cfc3;
+      --accent-ink: #092e2b;
+      --weekend: #e5a0a0;
+      --tile-width: 118px;
+      --radius: 14px;
+      --zone-count: 5;
+      --scale: 1;
+      --calendar-min: 460px;
+      --panel-bg: #1a1c21;
+      --panel-highlight: color-mix(in srgb, var(--accent) 12%, var(--surface));
+      --shadow: #0008;
+      font-family: Inter, "Segoe UI", system-ui, sans-serif;
+    }
+
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #bfeeea;
+      --surface: #9ee9e4;
+      --surface-raised: #c9f4f1;
+      --line: #5baaa5;
+      --text: #102625;
+      --muted: #365f5c;
+      --quiet: #6aa19d;
+      --accent: #147b74;
+      --accent-strong: #0c625c;
+      --accent-ink: #f4fffe;
+      --weekend: #963f49;
+      --panel-bg: #ffffff;
+      --panel-highlight: #9ee9e4;
+      --shadow: #275c5840;
+    }
+
+    :root[data-theme="light"] .calendar-header {
+      background: linear-gradient(180deg, #baf1ed 0%, #9ee9e4 100%);
+      border-bottom-color: transparent;
+    }
+
+    :root[data-theme="light"] .calendar-body {
+      background: linear-gradient(180deg, #9ee9e4 0, #d9f7f5 4px, #ffffff 12px);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 15%, #222730 0, var(--bg) 44%);
+      color: var(--text);
+    }
+
+    button, select { font: inherit; }
+
+    .prototype {
+      width: min(94vw, max(var(--calendar-min), calc(var(--tile-width) * var(--zone-count) * var(--scale))));
+      min-width: 340px;
+      filter: drop-shadow(0 24px 70px var(--shadow));
+      transform-origin: top center;
+      transition: width 180ms ease;
+    }
+
+    .clock-strip {
+      display: grid;
+      grid-template-columns: repeat(var(--zone-count), minmax(0, 1fr));
+      width: min(100%, calc(var(--tile-width) * var(--zone-count) * var(--scale)));
+      margin-inline: auto;
+      overflow: hidden;
+      border: 1px solid #050506;
+      border-radius: var(--radius) var(--radius) 0 0;
+      background: #050506;
+    }
+
+    .clock {
+      min-width: 0;
+      padding: 9px 10px 10px;
+      color: #17181b;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--clock) 64%, #fff) 0 44%, var(--clock) 100%);
+      border-right: 1px solid #050506;
+    }
+
+    .clock:last-child { border-right: 0; }
+    .clock.primary { box-shadow: inset 0 -3px var(--accent-ink); }
+
+    .clock-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: .035em;
+    }
+
+    .clock-time {
+      display: flex;
+      align-items: baseline;
+      margin-top: 5px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .clock-time strong { font-size: clamp(18px, 3.5vw, 27px); font-weight: 650; }
+    .clock-time small { margin-left: 3px; font-size: 11px; }
+
+    .calendar-panel {
+      overflow: hidden;
+      border: 1px solid #050506;
+      border-top: 0;
+      border-radius: 0 0 var(--radius) var(--radius);
+      background: linear-gradient(180deg, var(--panel-highlight) 0, var(--panel-bg) 95px);
+    }
+
+    .compact-strip .calendar-panel {
+      border-top: 1px solid #050506;
+      border-radius: var(--radius);
+    }
+
+    .calendar-header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+      padding: 17px 19px 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .calendar-title { min-width: 0; }
+    .eyebrow { color: var(--accent); font-size: 11px; font-weight: 650; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 4px 0 0; font-size: 24px; font-weight: 620; }
+
+    .header-actions, .view-switch, .prototype-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .icon-button, .text-button, .view-button, select {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      color: var(--text);
+      background: var(--surface-raised);
+      cursor: pointer;
+    }
+
+    .icon-button { width: 34px; padding: 0; font-size: 19px; }
+    .text-button, .view-button { padding: 0 11px; }
+    .view-button[aria-pressed="true"] { border-color: var(--accent-strong); color: var(--accent-ink); background: var(--accent); }
+
+    .calendar-body { padding: 13px 19px 19px; }
+    .view-switch { margin-bottom: 13px; }
+
+    .month-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 3px;
+    }
+
+    .weekday {
+      padding: 6px 3px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .weekday.weekend { color: var(--weekend); }
+
+    .day {
+      min-height: 48px;
+      padding: 7px;
+      border: 0;
+      border-radius: 8px;
+      color: var(--text);
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .day:hover { background: #ffffff0c; }
+    :root[data-theme="light"] .day:hover { background: #ffffff38; }
+    .day.outside { color: var(--quiet); }
+    .day.weekend:not(.selected) { color: var(--weekend); }
+    .day.today { box-shadow: inset 0 0 0 1px var(--accent-strong); }
+    .day.selected { color: var(--accent-ink); background: var(--accent); font-weight: 700; }
+
+    .week-timeline { max-height: 600px; overflow-x: hidden; overflow-y: auto; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-bg); }
+    .week-header, .week-hours {
+      display: grid;
+      grid-template-columns: 44px repeat(7, minmax(0, 1fr));
+      width: 100%;
+    }
+    .week-header { position: sticky; top: 0; z-index: 3; background: var(--panel-bg); }
+    .week-header-day { padding: 8px 3px; color: var(--muted); font-size: 10px; font-weight: 650; text-align: center; text-transform: uppercase; }
+    .week-header-day strong { display: block; margin-top: 3px; color: var(--text); font-size: 15px; }
+    .week-header-day.selected strong { display: grid; width: 28px; height: 28px; margin: 3px auto 0; place-items: center; border-radius: 50%; color: var(--accent-ink); background: var(--accent); }
+    .week-hours { grid-auto-rows: 46px; position: relative; }
+    .time-label { position: relative; z-index: 4; padding: 5px 8px 0 0; color: var(--muted); font-size: 10px; text-align: right; transform: translateY(-10px); }
+    .hour-cell { min-width: 0; border: 0; border-left: 1px solid var(--line); background-color: transparent; background-image: repeating-linear-gradient(90deg, color-mix(in srgb, var(--line) 38%, transparent) 0 3px, transparent 3px 11px); background-position: top left; background-repeat: repeat-x; background-size: auto 1px; cursor: pointer; }
+    .hour-cell:hover { background-color: color-mix(in srgb, var(--accent) 11%, transparent); }
+    .hour-cell.selected-column { background-color: color-mix(in srgb, var(--accent) 5%, transparent); }
+    .week-event { z-index: 2; align-self: stretch; margin: 3px; padding: 5px 6px; overflow: hidden; border-left: 3px solid var(--accent-strong); border-radius: 5px; color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 82%, white); font-size: 10px; font-weight: 650; text-align: left; pointer-events: none; }
+    .current-time-line { position: relative; z-index: 3; align-self: start; height: 2px; background: var(--accent-strong); transform: translateY(calc(var(--minute) * 46px / 60)); pointer-events: none; }
+    .current-time-line::before { content: ""; position: absolute; width: 7px; height: 7px; margin: -2.5px 0 0 -3px; border-radius: 50%; background: var(--accent-strong); }
+    .current-time-line::after { content: attr(data-time); position: absolute; right: calc(100% + 5px); top: -7px; padding: 1px 3px; border-radius: 3px; color: var(--accent-ink); background: var(--accent); font-size: 9px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+    .year-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .mini-month {
+      display: block;
+      width: 100%;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #ffffff05;
+      cursor: pointer;
+    }
+
+    :root[data-theme="light"] .mini-month { background: #ffffff26; }
+
+    .mini-month:hover { border-color: var(--accent-strong); }
+    .mini-month.current strong { display: inline-block; padding: 3px 7px; border-radius: 5px; color: var(--accent-ink); background: var(--accent); }
+    .mini-month strong { font-size: 12px; font-weight: 650; }
+    .mini-weekdays, .mini-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; width: 100%; }
+    .mini-weekdays { margin-top: 8px; color: var(--muted); font-size: 9px; font-weight: 700; text-transform: uppercase; }
+    .mini-weekdays b { font-weight: inherit; text-align: center; }
+    .mini-weekdays b.weekend { color: var(--weekend); }
+    .mini-days { margin-top: 3px; }
+    .mini-days i { display: grid; width: 13px; height: 13px; min-width: 0; justify-self: center; place-items: center; border-radius: 50%; color: var(--text); font-size: 10px; font-style: normal; font-variant-numeric: tabular-nums; }
+    .mini-days i.weekend { color: var(--weekend); }
+    .mini-days i.outside { color: var(--quiet); opacity: .5; }
+    .mini-days i.today { box-shadow: inset 0 0 0 1px var(--accent-strong); }
+    .mini-days i.active { color: var(--accent-ink); background: var(--accent); font-weight: 800; }
+    .mini-days i.empty { color: transparent; }
+
+    .icon-button.year-step { width: auto; padding: 0 9px; font-size: 11px; font-weight: 650; }
+
+    .selection {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 13px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .selection strong { color: var(--text); font-weight: 600; }
+
+    .prototype-controls {
+      justify-content: center;
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .prototype-controls label { display: flex; align-items: center; gap: 6px; }
+    select { padding: 0 9px; }
+
+    .main-tile .calendar-panel { width: min(100%, calc(var(--tile-width) * 3.4)); margin-left: 40%; }
+    .main-tile .clock-strip { border-radius: var(--radius); }
+    .main-tile .calendar-panel { margin-top: 6px; border-top: 1px solid #050506; border-radius: var(--radius); }
+
+    [hidden] { display: none !important; }
+
+    @media (max-width: 620px) {
+      .clock { padding-inline: 6px; }
+      .clock-meta span:last-child, .clock-time small { display: none; }
+      .calendar-header { grid-template-columns: 1fr; }
+      .header-actions { justify-content: space-between; }
+      .year-grid { grid-template-columns: repeat(2, 1fr); }
+      .day { min-height: 42px; padding: 5px; }
+      .main-tile .calendar-panel { width: 100%; margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="prototype" id="prototype" aria-label="OziClock calendar prototype">
+      <div class="clock-strip" id="clock-strip"></div>
+
+      <section class="calendar-panel" aria-labelledby="calendar-heading">
+        <header class="calendar-header">
+          <div class="calendar-title">
+            <div class="eyebrow">Calendar · Kyiv</div>
+            <h1 id="calendar-heading">August 2026</h1>
+          </div>
+          <div class="header-actions">
+            <button class="icon-button" id="previous" aria-label="Previous period">‹</button>
+            <button class="text-button" id="today">Today</button>
+            <button class="icon-button" id="next" aria-label="Next period">›</button>
+          </div>
+        </header>
+
+        <div class="calendar-body">
+          <nav class="view-switch" aria-label="Calendar view">
+            <button class="view-button" data-view="week" aria-pressed="false">Week</button>
+            <button class="view-button" data-view="month" aria-pressed="true">Month</button>
+            <button class="view-button" data-view="year" aria-pressed="false">Year</button>
+          </nav>
+          <div id="calendar-content"></div>
+          <div class="selection" aria-live="polite">
+            <span>Selected date</span>
+            <strong id="selected-date">Sunday, 30 August 2026</strong>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <div class="prototype-controls" aria-label="Prototype options">
+      <label>First day
+        <select id="week-start"><option value="1">Monday</option><option value="0">Sunday</option></select>
+      </label>
+      <label>Attach to
+        <select id="attachment"><option value="strip">Whole strip</option><option value="tile">Main tile</option></select>
+      </label>
+      <label>Scale
+        <select id="scale"><option value="0.8">80%</option><option value="1" selected>100%</option><option value="1.25">125%</option></select>
+      </label>
+      <label>Theme
+        <select id="theme"><option value="dark">Dark</option><option value="light">Light</option></select>
+      </label>
+      <label>Zones
+        <select id="zone-count"><option>1</option><option>2</option><option>3</option><option>4</option><option value="5" selected>5</option></select>
+      </label>
+      <label>Hours
+        <select id="visible-hours"><option value="8-20" selected>Workday · 08–20</option><option value="6-23">Extended · 06–23</option><option value="0-23">Full day · 24h</option></select>
+      </label>
+    </div>
+  </main>
+
+  <script>
+    const zones = [
+      { label: "MEX", zone: "America/Mexico_City", color: "#fff5b5" },
+      { label: "NYC", zone: "America/New_York", color: "#b7b2ff" },
+      { label: "UTC", zone: "UTC", color: "#efefef" },
+      { label: "KYIV", zone: "Europe/Kyiv", color: "#9ee9e4", primary: true },
+      { label: "TOK", zone: "Asia/Tokyo", color: "#ffaaa8" }
+    ];
+
+    const zoneSets = {
+      1: [zones[3]],
+      2: [zones[1], zones[3]],
+      3: [zones[1], zones[3], zones[4]],
+      4: [zones[0], zones[1], zones[3], zones[4]],
+      5: zones
+    };
+
+    const state = {
+      view: "month",
+      cursor: new Date(2026, 7, 1),
+      selected: new Date(2026, 7, 30),
+      weekStart: 1,
+      zoneCount: 5,
+      scale: 1,
+      visibleHours: [8, 20]
+    };
+
+    const prototype = document.getElementById("prototype");
+    const strip = document.getElementById("clock-strip");
+    const content = document.getElementById("calendar-content");
+    const heading = document.getElementById("calendar-heading");
+    const selectedDate = document.getElementById("selected-date");
+    const monthFormat = new Intl.DateTimeFormat("en", { month: "long", year: "numeric" });
+    const fullDateFormat = new Intl.DateTimeFormat("en", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+    function renderClocks() {
+      const now = new Date();
+      strip.innerHTML = zoneSets[state.zoneCount].map(zone => {
+        const parts = new Intl.DateTimeFormat("en-GB", {
+          timeZone: zone.zone, hour: "2-digit", minute: "2-digit", second: "2-digit",
+          day: "2-digit", month: "2-digit", hour12: false
+        }).formatToParts(now).reduce((map, part) => (map[part.type] = part.value, map), {});
+        return `<article class="clock ${zone.primary ? "primary" : ""}" style="--clock:${zone.color}">
+          <div class="clock-meta"><span>${zone.label}</span><span>${parts.month}/${parts.day}</span></div>
+          <div class="clock-time"><strong>${parts.hour}:${parts.minute}</strong><small>:${parts.second}</small></div>
+        </article>`;
+      }).join("");
+    }
+
+    function weekdayNames() {
+      const monday = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      return state.weekStart === 1 ? monday : ["Sun", ...monday.slice(0, 6)];
+    }
+
+    function isWeekend(dayIndex) { return dayIndex === 0 || dayIndex === 6; }
+    function sameDate(a, b) { return a.toDateString() === b.toDateString(); }
+
+    function selectDay(date) {
+      state.selected = new Date(date);
+      selectedDate.textContent = fullDateFormat.format(state.selected);
+      renderCalendar();
+    }
+
+    function renderMonth() {
+      const year = state.cursor.getFullYear();
+      const month = state.cursor.getMonth();
+      const first = new Date(year, month, 1);
+      const offset = (first.getDay() - state.weekStart + 7) % 7;
+      const start = new Date(year, month, 1 - offset);
+      const headers = weekdayNames().map((name, index) => {
+        const actualDay = (index + state.weekStart) % 7;
+        return `<div class="weekday ${isWeekend(actualDay) ? "weekend" : ""}">${name}</div>`;
+      }).join("");
+      const days = Array.from({ length: 42 }, (_, index) => {
+        const date = new Date(start); date.setDate(start.getDate() + index);
+        const classes = ["day"];
+        if (date.getMonth() !== month) classes.push("outside");
+        if (isWeekend(date.getDay())) classes.push("weekend");
+        if (sameDate(date, new Date())) classes.push("today");
+        if (sameDate(date, state.selected)) classes.push("selected");
+        return `<button class="${classes.join(" ")}" data-date="${date.toISOString()}">${date.getDate()}</button>`;
+      }).join("");
+      content.innerHTML = `<div class="month-grid">${headers}${days}</div>`;
+    }
+
+    function renderWeek() {
+      const date = new Date(state.selected);
+      const offset = (date.getDay() - state.weekStart + 7) % 7;
+      date.setDate(date.getDate() - offset);
+      const days = Array.from({ length: 7 }, (_, index) => {
+        const day = new Date(date); day.setDate(date.getDate() + index); return day;
+      });
+      const headers = weekdayNames().map((name, index) => {
+        const actualDay = (index + state.weekStart) % 7;
+        return `<div class="week-header-day ${isWeekend(actualDay) ? "weekend" : ""} ${sameDate(days[index], state.selected) ? "selected" : ""}">${name}<strong>${days[index].getDate()}</strong></div>`;
+      }).join("");
+      const [startHour, endHour] = state.visibleHours;
+      const hours = Array.from({ length: endHour - startHour + 1 }, (_, index) => startHour + index);
+      const cells = hours.map((hour, row) => {
+        const label = `<div class="time-label ${row === 0 ? "first-hour" : ""}" style="grid-column:1;grid-row:${row + 1}">${String(hour).padStart(2, "0")}:00</div>`;
+        const dayCells = days.map((day, column) => `<button class="hour-cell ${row === 0 ? "first-hour" : ""} ${sameDate(day, state.selected) ? "selected-column" : ""}" style="grid-column:${column + 2};grid-row:${row + 1}" data-date="${day.toISOString()}" aria-label="${fullDateFormat.format(day)}, ${String(hour).padStart(2, "0")}:00"></button>`).join("");
+        return label + dayCells;
+      }).join("");
+      const events = [
+        { day: 1, hour: 10, title: "Team sync" },
+        { day: 3, hour: 14, title: "Design review" },
+        { day: 5, hour: 17, title: "Focus time" }
+      ].filter(event => event.hour >= startHour && event.hour <= endHour)
+        .map(event => `<div class="week-event" style="grid-column:${event.day + 2};grid-row:${event.hour - startHour + 1}">${event.title}</div>`).join("");
+      const now = new Date();
+      const isCurrentWeek = days.some(day => sameDate(day, now));
+      const currentTime = isCurrentWeek && now.getHours() >= startHour && now.getHours() <= endHour
+        ? `<div class="current-time-line" data-time="${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}" style="grid-column:2/9;grid-row:${now.getHours() - startHour + 1};--minute:${now.getMinutes()}"></div>`
+        : "";
+      content.innerHTML = `<div class="week-timeline"><div class="week-header"><div></div>${headers}</div><div class="week-hours">${cells}${events}${currentTime}</div></div>`;
+    }
+
+    function renderYear() {
+      const year = state.cursor.getFullYear();
+      content.innerHTML = `<div class="year-grid">${Array.from({ length: 12 }, (_, month) => {
+        const name = new Intl.DateTimeFormat("en", { month: "long" }).format(new Date(year, month, 1));
+        const first = new Date(year, month, 1);
+        const offset = (first.getDay() - state.weekStart + 7) % 7;
+        const weekdays = weekdayNames().map((day, index) => {
+          const actualDay = (index + state.weekStart) % 7;
+          return `<b class="${isWeekend(actualDay) ? "weekend" : ""}">${day[0]}</b>`;
+        }).join("");
+        const dates = Array.from({ length: 42 }, (_, index) => {
+          const day = new Date(year, month, index - offset + 1);
+          const outside = day.getMonth() !== month;
+          const classes = [];
+          if (isWeekend(day.getDay())) classes.push("weekend");
+          if (outside) classes.push("outside");
+          if (!outside && sameDate(day, new Date())) classes.push("today");
+          if (!outside && sameDate(day, state.selected)) classes.push("active");
+          return `<i class="${classes.join(" ")}">${day.getDate()}</i>`;
+        }).join("");
+        const isCurrentMonth = new Date().getFullYear() === year && new Date().getMonth() === month;
+        return `<button class="mini-month ${isCurrentMonth ? "current" : ""}" data-month="${month}"><strong>${name}</strong><span class="mini-weekdays">${weekdays}</span><span class="mini-days">${dates}</span></button>`;
+      }).join("")}</div>`;
+    }
+
+    function renderCalendar() {
+      heading.textContent = state.view === "year" ? String(state.cursor.getFullYear()) : monthFormat.format(state.cursor);
+      const previous = document.getElementById("previous");
+      const next = document.getElementById("next");
+      const isYear = state.view === "year";
+      previous.textContent = isYear ? `← ${state.cursor.getFullYear() - 1}` : "‹";
+      next.textContent = isYear ? `${state.cursor.getFullYear() + 1} →` : "›";
+      previous.setAttribute("aria-label", isYear ? "Previous year" : "Previous period");
+      next.setAttribute("aria-label", isYear ? "Next year" : "Next period");
+      previous.classList.toggle("year-step", isYear);
+      next.classList.toggle("year-step", isYear);
+      document.querySelectorAll(".view-button").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.view === state.view)));
+      if (state.view === "week") renderWeek();
+      else if (state.view === "year") renderYear();
+      else renderMonth();
+      content.querySelectorAll("[data-date]").forEach(button => button.addEventListener("click", () => selectDay(new Date(button.dataset.date))));
+      content.querySelectorAll("[data-month]").forEach(button => button.addEventListener("click", () => {
+        state.cursor = new Date(state.cursor.getFullYear(), Number(button.dataset.month), 1);
+        state.view = "month";
+        renderCalendar();
+      }));
+    }
+
+    document.querySelectorAll(".view-button").forEach(button => button.addEventListener("click", () => { state.view = button.dataset.view; renderCalendar(); }));
+    document.getElementById("previous").addEventListener("click", () => { state.cursor.setMonth(state.cursor.getMonth() + (state.view === "year" ? -12 : -1)); renderCalendar(); });
+    document.getElementById("next").addEventListener("click", () => { state.cursor.setMonth(state.cursor.getMonth() + (state.view === "year" ? 12 : 1)); renderCalendar(); });
+    document.getElementById("today").addEventListener("click", () => { state.cursor = new Date(); state.selected = new Date(); renderCalendar(); selectedDate.textContent = fullDateFormat.format(state.selected); });
+    document.getElementById("week-start").addEventListener("change", event => { state.weekStart = Number(event.target.value); renderCalendar(); });
+    document.getElementById("attachment").addEventListener("change", event => prototype.classList.toggle("main-tile", event.target.value === "tile"));
+    document.getElementById("scale").addEventListener("change", event => {
+      state.scale = Number(event.target.value);
+      prototype.style.setProperty("--scale", state.scale);
+    });
+    document.getElementById("theme").addEventListener("change", event => document.documentElement.dataset.theme = event.target.value);
+    document.getElementById("zone-count").addEventListener("change", event => {
+      state.zoneCount = Number(event.target.value);
+      prototype.style.setProperty("--zone-count", state.zoneCount);
+      prototype.classList.toggle("compact-strip", state.zoneCount <= 3);
+      renderClocks();
+    });
+    document.getElementById("visible-hours").addEventListener("change", event => {
+      state.visibleHours = event.target.value.split("-").map(Number);
+      if (state.view === "week") renderCalendar();
+    });
+
+    renderClocks();
+    renderCalendar();
+    setInterval(renderClocks, 1000);
+    setInterval(() => { if (state.view === "week") renderCalendar(); }, 60000);
+  </script>
+</body>
+</html>

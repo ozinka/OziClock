@@ -21,11 +21,8 @@ Priorities describe sequencing, not severity:
 
 | ID | Priority | Status | Area | Item | Next step |
 | --- | --- | --- | --- | --- | --- |
-| BL-001 | P1 | Ready | Rendering | Remove clock-strip edge artifacts at scaled sizes | Reproduce and add visual coverage at 80%, 100%, 125%, and 150% on supported platforms. |
-| BL-002 | P1 | Ready | Rulers | Make ruler ticks pixel-perfect at common display scales | Choose renderer-level pixel snapping or a verified custom drawing path, then compare at 100%, 125%, 150%, and 200%. |
 | BL-003 | P2 | Discovery | Windowing | Add live edge snapping while dragging | Define per-platform drag-lifecycle behavior and acceptance tests for compact mode and high DPI. |
 | BL-004 | P2 | Ready | Windows | Preserve multi-resolution frames in the taskbar icon | Verify 16/32/48/64-pixel ICO selection against WPF at common display scales. |
-| BL-006 | P3 | Discovery | Calendar | Add an optional calendar panel | Prototype week, month, and year interactions in HTML and decide attachment, navigation, and adjacent-month behavior. |
 | BL-007 | P3 | Candidate | Alarms | Add one-time and recurring alarms | Define recurrence, DST, snooze, missed-alarm, sound, notification, and restart semantics. |
 | BL-008 | P3 | Candidate | Reminders | Add absolute and relative reminders | Define recurrence, clock association, notification history, and duplicate-delivery prevention. |
 | BL-009 | P3 | Candidate | Timers | Add multiple named countdown timers | Define sleep/restart recovery, repeat behavior, persistence, and compact controls. |
@@ -49,3 +46,6 @@ An item is `Ready` when:
 | BL-011 | 2026-08 | Native macOS application icon | `OziClock.icns` is packaged and declared through `CFBundleIconFile`. |
 | BL-012 | 2026-08 | Initialize the color picker from the current color | The desktop adapter converts the current color to HSV and positions all picker controls when opened. |
 | BL-005 | 2026-08 | Searchable IANA time-zone selection | CLK-08A is implemented with case-insensitive ID/display filtering, preserved ordering, empty-state feedback, keyboard-safe focus handling, and focused unit tests. |
+| BL-001 | 2026-08 | Remove clock-strip edge artifacts at scaled sizes | Confirmed complete after implementation and visual review. |
+| BL-002 | 2026-08 | Make ruler ticks pixel-perfect at common display scales | Confirmed complete after implementation and visual review. |
+| BL-006 | 2026-08 | Add an optional calendar panel | CAL-01 through CAL-09 are implemented with Week, Month, and Year views, persisted settings, live settings updates, and focused calendar tests. |

@@ -97,7 +97,9 @@ The macOS build supports Apple Silicon:
 
 4. Open `OziClock.app` from Applications.
 
-The application is currently not signed or notarized. The command removes only the quarantine attribute that macOS adds to files downloaded from the Internet.
+The application uses a free ad-hoc code signature but is not signed with an Apple Developer ID or notarized. The command removes only the quarantine attribute that macOS adds to files downloaded from the Internet.
+
+The repository also contains a Homebrew cask for use from a personal tap. See [Homebrew packaging](packaging/homebrew/README.md) for testing and publishing instructions.
 
 | Gatekeeper cannot verify the application | macOS reports that the application is damaged |
 | --- | --- |
@@ -119,7 +121,7 @@ The application is currently not signed or notarized. The command removes only t
    ./oziclock-desktop
    ```
 
-The application creates `settings.json` on first launch. Keep it beside the executable on Windows and Linux, or beside `OziClock.app` on macOS, to preserve clocks, placement, and preferences.
+The application creates `settings.json` on first launch. It is stored beside the executable on Windows and Linux and under `~/Library/Application Support/OziClock` on macOS. A macOS settings file from an older release is migrated automatically if it is found beside `OziClock.app`.
 
 The last legacy WPF/.NET release is [v1.0.10](https://github.com/ozinka/OziClock/releases/tag/v1.0.10). Its source is preserved in [`legacy/dotnet-wpf/`](legacy/dotnet-wpf/).
 
@@ -136,6 +138,7 @@ The last legacy WPF/.NET release is [v1.0.10](https://github.com/ozinka/OziClock
 - [Product and architecture notes](docs/PRODUCT_ARCHITECTURE.md)
 - [Target modular architecture](docs/ARCHITECTURE.md)
 - [Functional and quality requirements](docs/REQUIREMENTS.md)
+- [Prioritized product backlog](docs/BACKLOG.md)
 - [Ruler and magnifying-lens design](docs/RULER_LENS_DESIGN.md)
 - [Future alarms, reminders, timers, and stopwatch](docs/FUTURE_FEATURES.md)
 - [AI-assisted development workflow](docs/AI_DEVELOPMENT_WORKFLOW.md)

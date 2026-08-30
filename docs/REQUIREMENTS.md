@@ -85,7 +85,7 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 
 - **SET-01 (Legacy):** Settings include opacity, show in taskbar, always on top, show seconds, outer-corner radius, outline/separator color, non-primary clock dimming, and clock surface style.
 - **SET-02:** Apply all settings immediately and consistently to every visible window; no restart may be required.
-- **SET-03:** Save settings atomically in `settings.json` beside the executable and recover with safe defaults from missing, invalid, or older configuration.
+- **SET-03:** Save settings atomically in `settings.json` beside the executable on Windows and Linux, and under `~/Library/Application Support/OziClock` on macOS. Recover with safe defaults from missing, invalid, or older configuration, and migrate a legacy macOS settings file found beside `OziClock.app`.
 - **SET-04:** Version the settings schema and import legacy Windows time-zone IDs into IANA IDs.
 - **SET-05 (New):** Persist display mode, ruler/focus position where appropriate, and tray/window visibility.
 - **SET-06:** The settings window separates application-wide controls under General from per-clock controls under Clocks; a clock editor is visible only after selecting that clock.
@@ -99,6 +99,18 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **UI-04:** Dialogs must remain reachable by keyboard; Escape closes Settings, About, and the context menu, Enter accepts Settings and About, and focus indication must be visible.
 - **UI-05:** Context-menu and mouse shortcuts must have discoverable menu equivalents.
 - **UI-06:** Settings, About, and the custom context menu must take foreground focus above the ruler and slider windows whenever they are shown.
+
+## Calendar Panel
+
+- **CAL-01:** Offer an optional frameless calendar window from the clock context menu. It runs in the same process, creates no separate taskbar/dock entry, and toggles independently from Settings and About.
+- **CAL-02:** Attach the calendar to the clock strip, centered horizontally. Prefer placement below the strip, fall back above it when required, and constrain the complete calendar to the active monitor working area.
+- **CAL-03:** Provide Week, Month, and Year views with Month as the initial view. Previous, Today, and Next navigation reuse the same selected-date state across views.
+- **CAL-04:** The calendar provides light and dark themes derived from the main clock accent. Month view distinguishes weekends, supports Monday or Sunday as the first day of the week, shows adjacent-month dates quietly, and highlights today and the selected date.
+- **CAL-05:** Week view places seven consecutive days horizontally and time vertically in a fixed 12-hour viewport. It opens with the current time centered, preserves solid day separators, uses subtle hour guides, and marks the current time when visible. Scrolling across midnight shifts the seven-day range by one day and continues without a visible jump.
+- **CAL-09:** Calendar theme and first-day-of-week choices are configured only in Settings. The calendar panel contains navigation and view controls, but no duplicate settings controls.
+- **CAL-06:** Year view shows twelve readable 7-by-6 mini-months, highlights the current month and date, shows adjacent-month dates quietly, and opens a month when selected.
+- **CAL-07:** Calendar date calculations are deterministic Rust logic covered by focused tests. Current-date refresh occurs when the window opens and at the next relevant time boundary while visible; the calendar must not introduce continuous background polling.
+- **CAL-08:** At four or more clocks the calendar may visually join the strip. With one to three clocks it retains a usable minimum width, centers below the strip, and keeps rounded upper corners. Calendar height must not grow merely because clock UI scale or clock count increases.
 
 ## Cross-Platform Quality Requirements
 

@@ -10,18 +10,21 @@ Use documentation in this order:
 4. ADRs explain significant technical choices.
 5. The WPF application and screenshots are legacy evidence, not the target architecture.
 
+`BACKLOG.md` is the canonical work queue. It tracks priority and status but does not override requirements or feature designs.
+
 When code and documentation disagree, do not silently copy current behavior. Identify the conflict and update the appropriate source of truth with the implementation.
 
 ## Change Workflow
 
 1. Locate or add requirement IDs for the requested behavior.
-2. Identify the owning domain, application, UI, and adapter modules.
-3. Reuse or extend shared components before creating a new one.
-4. Add an ADR only for long-lived, cross-cutting, or difficult-to-reverse decisions.
-5. Implement the smallest vertical slice without bypassing module boundaries.
-6. Test domain behavior independently from UI and OS integration.
-7. Run formatting, linting, unit tests, golden tests, and relevant platform smoke tests.
-8. Update requirements, design notes, and migration status in the same change.
+2. Reference the stable backlog ID and set the item to `In Progress` when work begins.
+3. Identify the owning domain, application, UI, and adapter modules.
+4. Reuse or extend shared components before creating a new one.
+5. Add an ADR only for long-lived, cross-cutting, or difficult-to-reverse decisions.
+6. Implement the smallest vertical slice without bypassing module boundaries.
+7. Test domain behavior independently from UI and OS integration.
+8. Run formatting, linting, unit tests, golden tests, and relevant platform smoke tests.
+9. Update requirements, design notes, and backlog status in the same change.
 
 ## User Confirmation and Build Recovery
 

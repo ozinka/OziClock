@@ -13,6 +13,9 @@
   "SoftClockStyle": false,
   "BorderColor": "#000000",
   "NonMainDimming": 0.0,
+  "CalendarLightTheme": true,
+  "CalendarMondayFirst": true,
+  "CalendarHourRange": 0,
   "SettingsWindowWidth": 760.0,
   "SettingsWindowHeight": 700.0,
   "ClocksSettings": [

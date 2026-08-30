@@ -10,8 +10,6 @@ Actionable work, priority, and status are tracked in [BACKLOG.md](BACKLOG.md). W
 
 - **Live edge snapping:** While dragging, visibly snap the clock strip to monitor work-area edges. The implementation must use the platform drag lifecycle rather than cursor polling, preserve compact-mode geometry, and remain smooth on high-DPI displays.
 - **DPI-aware taskbar icon:** Ensure Windows chooses the appropriate frame from the multi-resolution legacy ICO (16/32/48/64) without flattening it to one bitmap. Verify visual parity with the WPF taskbar icon at common display scales before enabling it.
-- **Pixel-perfect ruler ticks:** The Slint ruler prototype has intermittent one-pixel gaps between some 3-pixel-spaced ticks. Revisit this with renderer-level pixel snapping or a verified custom drawing path, and compare at 100%, 125%, 150%, and 200% display scale before enabling the lens effects.
-- **Clock strip edge artifacts at scaled sizes:** Eliminate the extra one-physical-pixel lines that appear above and below clock tiles at non-default clock scales. Verify standard and compact modes at 80%, 100%, 125%, and 150% clock scale on every supported platform.
 
 ### Calendar Panel
 
@@ -23,7 +21,7 @@ Actionable work, priority, and status are tracked in [BACKLOG.md](BACKLOG.md). W
 - Prototype the interaction and proportions in HTML before implementing the Slint component. Compare attached-panel and independently positioned variants, all three time ranges, weekend emphasis, navigation density, and behavior at different clock scales.
 - Avoid background polling. The panel should derive its current-date state from the shared application clock and request refresh only at the next relevant date boundary or when opened.
 
-Open design decisions include whether the panel attaches below the whole clock strip or the main tile, whether week and year are persistent modes or temporary zoom levels, how adjacent-month days appear, and whether weekend definitions should later follow locale-specific rules.
+The approved prototype resolves the initial layout decisions: the calendar is a separately hosted frameless window attached to the whole strip, Month is the initial view, Week and Year are persistent modes, and adjacent-month dates remain visible with quiet styling. Locale-specific weekend definitions remain a possible later enhancement.
 
 ### Alarms
 

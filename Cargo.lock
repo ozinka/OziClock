@@ -3581,12 +3581,13 @@ dependencies = [
 name = "oziclock-app"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "oziclock-domain",
 ]
 
 [[package]]
 name = "oziclock-desktop"
-version = "2.0.9"
+version = "2.0.10"
 dependencies = [
  "chrono",
  "chrono-tz",
