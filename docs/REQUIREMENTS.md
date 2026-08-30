@@ -40,6 +40,7 @@ This catalog is derived from the WPF source, its bundled screenshots, and the in
 - **CLK-06 (Legacy):** Exactly one clock is the main zone. Emphasize its label in white and use it as the reference for rulers and shifted time.
 - **CLK-07 (Legacy):** Add a new clock initially as UTC, then immediately open its editor.
 - **CLK-08 (Legacy):** Edit the selected clock’s label, time zone from the supported IANA time-zone list with its current UTC offset (sorted by offset, then name), and accent color with immediate preview.
+- **CLK-08A:** The clock editor provides a time-zone search field above the picker. Filtering is case-insensitive and matches both the IANA identifier and the visible offset-and-name text. Results preserve the full list's current-offset-then-identifier ordering; an empty query restores the complete list. When no time zone matches, the picker is empty and the editor shows a non-blocking `No matching time zones` message. The search field and filtered picker remain operable with the keyboard, and selecting a result updates the edited clock immediately without changing any other clock property.
 - **CLK-09 (Legacy):** Move a clock one position left or right and immediately keep the clock strip and its ruler in the same order.
 - **CLK-10 (Legacy):** Remove a non-main clock only after confirmation. Never remove the last clock or the main clock.
 - **CLK-11:** Persist label, portable time-zone identifier, color, order, main selection, and seconds preference in the per-user JSON settings file. The UI must not hardcode a clock list.

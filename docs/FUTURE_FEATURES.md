@@ -2,20 +2,16 @@
 
 This document reserves architectural space without committing the first release to every feature. Each feature requires its own detailed requirements before implementation.
 
+Actionable work, priority, and status are tracked in [BACKLOG.md](BACKLOG.md). When the two documents differ, the backlog determines whether an idea is currently queued, while this document continues to describe its broader product envelope.
+
 ## Candidate Capabilities
 
 ### Platform Polish
 
 - **Live edge snapping:** While dragging, visibly snap the clock strip to monitor work-area edges. The implementation must use the platform drag lifecycle rather than cursor polling, preserve compact-mode geometry, and remain smooth on high-DPI displays.
 - **DPI-aware taskbar icon:** Ensure Windows chooses the appropriate frame from the multi-resolution legacy ICO (16/32/48/64) without flattening it to one bitmap. Verify visual parity with the WPF taskbar icon at common display scales before enabling it.
-- **Native macOS application icon:** Produce an `icns` asset from the approved OziClock artwork, include it in `OziClock.app`, and declare it in `Info.plist`. Verify the icon in Finder, the Dock, and macOS application switcher at standard and Retina resolutions.
 - **Pixel-perfect ruler ticks:** The Slint ruler prototype has intermittent one-pixel gaps between some 3-pixel-spaced ticks. Revisit this with renderer-level pixel snapping or a verified custom drawing path, and compare at 100%, 125%, 150%, and 200% display scale before enabling the lens effects.
 - **Clock strip edge artifacts at scaled sizes:** Eliminate the extra one-physical-pixel lines that appear above and below clock tiles at non-default clock scales. Verify standard and compact modes at 80%, 100%, 125%, and 150% clock scale on every supported platform.
-
-### Clock Editor Polish
-
-- **Time-zone search:** Add a searchable IANA time-zone picker that preserves the current offset-then-name ordering, matches both identifiers and display names, and remains keyboard accessible.
-- **Color-picker initial state:** When opening the custom color picker, initialize its hue, saturation, value, and selection marker from the clock's existing accent color instead of its default palette position.
 
 ### Calendar Panel
 

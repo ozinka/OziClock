@@ -10,9 +10,9 @@ mod window_drag;
 use clock_refresh::schedule_clock_refresh;
 use colors::{color_to_hsv, hsv_color, hsv_hex, parse_color};
 use settings_bindings::{
-    main_clock_index, move_clock_to, move_selected_clock, open_settings_window,
-    persist_settings_window_size, select_clock, time_zone_display_name, time_zone_offset_seconds,
-    update_settings_preview,
+    apply_time_zone_filter, main_clock_index, move_clock_to, move_selected_clock,
+    open_settings_window, persist_settings_window_size, select_clock, selected_time_zone_id,
+    time_zone_options, update_settings_preview,
 };
 #[cfg(target_os = "windows")]
 use tray::create_system_tray;
@@ -25,7 +25,7 @@ use std::{
 };
 
 use chrono::{DateTime, LocalResult, Offset, TimeZone, Timelike, Utc};
-use chrono_tz::{TZ_VARIANTS, Tz};
+use chrono_tz::Tz;
 use oziclock_app::{ClockCommand, execute_clock_command};
 use oziclock_storage::{AppSettings, ClockSettings};
 use slint::winit_030::EventResult;
@@ -91,6 +91,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             }
             if is_enter_key(event) {
                 if let Some(settings_window) = settings_for_keyboard.upgrade() {
+                    if settings_window.get_time_zone_search_focused()
+                        || settings_window.get_time_zone_picker_focused()
+                    {
+                        return EventResult::Propagate;
+                    }
                     settings_window.invoke_request_save();
                 }
                 return EventResult::PreventDefault;
@@ -98,30 +103,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             EventResult::Propagate
         });
     let now = Utc::now();
-    let mut time_zone_options: Vec<(String, String, i32)> = TZ_VARIANTS
-        .iter()
-        .map(|time_zone| {
-            (
-                time_zone.to_string(),
-                time_zone_display_name(*time_zone, now),
-                time_zone_offset_seconds(*time_zone, now),
-            )
-        })
-        .collect();
-    time_zone_options
-        .sort_by(|left, right| left.2.cmp(&right.2).then_with(|| left.0.cmp(&right.0)));
-    let time_zones: Rc<Vec<String>> = Rc::new(
-        time_zone_options
-            .iter()
-            .map(|(name, _, _)| name.clone())
-            .collect(),
-    );
-    settings_window.set_time_zones(ModelRc::new(VecModel::from(
-        time_zone_options
-            .iter()
-            .map(|(_, display_name, _)| display_name.clone().into())
-            .collect::<Vec<_>>(),
-    )));
+    let time_zone_options = Rc::new(time_zone_options(now));
+    apply_time_zone_filter(&settings_window, &time_zone_options, "");
     settings_window.set_show_seconds(settings.show_seconds);
     settings_window.set_top_most(settings.top_most);
     settings_window.set_show_in_task_bar(settings.show_in_task_bar);
@@ -571,13 +554,19 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         }
     });
     let editor = settings_window.as_weak();
-    let time_zones_for_select = time_zones.clone();
     settings_window.on_request_select_time_zone(move |index| {
-        if let Some(time_zone) = time_zones_for_select.get(index.max(0) as usize)
-            && let Some(editor) = editor.upgrade()
+        if let Some(editor) = editor.upgrade()
+            && let Some(time_zone) = selected_time_zone_id(&editor, index)
         {
             editor.set_editor_time_zone(time_zone.clone().into());
             editor.invoke_request_apply();
+        }
+    });
+    let editor = settings_window.as_weak();
+    let time_zones_for_filter = time_zone_options.clone();
+    settings_window.on_request_filter_time_zones(move |query| {
+        if let Some(editor) = editor.upgrade() {
+            apply_time_zone_filter(&editor, &time_zones_for_filter, query.as_str());
         }
     });
     let state = shared_settings.clone();

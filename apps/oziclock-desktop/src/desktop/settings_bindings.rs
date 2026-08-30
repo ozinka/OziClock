@@ -8,7 +8,14 @@ use chrono_tz::{TZ_VARIANTS, Tz};
 use oziclock_app::{ClockCommand, execute_clock_command};
 use oziclock_storage::ClockSettings;
 use slint::winit_030::winit::dpi::PhysicalSize;
-use slint::{ComponentHandle, ModelRc, VecModel, winit_030::WinitWindowAccessor};
+use slint::{ComponentHandle, Model, ModelRc, VecModel, winit_030::WinitWindowAccessor};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct TimeZoneOption {
+    pub(super) id: String,
+    pub(super) display_name: String,
+    offset_seconds: i32,
+}
 
 pub(super) fn open_settings_window(
     settings_window: &SettingsWindow,
@@ -73,7 +80,7 @@ pub(super) fn select_clock(window: &SettingsWindow, settings: &[ClockSettings], 
         window.set_selected_index(index.max(0));
         window.set_editor_label(clock.label.clone().into());
         window.set_editor_time_zone(clock.time_zone.clone().into());
-        window.set_selected_time_zone_index(time_zone_index(&clock.time_zone));
+        window.set_selected_time_zone_index(visible_time_zone_index(window, &clock.time_zone));
         window.set_editor_color(clock.color.clone().into());
         window.set_editor_preview_color(parse_color(&clock.color));
         window.set_editor_is_main(clock.is_main);
@@ -81,21 +88,91 @@ pub(super) fn select_clock(window: &SettingsWindow, settings: &[ClockSettings], 
     }
 }
 
-pub(super) fn time_zone_index(time_zone: &str) -> i32 {
-    let now = Utc::now();
-    let mut time_zones: Vec<(String, i32)> = TZ_VARIANTS
+pub(super) fn time_zone_options(now: DateTime<Utc>) -> Vec<TimeZoneOption> {
+    let mut time_zones: Vec<TimeZoneOption> = TZ_VARIANTS
         .iter()
-        .map(|candidate| {
-            (
-                candidate.to_string(),
-                time_zone_offset_seconds(*candidate, now),
-            )
+        .map(|time_zone| {
+            let offset_seconds = time_zone_offset_seconds(*time_zone, now);
+            TimeZoneOption {
+                id: time_zone.to_string(),
+                display_name: time_zone_display_name(*time_zone, now),
+                offset_seconds,
+            }
         })
         .collect();
-    time_zones.sort_by(|left, right| left.1.cmp(&right.1).then_with(|| left.0.cmp(&right.0)));
+    time_zones.sort_by(|left, right| {
+        left.offset_seconds
+            .cmp(&right.offset_seconds)
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    time_zones
+}
+
+pub(super) fn filter_time_zone_options<'a>(
+    time_zones: &'a [TimeZoneOption],
+    query: &str,
+) -> Vec<&'a TimeZoneOption> {
+    let query = query.trim().to_lowercase();
     time_zones
         .iter()
-        .position(|(candidate, _)| candidate == time_zone)
+        .filter(|time_zone| {
+            query.is_empty()
+                || time_zone.id.to_lowercase().contains(&query)
+                || time_zone.display_name.to_lowercase().contains(&query)
+        })
+        .collect()
+}
+
+pub(super) fn apply_time_zone_filter(
+    window: &SettingsWindow,
+    time_zones: &[TimeZoneOption],
+    query: &str,
+) {
+    let filtered = filter_time_zone_options(time_zones, query);
+    let selected_time_zone = window.get_editor_time_zone().to_string();
+    let selected_index = filtered
+        .iter()
+        .position(|time_zone| time_zone.id == selected_time_zone)
+        .map(|index| index as i32)
+        .unwrap_or(-1);
+    window.set_time_zone_ids(ModelRc::new(VecModel::from(
+        filtered
+            .iter()
+            .map(|time_zone| time_zone.id.clone().into())
+            .collect::<Vec<_>>(),
+    )));
+    window.set_time_zones(ModelRc::new(VecModel::from(
+        filtered
+            .iter()
+            .map(|time_zone| time_zone.display_name.clone().into())
+            .collect::<Vec<_>>(),
+    )));
+    window.set_selected_time_zone_index(selected_index);
+    window.set_time_zone_search_message(
+        if filtered.is_empty() {
+            "No matching time zones"
+        } else {
+            ""
+        }
+        .into(),
+    );
+}
+
+pub(super) fn selected_time_zone_id(window: &SettingsWindow, index: i32) -> Option<String> {
+    if index < 0 {
+        return None;
+    }
+    window
+        .get_time_zone_ids()
+        .row_data(index as usize)
+        .map(|time_zone| time_zone.to_string())
+}
+
+fn visible_time_zone_index(window: &SettingsWindow, time_zone: &str) -> i32 {
+    window
+        .get_time_zone_ids()
+        .iter()
+        .position(|candidate| candidate.as_str() == time_zone)
         .map(|index| index as i32)
         .unwrap_or(-1)
 }
@@ -162,4 +239,64 @@ pub(super) fn move_clock_to(
     );
     update_settings_preview(window, settings);
     select_clock(window, settings, to);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone;
+
+    fn options() -> Vec<TimeZoneOption> {
+        time_zone_options(Utc.with_ymd_and_hms(2026, 1, 15, 12, 0, 0).unwrap())
+    }
+
+    #[test]
+    fn empty_query_returns_every_time_zone_in_original_order() {
+        let options = options();
+        let filtered = filter_time_zone_options(&options, "  ");
+
+        assert_eq!(filtered.len(), options.len());
+        assert!(
+            filtered
+                .iter()
+                .zip(&options)
+                .all(|(filtered, original)| filtered.id == original.id)
+        );
+    }
+
+    #[test]
+    fn search_is_case_insensitive_and_matches_iana_identifier() {
+        let options = options();
+        let filtered = filter_time_zone_options(&options, "new_YORK");
+
+        assert!(
+            filtered
+                .iter()
+                .any(|option| option.id == "America/New_York")
+        );
+    }
+
+    #[test]
+    fn search_matches_visible_utc_offset() {
+        let options = options();
+        let filtered = filter_time_zone_options(&options, "utc+05:45");
+
+        assert!(filtered.iter().any(|option| option.id == "Asia/Kathmandu"));
+    }
+
+    #[test]
+    fn filtered_results_preserve_offset_then_identifier_order() {
+        let options = options();
+        let filtered = filter_time_zone_options(&options, "america/");
+
+        assert!(filtered.windows(2).all(|pair| {
+            pair[0].offset_seconds < pair[1].offset_seconds
+                || pair[0].offset_seconds == pair[1].offset_seconds && pair[0].id <= pair[1].id
+        }));
+    }
+
+    #[test]
+    fn unmatched_query_returns_no_results() {
+        assert!(filter_time_zone_options(&options(), "not-a-real-time-zone").is_empty());
+    }
 }
