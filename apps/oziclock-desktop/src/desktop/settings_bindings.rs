@@ -27,7 +27,7 @@ pub(super) fn open_settings_window(
 
 pub(super) fn restore_settings_window_size(window: &SettingsWindow, settings: &AppSettings) {
     let width = settings.settings_window_width.max(760.0);
-    let height = settings.settings_window_height.max(620.0);
+    let height = settings.settings_window_height.max(700.0);
     window.set_saved_window_width(width as f32);
     window.set_saved_window_height(height as f32);
     let _ = window.window().with_winit_window(|native| {

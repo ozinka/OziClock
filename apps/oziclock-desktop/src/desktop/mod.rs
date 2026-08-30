@@ -47,6 +47,9 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     })?;
     let clock_scale_percent = normalize_clock_scale_percent((settings.clock_scale * 100.0) as f32);
     settings.clock_scale = f64::from(clock_scale_percent / 100.0);
+    settings.border_color =
+        normalize_border_color(&settings.border_color).unwrap_or_else(|| "#000000".to_owned());
+    settings.non_main_dimming = settings.non_main_dimming.clamp(0.0, 80.0);
     let initial_main_window_position =
         LogicalPosition::new(settings.main_wnd_left, settings.main_wnd_top);
     let is_first_native_window = Rc::new(Cell::new(true));
@@ -70,6 +73,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     window.set_compact_progress(if settings.compact_mode { 1.0 } else { 0.0 });
     window.set_corner_radius(settings.corner_radius.clamp(0.0, 15.5) as f32);
     window.set_soft_clock_style(settings.soft_clock_style);
+    window.set_border_color(parse_color(&settings.border_color));
+    window.set_non_main_dimming(settings.non_main_dimming as f32);
     apply_clock_scale(&window, settings.clock_scale.clamp(0.8, 1.5) as f32);
     update_clock_tiles(&window, &settings.clocks_settings, settings.show_seconds);
 
@@ -125,6 +130,9 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.set_clock_scale_percent(clock_scale_percent);
     settings_window.set_corner_radius(settings.corner_radius.clamp(0.0, 15.5) as f32);
     settings_window.set_soft_clock_style(settings.soft_clock_style);
+    settings_window.set_border_color_value(settings.border_color.clone().into());
+    settings_window.set_border_preview_color(parse_color(&settings.border_color));
+    settings_window.set_non_main_dimming(settings.non_main_dimming as f32);
     settings_window.set_opacity_percent((settings.opacity.clamp(0.02, 1.0) * 100.0) as f32);
     update_settings_preview(&settings_window, &settings.clocks_settings);
     select_clock(&settings_window, &settings.clocks_settings, 0);
@@ -471,6 +479,35 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     });
     let state = shared_settings.clone();
     let main_window = window.as_weak();
+    let editor = settings_window.as_weak();
+    settings_window.on_request_set_border_color(move |border_color| {
+        let Some(border_color) = normalize_border_color(border_color.as_str()) else {
+            return;
+        };
+        state.borrow_mut().border_color = border_color.clone();
+        let border_color = parse_color(&border_color);
+        if let Some(main_window) = main_window.upgrade() {
+            main_window.set_border_color(border_color);
+        }
+        if let Some(editor) = editor.upgrade() {
+            editor.set_border_preview_color(border_color);
+        }
+    });
+    let state = shared_settings.clone();
+    let main_window = window.as_weak();
+    let editor = settings_window.as_weak();
+    settings_window.on_request_set_non_main_dimming(move |non_main_dimming| {
+        let non_main_dimming = ((non_main_dimming / 5.0).round() * 5.0).clamp(0.0, 80.0);
+        state.borrow_mut().non_main_dimming = f64::from(non_main_dimming);
+        if let Some(main_window) = main_window.upgrade() {
+            main_window.set_non_main_dimming(non_main_dimming);
+        }
+        if let Some(editor) = editor.upgrade() {
+            editor.set_non_main_dimming(non_main_dimming);
+        }
+    });
+    let state = shared_settings.clone();
+    let main_window = window.as_weak();
     settings_window.on_request_set_top_most(move |top_most| {
         state.borrow_mut().top_most = top_most;
         if let Some(main_window) = main_window.upgrade() {
@@ -619,12 +656,34 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let value_for_open = value.clone();
     settings_window.on_request_open_color_picker(move || {
         if let Some(editor) = editor.upgrade() {
+            editor.set_picking_border_color(false);
             let color = editor.get_editor_color().to_string();
             let (selected_hue, selected_saturation, selected_value) = color_to_hsv(&color);
             *pending_color_for_open.borrow_mut() = color;
             hue_for_open.set(selected_hue);
             saturation_for_open.set(selected_saturation);
             value_for_open.set(selected_value);
+            editor.set_picker_hue(selected_hue);
+            editor.set_picker_saturation(selected_saturation);
+            editor.set_picker_value(selected_value);
+            editor.set_picker_hue_color(hsv_color(selected_hue, 100.0, 100.0));
+            editor.set_color_picker_open(true);
+        }
+    });
+    let editor = settings_window.as_weak();
+    let pending_color_for_border_open = pending_color.clone();
+    let hue_for_border_open = hue.clone();
+    let saturation_for_border_open = saturation.clone();
+    let value_for_border_open = value.clone();
+    settings_window.on_request_open_border_color_picker(move || {
+        if let Some(editor) = editor.upgrade() {
+            editor.set_picking_border_color(true);
+            let color = editor.get_border_color_value().to_string();
+            let (selected_hue, selected_saturation, selected_value) = color_to_hsv(&color);
+            *pending_color_for_border_open.borrow_mut() = color;
+            hue_for_border_open.set(selected_hue);
+            saturation_for_border_open.set(selected_saturation);
+            value_for_border_open.set(selected_value);
             editor.set_picker_hue(selected_hue);
             editor.set_picker_saturation(selected_saturation);
             editor.set_picker_value(selected_value);
@@ -643,18 +702,30 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.on_request_color_cancel(move || {
         if let Some(editor) = editor.upgrade() {
             let color = pending_color_for_cancel.borrow().clone();
-            editor.set_editor_preview_color(parse_color(&color));
-            editor.set_editor_color(color.into());
-            editor.invoke_request_apply();
+            if editor.get_picking_border_color() {
+                editor.set_border_preview_color(parse_color(&color));
+                editor.set_border_color_value(color.clone().into());
+                editor.invoke_request_set_border_color(color.into());
+            } else {
+                editor.set_editor_preview_color(parse_color(&color));
+                editor.set_editor_color(color.into());
+                editor.invoke_request_apply();
+            }
             editor.set_color_picker_open(false);
         }
     });
     let editor = settings_window.as_weak();
     settings_window.on_request_pick_color(move |color| {
         if let Some(editor) = editor.upgrade() {
-            editor.set_editor_color(color);
-            editor.set_editor_preview_color(parse_color(&editor.get_editor_color()));
-            editor.invoke_request_apply();
+            if editor.get_picking_border_color() {
+                editor.set_border_color_value(color.clone());
+                editor.set_border_preview_color(parse_color(&color));
+                editor.invoke_request_set_border_color(color);
+            } else {
+                editor.set_editor_color(color);
+                editor.set_editor_preview_color(parse_color(&editor.get_editor_color()));
+                editor.invoke_request_apply();
+            }
             editor.set_color_picker_open(false);
         }
     });
@@ -670,9 +741,17 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             value_for_color.set(v);
             editor.set_picker_saturation(s);
             editor.set_picker_value(v);
-            editor.set_editor_color(hsv_hex(hue_for_color.get(), s, v).into());
-            editor.set_editor_preview_color(hsv_color(hue_for_color.get(), s, v));
-            editor.invoke_request_apply();
+            let color = hsv_hex(hue_for_color.get(), s, v);
+            let preview = hsv_color(hue_for_color.get(), s, v);
+            if editor.get_picking_border_color() {
+                editor.set_border_color_value(color.clone().into());
+                editor.set_border_preview_color(preview);
+                editor.invoke_request_set_border_color(color.into());
+            } else {
+                editor.set_editor_color(color.into());
+                editor.set_editor_preview_color(preview);
+                editor.invoke_request_apply();
+            }
         }
     });
     let editor = settings_window.as_weak();
@@ -685,14 +764,17 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             hue_for_hue.set(h);
             editor.set_picker_hue(h);
             editor.set_picker_hue_color(hsv_color(h, 100.0, 100.0));
-            editor
-                .set_editor_color(hsv_hex(h, saturation_for_hue.get(), value_for_hue.get()).into());
-            editor.set_editor_preview_color(hsv_color(
-                h,
-                saturation_for_hue.get(),
-                value_for_hue.get(),
-            ));
-            editor.invoke_request_apply();
+            let color = hsv_hex(h, saturation_for_hue.get(), value_for_hue.get());
+            let preview = hsv_color(h, saturation_for_hue.get(), value_for_hue.get());
+            if editor.get_picking_border_color() {
+                editor.set_border_color_value(color.clone().into());
+                editor.set_border_preview_color(preview);
+                editor.invoke_request_set_border_color(color.into());
+            } else {
+                editor.set_editor_color(color.into());
+                editor.set_editor_preview_color(preview);
+                editor.invoke_request_apply();
+            }
         }
     });
     let state = shared_settings.clone();
@@ -961,6 +1043,12 @@ fn apply_clock_scale(window: &AppWindow, clock_scale: f32) {
 
 fn normalize_clock_scale_percent(clock_scale_percent: f32) -> f32 {
     ((clock_scale_percent / 5.0).round() * 5.0).clamp(80.0, 150.0)
+}
+
+fn normalize_border_color(value: &str) -> Option<String> {
+    let value = value.trim().trim_start_matches('#');
+    (value.len() == 6 && value.chars().all(|character| character.is_ascii_hexdigit()))
+        .then(|| format!("#{}", value.to_ascii_uppercase()))
 }
 
 fn initialize_ruler_content(window: &AppWindow, settings: &AppSettings) {

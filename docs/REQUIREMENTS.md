@@ -18,6 +18,7 @@ This catalog is derived from the WPF source, its bundled screenshots, and the in
 - **WIN-13:** Restore the last Settings window size at application startup and persist a changed size when Settings is saved, closed, or the application exits.
 - **WIN-14:** Resize the clock strip immediately after adding or removing a clock, leaving no unused background area.
 - **WIN-15:** Provide a persisted outer-corner radius from 0 to 15.5 logical pixels. The same logical radius applies in standard and compact modes; the maximum produces semicircular compact-mode ends.
+- **WIN-16:** Let users choose one persisted color for the outer outline and the one-pixel separators between clock, ruler, and slider blocks.
 
 ## Display Modes
 
@@ -44,6 +45,7 @@ This catalog is derived from the WPF source, its bundled screenshots, and the in
 - **CLK-11:** Persist label, portable time-zone identifier, color, order, main selection, and seconds preference in the per-user JSON settings file. The UI must not hardcode a clock list.
 - **CLK-12:** Convert a UTC instant correctly through daylight-saving transitions and time zones with 30- or 45-minute offsets.
 - **CLK-13:** Offer the legacy dark-to-accent clock surface and an optional soft color style with no dark upper region, compact header typography, and larger primary time numerals.
+- **CLK-14:** Provide persisted dimming from 0% to 80% for non-primary clock tiles. Hovering anywhere over the clock strip smoothly removes dimming from all tiles and smoothly restores it when the pointer leaves.
 
 ## Context Menu
 
@@ -80,7 +82,7 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 
 ## Settings and Persistence
 
-- **SET-01 (Legacy):** Settings include opacity, show in taskbar, always on top, show seconds, outer-corner radius, and clock surface style.
+- **SET-01 (Legacy):** Settings include opacity, show in taskbar, always on top, show seconds, outer-corner radius, outline/separator color, non-primary clock dimming, and clock surface style.
 - **SET-02:** Apply all settings immediately and consistently to every visible window; no restart may be required.
 - **SET-03:** Save settings atomically in `settings.json` beside the executable and recover with safe defaults from missing, invalid, or older configuration.
 - **SET-04:** Version the settings schema and import legacy Windows time-zone IDs into IANA IDs.

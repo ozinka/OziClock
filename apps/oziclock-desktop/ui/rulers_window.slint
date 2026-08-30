@@ -24,7 +24,7 @@ export component RulersPanel inherits Rectangle {
     Rectangle {
         width: parent.width;
         height: parent.height;
-        background: #000000;
+        background: root.border-color;
         clip: true;
 
         for ruler[index] in root.rulers: Rectangle {

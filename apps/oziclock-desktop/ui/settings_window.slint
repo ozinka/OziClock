@@ -14,7 +14,7 @@ export component SettingsWindow inherits Window {
     preferred-width: root.saved-window-width * 1px;
     preferred-height: root.saved-window-height * 1px;
     min-width: 760px;
-    min-height: 620px;
+    min-height: 700px;
     resize-border-width: 6px;
     background: #17181c;
 
@@ -36,8 +36,12 @@ export component SettingsWindow inherits Window {
     in-out property <float> clock-scale-percent: 100;
     in-out property <float> corner-radius: 12;
     in-out property <bool> soft-clock-style: false;
+    in-out property <string> border-color-value: "#000000";
+    in-out property <color> border-preview-color: #000000;
+    in-out property <float> non-main-dimming: 0;
     in-out property <string> status-message;
     in-out property <bool> color-picker-open: false;
+    in-out property <bool> picking-border-color: false;
     in-out property <float> picker-hue: 220;
     in-out property <float> picker-saturation: 70;
     in-out property <float> picker-value: 90;
@@ -45,7 +49,7 @@ export component SettingsWindow inherits Window {
     in-out property <color> editor-preview-color: #ffffff;
     in-out property <int> dragging-index: -1;
     in-out property <float> saved-window-width: 760;
-    in-out property <float> saved-window-height: 620;
+    in-out property <float> saved-window-height: 700;
     callback request-close();
     callback request-window-drag();
     callback request-select(int);
@@ -60,6 +64,7 @@ export component SettingsWindow inherits Window {
     callback request-list-press(float, float);
     callback request-drag-end();
     callback request-open-color-picker();
+    callback request-open-border-color-picker();
     callback request-pick-color(string);
     callback request-picker-color(float, float);
     callback request-picker-hue(float);
@@ -75,6 +80,8 @@ export component SettingsWindow inherits Window {
     callback request-set-clock-scale(float);
     callback request-set-corner-radius(float);
     callback request-set-soft-clock-style(bool);
+    callback request-set-border-color(string);
+    callback request-set-non-main-dimming(float);
 
     Rectangle {
         width: parent.width;
@@ -147,21 +154,6 @@ export component SettingsWindow inherits Window {
         Text { x: 606px; y: 185px; visible: root.selected-section == 1; text: "Color"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         Rectangle { x: 606px; y: 207px; visible: root.selected-section == 1; width: 126px; height: 42px; border-radius: 6px; background: transparent; LineEdit { x: 0px; y: 0px; width: parent.width; height: parent.height; text <=> root.editor-color; edited => { root.request-apply(); } } }
         Text { x: 606px; y: 256px; visible: root.selected-section == 1; width: 126px; height: 24px; text: "Pick color…"; color: #9cc3ff; font-family: "Carlito"; font-size: 13px; vertical-alignment: center; TouchArea { clicked => { root.request-open-color-picker(); } } }
-        Rectangle {
-            x: 278px; y: 165px; width: 462px; height: 330px; visible: root.selected-section == 1 && root.color-picker-open; border-radius: 8px; border-width: 1px; border-color: #4a4e58; background: #25272d;
-            Text { x: 18px; y: 14px; text: "Choose color"; color: #f0f1f3; font-size: 16px; font-weight: 700; }
-            Rectangle { x: 18px; y: 50px; width: 426px; height: 180px; background: root.picker-hue-color;
-                Rectangle { width: parent.width; height: parent.height; background: @linear-gradient(90deg, #ffffffff, #ffffff00); }
-                Rectangle { width: parent.width; height: parent.height; background: @linear-gradient(180deg, #00000000, #000000ff); }
-                Rectangle { x: root.picker-saturation / 100 * parent.width - 8px; y: (100 - root.picker-value) / 100 * parent.height - 8px; width: 16px; height: 16px; border-radius: 8px; border-width: 2px; border-color: white; background: transparent; }
-                TouchArea { moved => { root.request-picker-color(self.mouse-x / 1px, self.mouse-y / 1px); } clicked => { root.request-picker-color(self.mouse-x / 1px, self.mouse-y / 1px); } }
-            }
-            Rectangle { x: 18px; y: 252px; width: 426px; height: 10px; border-radius: 5px; background: @linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); Rectangle { x: root.picker-hue / 360 * parent.width - 9px; y: -4px; width: 18px; height: 18px; border-radius: 9px; border-width: 2px; border-color: white; background: #3c81f6; } TouchArea { moved => { root.request-picker-hue(self.mouse-x / 1px); } clicked => { root.request-picker-hue(self.mouse-x / 1px); } } }
-            Text { x: 18px; y: 280px; text: root.editor-color; color: #dce0e7; font-size: 13px; }
-            Text { x: 318px; y: 274px; width: 52px; height: 32px; text: "Cancel"; color: #c7ccd5; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-cancel(); } } }
-            Rectangle { x: 376px; y: 274px; width: 68px; height: 32px; border-radius: 5px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "OK"; color: white; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-confirm(); } } } }
-            Text { x: 406px; y: 10px; width: 30px; height: 30px; text: "×"; color: #aeb3bd; font-size: 22px; horizontal-alignment: center; TouchArea { clicked => { root.color-picker-open = false; } } }
-        }
         Rectangle { x: 286px; y: 382px; width: 22px; height: 22px; visible: root.selected-section == 1 && !root.color-picker-open; border-radius: 5px; background: root.editor-is-main ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.editor-is-main ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.editor-is-main = !root.editor-is-main; root.request-apply(); } } }
         Text { x: 318px; y: 384px; visible: root.selected-section == 1 && !root.color-picker-open; text: "Primary clock"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; }
         Rectangle { x: 286px; y: 184px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.top-most ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.top-most ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.top-most = !root.top-most; root.request-set-top-most(root.top-most); } } }
@@ -185,6 +177,12 @@ export component SettingsWindow inherits Window {
         Text { x: 286px; y: 440px; visible: root.selected-section == 0; text: "Corner radius"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         Slider { x: 286px; y: 460px; width: 310px; height: 24px; visible: root.selected-section == 0; minimum: 0; maximum: 15.5; step: 0.5; value <=> root.corner-radius; changed => { root.request-set-corner-radius(self.value); } }
         Text { x: 612px; y: 459px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.corner-radius) + " px"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
+        Text { x: 286px; y: 494px; visible: root.selected-section == 0; text: "Border and separator color"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
+        Rectangle { x: 286px; y: 514px; visible: root.selected-section == 0; width: 190px; height: 38px; border-radius: 6px; background: transparent; LineEdit { width: parent.width; height: parent.height; text <=> root.border-color-value; edited => { root.request-set-border-color(root.border-color-value); } } }
+        Rectangle { x: 488px; y: 521px; visible: root.selected-section == 0; width: 24px; height: 24px; border-radius: 5px; border-width: 1px; border-color: #70747d; background: root.border-preview-color; TouchArea { clicked => { root.request-open-border-color-picker(); } } }
+        Text { x: 286px; y: 568px; visible: root.selected-section == 0; text: "Dim non-primary clocks"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
+        Slider { x: 286px; y: 588px; width: 310px; height: 24px; visible: root.selected-section == 0; minimum: 0; maximum: 80; step: 5; value <=> root.non-main-dimming; changed => { root.request-set-non-main-dimming(self.value); } }
+        Text { x: 612px; y: 587px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.non-main-dimming) + "%"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
         Rectangle {
             x: parent.width - 130px; y: parent.height - 58px; width: 102px; height: 42px; border-radius: 6px; background: #3c81f6;
             Text { width: parent.width; height: parent.height; text: "OK"; color: #ffffff; font-family: "Carlito"; font-size: 14px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-save(); } } }
@@ -193,6 +191,21 @@ export component SettingsWindow inherits Window {
         Text {
             x: 702px; y: 22px; width: 30px; height: 30px; text: "×"; color: #aeb3bd; font-family: "Carlito"; font-size: 24px; horizontal-alignment: center; vertical-alignment: center;
             TouchArea { clicked => { root.request-close(); } }
+        }
+        Rectangle {
+            x: 278px; y: 165px; width: 462px; height: 330px; visible: root.color-picker-open; border-radius: 8px; border-width: 1px; border-color: #4a4e58; background: #25272d;
+            Text { x: 18px; y: 14px; text: "Choose color"; color: #f0f1f3; font-size: 16px; font-weight: 700; }
+            Rectangle { x: 18px; y: 50px; width: 426px; height: 180px; background: root.picker-hue-color;
+                Rectangle { width: parent.width; height: parent.height; background: @linear-gradient(90deg, #ffffffff, #ffffff00); }
+                Rectangle { width: parent.width; height: parent.height; background: @linear-gradient(180deg, #00000000, #000000ff); }
+                Rectangle { x: root.picker-saturation / 100 * parent.width - 8px; y: (100 - root.picker-value) / 100 * parent.height - 8px; width: 16px; height: 16px; border-radius: 8px; border-width: 2px; border-color: white; background: transparent; }
+                TouchArea { moved => { root.request-picker-color(self.mouse-x / 1px, self.mouse-y / 1px); } clicked => { root.request-picker-color(self.mouse-x / 1px, self.mouse-y / 1px); } }
+            }
+            Rectangle { x: 18px; y: 252px; width: 426px; height: 10px; border-radius: 5px; background: @linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); Rectangle { x: root.picker-hue / 360 * parent.width - 9px; y: -4px; width: 18px; height: 18px; border-radius: 9px; border-width: 2px; border-color: white; background: #3c81f6; } TouchArea { moved => { root.request-picker-hue(self.mouse-x / 1px); } clicked => { root.request-picker-hue(self.mouse-x / 1px); } } }
+            Text { x: 18px; y: 280px; text: root.picking-border-color ? root.border-color-value : root.editor-color; color: #dce0e7; font-size: 13px; }
+            Text { x: 318px; y: 274px; width: 52px; height: 32px; text: "Cancel"; color: #c7ccd5; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-cancel(); } } }
+            Rectangle { x: 376px; y: 274px; width: 68px; height: 32px; border-radius: 5px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "OK"; color: white; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-confirm(); } } } }
+            Text { x: 406px; y: 10px; width: 30px; height: 30px; text: "×"; color: #aeb3bd; font-size: 22px; horizontal-alignment: center; TouchArea { clicked => { root.color-picker-open = false; } } }
         }
     }
 }

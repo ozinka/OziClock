@@ -28,6 +28,10 @@ pub struct AppSettings {
     pub corner_radius: f64,
     #[serde(default)]
     pub soft_clock_style: bool,
+    #[serde(default = "default_border_color")]
+    pub border_color: String,
+    #[serde(default)]
+    pub non_main_dimming: f64,
     #[serde(default = "default_settings_window_width")]
     pub settings_window_width: f64,
     #[serde(default = "default_settings_window_height")]
@@ -51,8 +55,12 @@ fn default_corner_radius() -> f64 {
     12.0
 }
 
+fn default_border_color() -> String {
+    "#000000".to_owned()
+}
+
 fn default_settings_window_height() -> f64 {
-    620.0
+    700.0
 }
 
 /// Returns the portable settings path beside the running executable.
@@ -119,6 +127,8 @@ mod tests {
         assert!(settings.clocks_settings.iter().any(|clock| clock.is_main));
         assert_eq!(settings.corner_radius, 12.0);
         assert!(!settings.soft_clock_style);
+        assert_eq!(settings.border_color, "#000000");
+        assert_eq!(settings.non_main_dimming, 0.0);
     }
 
     #[test]
@@ -127,9 +137,13 @@ mod tests {
         let document = legacy.as_object_mut().unwrap();
         document.remove("CornerRadius");
         document.remove("SoftClockStyle");
+        document.remove("BorderColor");
+        document.remove("NonMainDimming");
         let settings: AppSettings = serde_json::from_value(legacy).unwrap();
 
         assert_eq!(settings.corner_radius, 12.0);
         assert!(!settings.soft_clock_style);
+        assert_eq!(settings.border_color, "#000000");
+        assert_eq!(settings.non_main_dimming, 0.0);
     }
 }

@@ -11,8 +11,10 @@
   "ClockScale": 1.0,
   "CornerRadius": 12.0,
   "SoftClockStyle": false,
+  "BorderColor": "#000000",
+  "NonMainDimming": 0.0,
   "SettingsWindowWidth": 760.0,
-  "SettingsWindowHeight": 510.0,
+  "SettingsWindowHeight": 700.0,
   "ClocksSettings": [
     { "Label": "MEX", "TimeZone": "America/Mexico_City", "Color": "#FFFFAA" },
     { "Label": "NYK", "TimeZone": "America/New_York", "Color": "#AAAAFF" },

@@ -1,6 +1,6 @@
 [package]
 name = "oziclock-desktop"
-version = "2.0.7"
+version = "2.0.8"
 edition.workspace = true
 license.workspace = true
 
