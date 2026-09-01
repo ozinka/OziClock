@@ -980,10 +980,13 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             let next_view = CalendarView::from_index(view);
             {
                 let mut state = calendar_state_for_view.borrow_mut();
-                state.view = next_view;
                 if next_view == CalendarView::Week {
-                    state.cursor = CalendarDate::new(now.year(), now.month(), now.day())
-                        .expect("current date is valid");
+                    state.show_week(
+                        CalendarDate::new(now.year(), now.month(), now.day())
+                            .expect("current date is valid"),
+                    );
+                } else {
+                    state.view = next_view;
                 }
             }
             refresh_calendar_from_settings(
@@ -1031,8 +1034,12 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             let today = CalendarDate::new(now.year(), now.month(), now.day())
                 .expect("current date is valid");
             let mut state = calendar_state_for_today.borrow_mut();
-            state.cursor = today;
             state.selected = today;
+            if state.view == CalendarView::Week {
+                state.show_week(today);
+            } else {
+                state.cursor = today;
+            }
             refresh_calendar_window(&calendar, &state, today, now);
             if state.view == CalendarView::Week {
                 calendar.set_week_scroll_y(initial_week_scroll_y(now));
@@ -1662,7 +1669,18 @@ fn schedule_calendar_boundary_refresh(
             return;
         }
         if let Some(window) = window.upgrade() {
-            refresh_calendar_from_settings(&window, &state.borrow(), &settings.borrow());
+            let current_settings = settings.borrow();
+            let now = calendar_local_now(&current_settings);
+            let today = CalendarDate::new(now.year(), now.month(), now.day())
+                .expect("current local date is valid");
+            let mut calendar_state = state.borrow_mut();
+            let returned_to_today = calendar_state.ensure_week_contains(today);
+            refresh_calendar_window(&window, &calendar_state, today, now);
+            if returned_to_today {
+                window.set_week_scroll_y(initial_week_scroll_y(now));
+            }
+            drop(calendar_state);
+            drop(current_settings);
             schedule_calendar_boundary_refresh(
                 window.as_weak(),
                 state,

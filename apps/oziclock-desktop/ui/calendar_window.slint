@@ -5,6 +5,7 @@ export struct CalendarDayData {
     muted: bool,
     selected: bool,
     today: bool,
+    focused: bool,
 }
 
 export struct CalendarMonthData {
@@ -79,7 +80,7 @@ export component CalendarWindow inherits Window {
 
         Rectangle { x: 0px; y: 0px; width: parent.width; height: 82px; background: root.light-theme ? @linear-gradient(180deg, #baf1ed, root.accent) : @linear-gradient(180deg, #263236, #1a1c21); }
         Text { x: 18px; y: 13px; text: "CALENDAR"; color: root.light-theme ? #176f69 : root.accent; font-family: "Carlito"; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
-        Text { x: 18px; y: 31px; width: 200px; height: 38px; text: root.heading; color: root.text-color; font-family: "Carlito"; font-size: 23px; font-weight: 700; vertical-alignment: center; }
+        Text { x: 18px; y: 31px; width: 420px; height: 38px; text: root.heading; color: root.text-color; font-family: "Carlito"; font-size: 23px; font-weight: 700; vertical-alignment: center; }
         TouchArea { x: 0px; y: 0px; width: 220px; height: 82px; pointer-event(event) => { if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) { root.request-window-drag(); } } }
         CalendarButton { x: 448px; y: 25px; width: 38px; height: 34px; text: root.view == 2 ? "←" : "‹"; clicked => { root.request-previous(); } }
         CalendarButton { x: 492px; y: 25px; width: 66px; height: 34px; text: "Today"; clicked => { root.request-today(); } }
@@ -114,20 +115,20 @@ export component CalendarWindow inherits Window {
             for day[index] in root.week-days: Rectangle {
                 x: 44px + index * 81px; y: 0px; width: 81px; height: 45px; background: transparent;
                 Text { y: 0px; width: parent.width; height: 16px; text: root.weekday-labels[index]; color: day.weekend ? root.weekend-color : root.muted-color; font-family: "Carlito"; font-size: 9px; font-weight: 700; horizontal-alignment: center; }
-                Rectangle { x: 28px; y: 17px; width: 24px; height: 24px; border-radius: 12px; background: day.selected ? root.selection-color : transparent; Text { text: day.text; color: day.selected ? white : root.text-color; font-family: "Carlito"; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } }
+                Rectangle { x: 28px; y: 17px; width: 22px; height: 22px; border-radius: 11px; border-width: day.focused ? 1px : 0px; border-color: root.selection-color; background: day.selected ? root.selection-color : transparent; Text { text: day.text; color: day.selected ? white : root.text-color; font-family: "Carlito"; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } }
             }
             ScrollView {
                 x: 0px; y: 46px; width: parent.width; height: 404px;
-                viewport-width: parent.width - 12px;
+                viewport-width: parent.width;
                 viewport-height: root.hour-labels.length * 34px;
                 viewport-y <=> root.week-scroll-y;
                 horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
-                vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
+                vertical-scrollbar-policy: ScrollBarPolicy.always-off;
                 scrolled => { root.request-week-scroll(self.viewport-y / 1px); }
                 for hour[index] in root.hour-labels: Text { x: 0px; y: index * 34px - 8px; width: 40px; height: 20px; text: hour; color: root.muted-color; font-family: "Carlito"; font-size: 12px; horizontal-alignment: right; vertical-alignment: center; }
                 for separator[index] in root.week-days: Rectangle { x: 44px + index * 81px; y: 0px; width: 1px; height: root.hour-labels.length * 34px; background: root.line-color; }
                 for hour[index] in root.hour-labels: Rectangle { x: 44px; y: index * 34px; width: 567px; height: 1px; background: root.line-color; opacity: 0.18; }
-                Rectangle { x: 44px; y: root.current-time-y * 1px; width: 567px; height: 2px; visible: root.current-time-y >= 0; background: root.selection-color; Rectangle { x: -39px; y: -7px; width: 36px; height: 14px; border-radius: 3px; background: root.selection-color; Text { width: parent.width; height: parent.height; text: root.current-time-label; color: white; font-family: "Carlito"; font-size: 8px; horizontal-alignment: center; vertical-alignment: center; } } }
+                Rectangle { x: 44px; y: root.current-time-y * 1px; width: 567px; height: 2px; visible: root.current-time-y >= 0; background: root.selection-color; Rectangle { x: -36px; y: -13px; width: 40px; height: 26px; border-radius: 5px; background: root.selection-color; Text { width: parent.width; height: parent.height; text: root.current-time-label; color: white; font-family: "Carlito"; font-size: 14px; horizontal-alignment: center; vertical-alignment: center; } } }
             }
         }
 

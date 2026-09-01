@@ -29,7 +29,8 @@ const WEEKDAYS: [&str; 7] = [
     "Sunday",
 ];
 const WEEK_HOUR_HEIGHT: f32 = 34.0;
-const WEEK_BUFFER_HOURS: f32 = 12.0;
+const WEEK_BUFFER_HOURS: f32 = 48.0;
+const WEEK_CONTENT_HOURS: i32 = 144;
 const WEEK_VISIBLE_CENTER: f32 = 202.0;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -61,6 +62,7 @@ impl CalendarView {
 pub(super) struct CalendarState {
     pub(super) view: CalendarView,
     pub(super) cursor: CalendarDate,
+    pub(super) week_focus: CalendarDate,
     pub(super) selected: CalendarDate,
     pub(super) monday_first: bool,
     pub(super) light_theme: bool,
@@ -71,6 +73,7 @@ impl CalendarState {
         Self {
             view: CalendarView::Month,
             cursor: today,
+            week_focus: today,
             selected: today,
             monday_first: true,
             light_theme: true,
@@ -78,11 +81,21 @@ impl CalendarState {
     }
 
     pub(super) fn navigate(&mut self, delta: i32) {
-        self.cursor = match self.view {
-            CalendarView::Week => shift_day(self.cursor, i64::from(delta)),
-            CalendarView::Month => shift_month(self.cursor, delta),
-            CalendarView::Year => shift_year(self.cursor, delta),
-        };
+        match self.view {
+            CalendarView::Week => {
+                let days = i64::from(delta) * 7;
+                self.cursor = shift_day(self.cursor, days);
+                self.week_focus = shift_day(self.week_focus, days);
+            }
+            CalendarView::Month => self.cursor = shift_month(self.cursor, delta),
+            CalendarView::Year => self.cursor = shift_year(self.cursor, delta),
+        }
+    }
+
+    pub(super) fn show_week(&mut self, today: CalendarDate) {
+        self.view = CalendarView::Week;
+        self.cursor = week_start(today);
+        self.week_focus = today;
     }
 
     pub(super) fn select_month(&mut self, month_index: i32) {
@@ -97,7 +110,17 @@ impl CalendarState {
         if let Ok(date) = NaiveDate::parse_from_str(date_id, "%Y-%m-%d") {
             self.selected = date.into();
             self.cursor = date.into();
+            self.week_focus = date.into();
         }
+    }
+
+    pub(super) fn ensure_week_contains(&mut self, today: CalendarDate) -> bool {
+        if self.view != CalendarView::Week || self.cursor == week_start(today) {
+            return false;
+        }
+        self.cursor = week_start(today);
+        self.week_focus = today;
+        true
     }
 }
 
@@ -113,13 +136,15 @@ pub(super) fn normalize_week_scroll(state: &mut CalendarState, y: f32) -> (f32, 
     let mut adjusted = y;
     let mut shifted = false;
     while center >= start + day_height {
-        state.cursor = shift_day(state.cursor, 1);
+        state.week_focus = shift_day(state.week_focus, 1);
+        state.cursor = week_start(state.week_focus);
         adjusted += day_height;
         center -= day_height;
         shifted = true;
     }
     while center < start {
-        state.cursor = shift_day(state.cursor, -1);
+        state.week_focus = shift_day(state.week_focus, -1);
+        state.cursor = week_start(state.week_focus);
         adjusted -= day_height;
         center += day_height;
         shifted = true;
@@ -193,7 +218,7 @@ pub(super) fn refresh_calendar_window(
     window.set_months(month_model(state, today));
 
     window.set_hour_labels(ModelRc::new(VecModel::from(
-        (0..=48)
+        (0..=WEEK_CONTENT_HOURS)
             .map(|hour| format!("{:02}:00", hour % 24).into())
             .collect::<Vec<slint::SharedString>>(),
     )));
@@ -246,9 +271,16 @@ fn day_model(
                 muted: day.outside_month,
                 selected: day.date == state.selected,
                 today: day.date == today,
+                focused: day.date == state.week_focus,
             })
             .collect::<Vec<_>>(),
     ))
+}
+
+fn week_start(date: CalendarDate) -> CalendarDate {
+    let value =
+        NaiveDate::from_ymd_opt(date.year, date.month, date.day).expect("CalendarDate is valid");
+    shift_day(date, -i64::from(value.weekday().num_days_from_monday()))
 }
 
 fn format_date(date: CalendarDate) -> String {
@@ -288,5 +320,16 @@ mod tests {
         assert!(shifted);
         assert_eq!(state.cursor, CalendarDate::new(2026, 8, 31).unwrap());
         assert_eq!(adjusted, midnight_scroll + 24.0 * WEEK_HOUR_HEIGHT);
+    }
+
+    #[test]
+    fn week_view_returns_to_today_when_its_range_has_expired() {
+        let mut state = CalendarState::new(CalendarDate::new(2026, 8, 30).unwrap());
+        state.view = CalendarView::Week;
+        let today = CalendarDate::new(2026, 9, 6).unwrap();
+
+        assert!(state.ensure_week_contains(today));
+        assert_eq!(state.cursor, CalendarDate::new(2026, 8, 31).unwrap());
+        assert_eq!(state.week_focus, today);
     }
 }
