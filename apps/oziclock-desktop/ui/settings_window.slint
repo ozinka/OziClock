@@ -56,6 +56,7 @@ export component SettingsWindow inherits Window {
     in-out property <color> picker-hue-color: #3c81f6;
     in-out property <color> editor-preview-color: #ffffff;
     in-out property <int> dragging-index: -1;
+    in-out property <float> dragging-offset: 0;
     in-out property <bool> remove-confirmation-open: false;
     in-out property <string> remove-confirmation-label;
     in-out property <float> saved-window-width: 760;
@@ -128,7 +129,7 @@ export component SettingsWindow inherits Window {
             Text { x: 10px; y: 8px; text: "+ Add clock"; color: #9cc3ff; font-family: "Carlito"; font-size: 14px; }
             TouchArea { clicked => { root.request-add(); } }
         }
-        ScrollView {
+        clock-list-scroll := ScrollView {
             x: 0px;
             y: 283px;
             width: 260px;
@@ -138,16 +139,16 @@ export component SettingsWindow inherits Window {
             vertical-scrollbar-policy: ScrollBarPolicy.always-on;
         for clock[index] in root.clocks: Rectangle {
             x: 14px;
-            y: index * 43px;
-            animate y { duration: 150ms; easing: ease-in-out; }
+            y: index * 43px + (index == root.dragging-index ? root.dragging-offset * 1px : 0px);
+            animate y { duration: index == root.dragging-index ? 0ms : 80ms; easing: ease-in-out; }
             width: 232px;
             height: 37px;
             border-radius: 6px;
             background: root.selected-section == 1 && index == root.selected-index ? #31343c : #202126;
-            Text { x: 10px; y: 7px; width: 12px; text: "⠿"; color: #717783; font-size: 16px; }
-            Rectangle { x: 30px; y: 10px; width: 17px; height: 17px; border-radius: 5px; background: clock.accent; }
-            Text { x: 57px; y: 6px; width: 45px; text: clock.label; color: clock.is-main ? #ffffff : #d7d9de; font-family: "Carlito"; font-size: 14px; font-weight: clock.is-main ? 700 : 500; }
-            Text { x: 104px; y: 9px; width: 100px; text: clock.time-zone; color: #8f949e; font-family: "Carlito"; font-size: 11px; overflow: elide; }
+            Text { x: 10px; y: 10px; width: 12px; height: 17px; text: "⠿"; color: #717783; font-size: 16px; vertical-alignment: center; }
+            Rectangle { x: 30px; y: 9px; width: 18px; height: 18px; border-radius: 5px; background: clock.accent; }
+            Text { x: 57px; y: 8px; width: 45px; height: 21px; text: clock.label; color: clock.is-main ? #ffffff : #d7d9de; font-family: "Carlito"; font-size: 14px; font-weight: clock.is-main ? 700 : 500; vertical-alignment: center; }
+            Text { x: 104px; y: 8px; width: 100px; height: 21px; text: clock.time-zone; color: #8f949e; font-family: "Carlito"; font-size: 11px; overflow: elide; vertical-alignment: center; }
             Rectangle { x: 214px; y: 9px; width: 14px; height: 2px; border-radius: 1px; background: #e06a6a; }
             Rectangle { x: 218px; y: 7px; width: 6px; height: 2px; border-radius: 1px; background: #e06a6a; }
             Rectangle { x: 216px; y: 12px; width: 10px; height: 13px; border-radius: 1px; border-width: 1px; border-color: #e06a6a; background: transparent;
@@ -163,6 +164,22 @@ export component SettingsWindow inherits Window {
             }
             moved => { root.request-drag-clock(root.dragging-index, self.mouse-y / 1px); }
         }
+        }
+        Rectangle {
+            x: 14px;
+            y: 283px + root.dragging-index * 43px - clock-list-scroll.viewport-y + root.dragging-offset * 1px;
+            width: 232px;
+            height: 37px;
+            visible: root.dragging-index >= 0 && root.dragging-index < root.clocks.length;
+            border-radius: 6px;
+            background: #31343c;
+            Text { x: 10px; y: 10px; width: 12px; height: 17px; text: "⠿"; color: #717783; font-size: 16px; vertical-alignment: center; }
+            Rectangle { x: 30px; y: 9px; width: 18px; height: 18px; border-radius: 5px; background: root.clocks[root.dragging-index].accent; }
+            Text { x: 57px; y: 8px; width: 45px; height: 21px; text: root.clocks[root.dragging-index].label; color: #ffffff; font-family: "Carlito"; font-size: 14px; font-weight: 700; vertical-alignment: center; }
+            Text { x: 104px; y: 8px; width: 100px; height: 21px; text: root.clocks[root.dragging-index].time-zone; color: #8f949e; font-family: "Carlito"; font-size: 11px; overflow: elide; vertical-alignment: center; }
+            Rectangle { x: 214px; y: 9px; width: 14px; height: 2px; border-radius: 1px; background: #e06a6a; }
+            Rectangle { x: 218px; y: 7px; width: 6px; height: 2px; border-radius: 1px; background: #e06a6a; }
+            Rectangle { x: 216px; y: 12px; width: 10px; height: 13px; border-radius: 1px; border-width: 1px; border-color: #e06a6a; background: transparent; }
         }
 
         Rectangle { x: 286px; y: 82px; width: 446px; height: 1px; background: #33353c; }

@@ -694,6 +694,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             if (14.0..40.0).contains(&x) {
                 drag_start.set(index);
                 editor.set_dragging_index(index);
+                editor.set_dragging_offset(0.0);
             } else if x >= 202.0 {
                 editor.invoke_request_remove(index);
             } else {
@@ -715,6 +716,9 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 refresh_clock_order(&main_window_for_drag, &state);
                 drag_move.set(target);
                 editor.set_dragging_index(target);
+                editor.set_dragging_offset(y - target as f32 * 43.0 - 21.5);
+            } else if current >= 0 {
+                editor.set_dragging_offset(y - current as f32 * 43.0 - 21.5);
             }
         }
     });
@@ -724,6 +728,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         drag_end.set(-1);
         if let Some(editor) = editor.upgrade() {
             editor.set_dragging_index(-1);
+            editor.set_dragging_offset(0.0);
         }
     });
     let hue = Rc::new(Cell::new(220.0_f32));
