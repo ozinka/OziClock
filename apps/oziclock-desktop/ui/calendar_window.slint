@@ -17,12 +17,15 @@ export struct CalendarMonthData {
 component CalendarButton inherits Rectangle {
     in property <string> text;
     in property <bool> active: false;
+    in property <color> accent: #16877f;
+    in property <color> foreground: #172027;
+    in property <bool> light-theme: true;
     callback clicked();
     border-radius: 6px;
     border-width: 1px;
-    border-color: root.active ? #16877f : #70aaa6;
-    background: root.active ? #16877f : #d9f7f5;
-    Text { text: root.text; color: root.active ? white : #183b38; font-family: "Carlito"; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
+    border-color: root.active ? root.accent : (root.light-theme ? #b8bec7 : #4a505a);
+    background: root.active ? root.accent : (root.light-theme ? #f0f1f3 : #252931);
+    Text { text: root.text; color: root.active ? root.foreground : (root.light-theme ? #26303a : #e2e5e9); font-family: "Carlito"; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
     TouchArea { clicked => { root.clicked(); } }
 }
 
@@ -47,6 +50,7 @@ export component CalendarWindow inherits Window {
     in property <[CalendarMonthData]> months;
     in property <[string]> hour-labels;
     in property <color> accent: #9ee9e4;
+    in property <color> accent-foreground: #172027;
     in property <float> corner-radius: 12;
     in property <bool> light-theme: true;
     in property <float> current-time-y: -1;
@@ -62,13 +66,14 @@ export component CalendarWindow inherits Window {
     callback request-select-date(string);
     callback request-select-month(int);
     callback request-week-scroll(float);
+    callback request-toggle-theme();
 
     property <color> panel-bg: root.light-theme ? #ffffff : #1a1c21;
     property <color> text-color: root.light-theme ? #102625 : #f1f3f5;
-    property <color> muted-color: root.light-theme ? #688a87 : #7d838e;
-    property <color> line-color: root.light-theme ? #79bbb6 : #3a3e46;
+    property <color> muted-color: root.light-theme ? #68707a : #7d838e;
+    property <color> line-color: root.light-theme ? #c3c7ce : #3a3e46;
     property <color> weekend-color: root.light-theme ? #a44750 : #e5a0a0;
-    property <color> selection-color: #16877f;
+    property <color> selection-color: root.accent;
 
     Rectangle {
         width: parent.width; height: parent.height;
@@ -78,19 +83,20 @@ export component CalendarWindow inherits Window {
         background: root.panel-bg;
         clip: true;
 
-        Rectangle { x: 0px; y: 0px; width: parent.width; height: 82px; background: root.light-theme ? @linear-gradient(180deg, #baf1ed, root.accent) : @linear-gradient(180deg, #263236, #1a1c21); }
-        Text { x: 18px; y: 13px; text: "CALENDAR"; color: root.light-theme ? #176f69 : root.accent; font-family: "Carlito"; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+        Rectangle { x: 0px; y: 0px; width: parent.width; height: 82px; background: root.light-theme ? @linear-gradient(180deg, #e7e9ec, root.accent) : @linear-gradient(180deg, #263236, #1a1c21); }
+        Text { x: 18px; y: 13px; text: "CALENDAR"; color: root.light-theme ? #555d66 : root.accent; font-family: "Carlito"; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
         Text { x: 18px; y: 31px; width: 420px; height: 38px; text: root.heading; color: root.text-color; font-family: "Carlito"; font-size: 23px; font-weight: 700; vertical-alignment: center; }
         TouchArea { x: 0px; y: 0px; width: 220px; height: 82px; pointer-event(event) => { if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) { root.request-window-drag(); } } }
-        CalendarButton { x: 448px; y: 25px; width: 38px; height: 34px; text: root.view == 2 ? "←" : "‹"; clicked => { root.request-previous(); } }
-        CalendarButton { x: 492px; y: 25px; width: 66px; height: 34px; text: "Today"; clicked => { root.request-today(); } }
-        CalendarButton { x: 564px; y: 25px; width: 38px; height: 34px; text: root.view == 2 ? "→" : "›"; clicked => { root.request-next(); } }
+        CalendarButton { x: 448px; y: 25px; width: 38px; height: 34px; text: root.view == 2 ? "←" : "‹"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; clicked => { root.request-previous(); } }
+        CalendarButton { x: 492px; y: 25px; width: 66px; height: 34px; text: "Today"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; clicked => { root.request-today(); } }
+        CalendarButton { x: 564px; y: 25px; width: 38px; height: 34px; text: root.view == 2 ? "→" : "›"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; clicked => { root.request-next(); } }
 
         Rectangle { x: 0px; y: 82px; width: parent.width; height: 12px; background: root.light-theme ? @linear-gradient(180deg, root.accent, #ffffff) : root.panel-bg; }
 
-        CalendarButton { x: 18px; y: 99px; width: 62px; height: 34px; text: "Week"; active: root.view == 1; clicked => { root.request-view(1); } }
-        CalendarButton { x: 86px; y: 99px; width: 68px; height: 34px; text: "Month"; active: root.view == 0; clicked => { root.request-view(0); } }
-        CalendarButton { x: 160px; y: 99px; width: 58px; height: 34px; text: "Year"; active: root.view == 2; clicked => { root.request-view(2); } }
+        CalendarButton { x: 18px; y: 99px; width: 62px; height: 34px; text: "Week"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; active: root.view == 1; clicked => { root.request-view(1); } }
+        CalendarButton { x: 86px; y: 99px; width: 68px; height: 34px; text: "Month"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; active: root.view == 0; clicked => { root.request-view(0); } }
+        CalendarButton { x: 160px; y: 99px; width: 58px; height: 34px; text: "Year"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; active: root.view == 2; clicked => { root.request-view(2); } }
+        Text { x: 590px; y: 99px; width: 34px; height: 34px; text: root.light-theme ? "☾" : "☀"; color: root.text-color; font-family: "Carlito"; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-toggle-theme(); } } }
         // Month view
         Rectangle {
             x: 18px; y: 143px; width: 614px; height: 302px; visible: root.view == 0; background: transparent;
@@ -104,7 +110,7 @@ export component CalendarWindow inherits Window {
                 width: 85px; height: 39px; border-radius: 7px;
                 border-width: day.today ? 1px : 0px; border-color: root.selection-color;
                 background: day.selected ? root.selection-color : transparent;
-                Text { text: day.text; color: day.selected ? white : (day.muted ? root.muted-color : (day.weekend ? root.weekend-color : root.text-color)); font-family: "Carlito"; font-size: 14px; font-weight: day.selected ? 700 : 400; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: day.text; color: day.selected ? root.accent-foreground : (day.muted ? root.muted-color : (day.weekend ? root.weekend-color : root.text-color)); font-family: "Carlito"; font-size: 16px; font-weight: day.selected ? 700 : 400; horizontal-alignment: center; vertical-alignment: center; }
                 TouchArea { clicked => { root.request-select-date(day.date-id); } }
             }
         }
@@ -115,7 +121,7 @@ export component CalendarWindow inherits Window {
             for day[index] in root.week-days: Rectangle {
                 x: 44px + index * 81px; y: 0px; width: 81px; height: 45px; background: transparent;
                 Text { y: 0px; width: parent.width; height: 16px; text: root.weekday-labels[index]; color: day.weekend ? root.weekend-color : root.muted-color; font-family: "Carlito"; font-size: 9px; font-weight: 700; horizontal-alignment: center; }
-                Rectangle { x: 28px; y: 17px; width: 22px; height: 22px; border-radius: 11px; border-width: day.focused ? 1px : 0px; border-color: root.selection-color; background: day.selected ? root.selection-color : transparent; Text { text: day.text; color: day.selected ? white : root.text-color; font-family: "Carlito"; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } }
+                Rectangle { x: 28px; y: 17px; width: 22px; height: 22px; border-radius: 11px; border-width: day.focused ? 1px : 0px; border-color: root.selection-color; background: day.selected ? root.selection-color : transparent; Text { text: day.text; color: day.selected ? root.accent-foreground : root.text-color; font-family: "Carlito"; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } }
             }
             ScrollView {
                 x: 0px; y: 46px; width: parent.width; height: 404px;
@@ -128,7 +134,7 @@ export component CalendarWindow inherits Window {
                 for hour[index] in root.hour-labels: Text { x: 0px; y: index * 34px - 8px; width: 40px; height: 20px; text: hour; color: root.muted-color; font-family: "Carlito"; font-size: 12px; horizontal-alignment: right; vertical-alignment: center; }
                 for separator[index] in root.week-days: Rectangle { x: 44px + index * 81px; y: 0px; width: 1px; height: root.hour-labels.length * 34px; background: root.line-color; }
                 for hour[index] in root.hour-labels: Rectangle { x: 44px; y: index * 34px; width: 567px; height: 1px; background: root.line-color; opacity: 0.18; }
-                Rectangle { x: 44px; y: root.current-time-y * 1px; width: 567px; height: 2px; visible: root.current-time-y >= 0; background: root.selection-color; Rectangle { x: -36px; y: -13px; width: 40px; height: 26px; border-radius: 5px; background: root.selection-color; Text { width: parent.width; height: parent.height; text: root.current-time-label; color: white; font-family: "Carlito"; font-size: 14px; horizontal-alignment: center; vertical-alignment: center; } } }
+                Rectangle { x: 44px; y: root.current-time-y * 1px; width: 567px; height: 2px; visible: root.current-time-y >= 0; background: root.selection-color; Rectangle { x: -36px; y: -13px; width: 40px; height: 26px; border-radius: 5px; background: root.selection-color; Text { width: parent.width; height: parent.height; text: root.current-time-label; color: root.accent-foreground; font-family: "Carlito"; font-size: 14px; horizontal-alignment: center; vertical-alignment: center; } } }
             }
         }
 
@@ -139,13 +145,13 @@ export component CalendarWindow inherits Window {
                 x: (index - Math.floor(index / 4) * 4) * 153.5px;
                 y: Math.floor(index / 4) * 130px;
                 width: 147.5px; height: 124px; border-radius: root.corner-radius > 0 ? 7px : 0px; border-width: 1px; border-color: root.line-color; background: transparent;
-                Rectangle { x: 4px; y: 4px; width: 139.5px; height: 21px; border-radius: month.current ? 4px : 0px; background: month.current ? root.selection-color : transparent; Text { width: parent.width; height: parent.height; text: month.name; color: month.current ? white : root.text-color; font-family: "Carlito"; font-size: 14px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } }
+                Rectangle { x: 4px; y: 4px; width: 139.5px; height: 21px; border-radius: month.current ? 4px : 0px; background: month.current ? root.selection-color : transparent; Text { width: parent.width; height: parent.height; text: month.name; color: month.current ? root.accent-foreground : root.text-color; font-family: "Carlito"; font-size: 14px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } }
                 for label[label-index] in root.weekday-labels: Text { x: 5px + label-index * 19.5px; y: 28px; width: 17px; height: 12px; text: label; color: label-index >= 5 ? root.weekend-color : root.muted-color; font-family: "Carlito"; font-size: 9px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
                 for day[day-index] in month.days: Rectangle {
                     x: 5px + (day-index - Math.floor(day-index / 7) * 7) * 19.5px;
                     y: 42px + Math.floor(day-index / 7) * 13px;
                     width: 17px; height: 13px; border-radius: day.selected ? 6.5px : 0px; background: day.selected ? root.selection-color : transparent;
-                    Text { text: day.text; color: day.selected ? white : (day.muted ? root.muted-color : (day.weekend ? root.weekend-color : root.text-color)); font-family: "Carlito"; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: day.text; color: day.selected ? root.accent-foreground : (day.muted ? root.muted-color : (day.weekend ? root.weekend-color : root.text-color)); font-family: "Carlito"; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; }
                 }
                 TouchArea { clicked => { root.request-select-month(index); } }
             }

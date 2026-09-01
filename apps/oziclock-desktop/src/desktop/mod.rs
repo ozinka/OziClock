@@ -147,7 +147,9 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     initial_calendar_state.light_theme = shared_settings.borrow().calendar_light_theme;
     initial_calendar_state.monday_first = shared_settings.borrow().calendar_monday_first;
     let calendar_state = Rc::new(RefCell::new(initial_calendar_state));
-    calendar_window.set_accent(main_clock_accent(&shared_settings.borrow()));
+    let accent = calendar_accent(&shared_settings.borrow());
+    calendar_window.set_accent(accent);
+    calendar_window.set_accent_foreground(accent_foreground(accent));
     calendar_window
         .set_corner_radius(shared_settings.borrow().corner_radius.clamp(0.0, 15.5) as f32);
     refresh_calendar_window(
@@ -1019,6 +1021,19 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             }
         }
     });
+    let calendar_for_theme_toggle = calendar_window.as_weak();
+    let calendar_state_for_theme_toggle = calendar_state.clone();
+    let settings_for_theme_toggle = shared_settings.clone();
+    calendar_window.on_request_toggle_theme(move || {
+        let mut settings = settings_for_theme_toggle.borrow_mut();
+        settings.calendar_light_theme = !settings.calendar_light_theme;
+        let mut state = calendar_state_for_theme_toggle.borrow_mut();
+        state.light_theme = settings.calendar_light_theme;
+        if let Some(calendar) = calendar_for_theme_toggle.upgrade() {
+            calendar.set_light_theme(state.light_theme);
+            refresh_calendar_window(&calendar, &state, state.selected, calendar_local_now(&settings));
+        }
+    });
     let calendar_for_previous = calendar_window.as_weak();
     let calendar_state_for_previous = calendar_state.clone();
     let settings_for_calendar_previous = shared_settings.clone();
@@ -1582,7 +1597,9 @@ fn open_calendar_window(
         state.light_theme = settings.calendar_light_theme;
         state.monday_first = settings.calendar_monday_first;
     }
-    calendar.set_accent(main_clock_accent(&settings.borrow()));
+    let accent = calendar_accent(&settings.borrow());
+    calendar.set_accent(accent);
+    calendar.set_accent_foreground(accent_foreground(accent));
     calendar.set_corner_radius(settings.borrow().corner_radius.clamp(0.0, 15.5) as f32);
     refresh_calendar_from_settings(calendar, &state.borrow(), &settings.borrow());
     if state.borrow().view == CalendarView::Week {
@@ -1694,14 +1711,20 @@ fn schedule_calendar_boundary_refresh(
     });
 }
 
-fn main_clock_accent(settings: &AppSettings) -> slint::Color {
-    settings
+fn calendar_accent(settings: &AppSettings) -> slint::Color {
+    let clock = settings
         .clocks_settings
         .iter()
         .find(|clock| clock.is_main)
-        .or_else(|| settings.clocks_settings.first())
-        .map(|clock| parse_color(&clock.color))
-        .unwrap_or(slint::Color::from_rgb_u8(158, 233, 228))
+        .or_else(|| settings.clocks_settings.first());
+    let Some(clock) = clock else { return slint::Color::from_rgb_u8(79, 117, 117) };
+    let (hue, saturation, _) = color_to_hsv(&clock.color);
+    hsv_color(hue, saturation, 50.0)
+}
+
+fn accent_foreground(accent: slint::Color) -> slint::Color {
+    let luminance = 0.2126 * f64::from(accent.red()) + 0.7152 * f64::from(accent.green()) + 0.0722 * f64::from(accent.blue());
+    if luminance > 150.0 { slint::Color::from_rgb_u8(23, 32, 39) } else { slint::Color::from_rgb_u8(255, 255, 255) }
 }
 
 struct WorkArea {
