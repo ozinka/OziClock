@@ -23,6 +23,7 @@ Priorities describe sequencing, not severity:
 | --- | --- | --- | --- | --- | --- |
 | BL-003 | P2 | Discovery | Windowing | Add live edge snapping while dragging | Define per-platform drag-lifecycle behavior and acceptance tests for compact mode and high DPI. |
 | BL-004 | P2 | Ready | Windows | Preserve multi-resolution frames in the taskbar icon | Verify 16/32/48/64-pixel ICO selection against WPF at common display scales. |
+| BL-013 | P1 | Discovery | macOS windowing | Diagnose the clock strip moving down when resized or restored | Compact mode, rulers, and relaunch/login restore can shift the window downward by about 30 physical pixels at 85% clock scale. Establish the native frame/content-coordinate model and an acceptance test before changing production window behavior. |
 | BL-007 | P3 | Candidate | Alarms | Add one-time and recurring alarms | Define recurrence, DST, snooze, missed-alarm, sound, notification, and restart semantics. |
 | BL-008 | P3 | Candidate | Reminders | Add absolute and relative reminders | Define recurrence, clock association, notification history, and duplicate-delivery prevention. |
 | BL-009 | P3 | Candidate | Timers | Add multiple named countdown timers | Define sleep/restart recovery, repeat behavior, persistence, and compact controls. |
