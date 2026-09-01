@@ -1,5 +1,8 @@
-use super::{AppSettings, AppWindow, update_clock_tiles};
-use chrono::{DateTime, Timelike, Utc};
+use super::{
+    AppSettings, AppWindow, CalendarDate, CalendarState, CalendarWindow, calendar_local_now,
+    initial_week_scroll_y, refresh_calendar_window, update_clock_tiles,
+};
+use chrono::{DateTime, Datelike, Timelike, Utc};
 use slint::{ComponentHandle, Timer, TimerMode};
 use std::{cell::RefCell, rc::Rc, time::Duration};
 
@@ -8,12 +11,16 @@ pub(super) fn schedule_clock_refresh(
     window: slint::Weak<AppWindow>,
     settings: Rc<RefCell<AppSettings>>,
     explored_time: Rc<RefCell<Option<DateTime<Utc>>>>,
+    calendar: slint::Weak<CalendarWindow>,
+    calendar_state: Rc<RefCell<CalendarState>>,
 ) {
     let now = Utc::now();
     let show_seconds = settings.borrow().show_seconds;
     let milliseconds =
         next_refresh_delay_millis(show_seconds, now.second(), now.timestamp_subsec_millis());
     let timer_for_callback = timer.clone();
+    let calendar_for_callback = calendar.clone();
+    let calendar_state_for_callback = calendar_state.clone();
     timer.start(
         TimerMode::SingleShot,
         Duration::from_millis(milliseconds.max(1) as u64),
@@ -25,11 +32,27 @@ pub(super) fn schedule_clock_refresh(
                 let settings = settings.borrow();
                 update_clock_tiles(&window, &settings.clocks_settings, settings.show_seconds);
             }
+            if let Some(calendar) = calendar_for_callback.upgrade()
+                && calendar.window().is_visible()
+            {
+                let settings = settings.borrow();
+                let now = calendar_local_now(&settings);
+                let today = CalendarDate::new(now.year(), now.month(), now.day())
+                    .expect("current local date is valid");
+                let mut state = calendar_state_for_callback.borrow_mut();
+                let returned_to_today = state.ensure_week_contains(today);
+                refresh_calendar_window(&calendar, &state, today, now);
+                if returned_to_today {
+                    calendar.set_week_scroll_y(initial_week_scroll_y(now));
+                }
+            }
             schedule_clock_refresh(
                 timer_for_callback.clone(),
                 window.clone(),
                 settings.clone(),
                 explored_time.clone(),
+                calendar_for_callback.clone(),
+                calendar_state_for_callback.clone(),
             );
         },
     );

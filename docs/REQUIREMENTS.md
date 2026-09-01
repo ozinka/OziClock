@@ -17,14 +17,14 @@ This catalog is derived from the WPF source, its bundled screenshots, and the in
 - **WIN-12:** Open Settings near the clock while keeping the window entirely within the active monitor's working area.
 - **WIN-13:** Restore the last Settings window size at application startup and persist a changed size when Settings is saved, closed, or the application exits.
 - **WIN-14:** Resize the clock strip immediately after adding or removing a clock, leaving no unused background area.
-- **WIN-15:** Provide a persisted outer-corner radius from 0 to 15.5 logical pixels. The same logical radius applies in standard and compact modes; the maximum produces semicircular compact-mode ends.
+- **WIN-15:** Provide a persisted outer-corner radius from 0 to 15.5 logical pixels. The same logical radius applies to the clock in standard and compact modes and to Calendar, Settings, and About forms; the maximum produces semicircular compact-mode ends.
 - **WIN-16:** Let users choose one persisted color for the outer outline and the one-pixel separators between clock, ruler, and slider blocks.
 
 ## Display Modes
 
 - **MODE-01 (Legacy):** Standard mode displays the complete 99 × 60 logical-pixel tile: zone label and month/day on top, time below.
 - **MODE-02 (Legacy):** Compact mode folds the strip to approximately 29 logical pixels high, hiding the date/header area and leaving the time visible. Switching is available through General settings and middle-click and uses a 200 ms animation. During the transition, full-height tiles remain bottom-anchored and are clipped by the shrinking window.
-- **MODE-03:** The clock strip, rulers, and time slider share one native window and one clipped viewport. Compact/standard clock height and ruler visibility are independent states: middle-click changes only clock height, while `Show/Hide Rulers` and double-click change only ruler visibility. The viewport resizes to reveal the resulting portion of a single composed surface, including compact clocks with visible rulers.
+- **MODE-03:** The clock strip, rulers, and time slider share one native window and one clipped viewport. Compact/standard clock height and ruler visibility are independent states: middle-click changes only clock height, while `Show/Hide Rulers` in the context menu changes only ruler visibility. The viewport resizes to reveal the resulting portion of a single composed surface, including compact clocks with visible rulers.
 - **MODE-03A:** The clock strip remains fully opaque while rulers are visible, regardless of the configured inactive opacity.
 - **MODE-04:** Mode changes must preserve tile order, selected main zone, window position, colors, and current settings.
 - **MODE-05 (New):** Persist the selected display mode across restarts.
@@ -41,8 +41,8 @@ This catalog is derived from the WPF source, its bundled screenshots, and the in
 - **CLK-07 (Legacy):** Add a new clock initially as UTC, then immediately open its editor.
 - **CLK-08 (Legacy):** Edit the selected clock’s label, time zone from the supported IANA time-zone list with its current UTC offset (sorted by offset, then name), and accent color with immediate preview.
 - **CLK-08A:** The clock editor provides a time-zone search field above the picker. Filtering is case-insensitive and matches both the IANA identifier and the visible offset-and-name text. Results preserve the full list's current-offset-then-identifier ordering; an empty query restores the complete list. When no time zone matches, the picker is empty and the editor shows a non-blocking `No matching time zones` message. The search field and filtered picker remain operable with the keyboard, and selecting a result updates the edited clock immediately without changing any other clock property.
-- **CLK-09 (Legacy):** Move a clock one position left or right and immediately keep the clock strip and its ruler in the same order.
-- **CLK-10 (Legacy):** Remove a non-main clock only after confirmation. Never remove the last clock or the main clock.
+- **CLK-09 (Legacy):** Reorder a clock by dragging its six-dot handle in the Settings list, immediately keeping the clock strip and its ruler in the same order.
+- **CLK-10 (Legacy):** The trailing trash icon in the Settings list opens a confirmation before removing a non-main clock. Never remove the last clock or the main clock.
 - **CLK-11:** Persist label, portable time-zone identifier, color, order, main selection, and seconds preference in the per-user JSON settings file. The UI must not hardcode a clock list.
 - **CLK-12:** Convert a UTC instant correctly through daylight-saving transitions and time zones with 30- or 45-minute offsets.
 - **CLK-13:** Offer the legacy dark-to-accent clock surface and an optional soft color style with no dark upper region, compact header typography, and larger primary time numerals.
@@ -102,13 +102,13 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 
 ## Calendar Panel
 
-- **CAL-01:** Offer an optional frameless calendar window from the clock context menu. It runs in the same process, creates no separate taskbar/dock entry, and toggles independently from Settings and About.
+- **CAL-01:** Offer an optional frameless calendar window by clicking the clock strip. It runs in the same process, creates no separate taskbar/dock entry, and toggles independently from Settings and About.
 - **CAL-02:** Attach the calendar to the clock strip, centered horizontally. Prefer placement below the strip, fall back above it when required, and constrain the complete calendar to the active monitor working area.
 - **CAL-03:** Provide Week, Month, and Year views with Month as the initial view. Previous, Today, and Next navigation reuse the same selected-date state across views.
 - **CAL-04:** The calendar provides light and dark themes derived from the main clock accent. Month view distinguishes weekends, supports Monday or Sunday as the first day of the week, shows adjacent-month dates quietly, and highlights today and the selected date.
 - **CAL-05:** Week view places Monday through Sunday horizontally and time vertically in a fixed 12-hour viewport. It opens with the current time centered, preserves solid day separators, uses subtle hour guides, and marks the current time with a 12-pixel label when visible. Scrolling advances the focused date day by day; after Sunday it changes to the following Monday and week. The focused date has a circular outline without a fill, while the selected date remains filled. Pointer and trackpad scrolling remain available without visible scrollbars. When the current day moves outside the displayed week, the view returns to that day and recenters its current time.
 - **CAL-09:** Calendar theme and first-day-of-week choices are configured only in Settings. The calendar panel contains navigation and view controls, but no duplicate settings controls.
-- **CAL-10:** A single click on the clock strip toggles the calendar. The calendar hides when it loses focus. Double-clicking retains its existing clock action and dragging the clock strip must not show or hide the calendar.
+- **CAL-10:** A single click on the clock strip toggles the calendar without a double-click delay. The calendar hides when it loses focus, and dragging the clock strip must not show or hide the calendar.
 - **CAL-06:** Year view shows twelve readable 7-by-6 mini-months, highlights the current month and date, shows adjacent-month dates quietly, and opens a month when selected.
 - **CAL-07:** Calendar date calculations are deterministic Rust logic covered by focused tests. Current-date refresh occurs when the window opens and at the next relevant time boundary while visible; the calendar must not introduce continuous background polling.
 - **CAL-08:** At four or more clocks the calendar may visually join the strip. With one to three clocks it retains a usable minimum width, centers below the strip, and keeps rounded upper corners. Calendar height must not grow merely because clock UI scale or clock count increases.

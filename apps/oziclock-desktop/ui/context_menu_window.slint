@@ -11,9 +11,10 @@ export component ContextMenuWindow inherits Window {
     background: transparent;
 
     callback request-open-settings();
-    callback request-open-calendar();
+    callback request-toggle-rulers();
     callback request-open-about();
     callback request-exit();
+    in property <bool> show-rulers: false;
 
     Rectangle {
         width: parent.width;
@@ -25,21 +26,21 @@ export component ContextMenuWindow inherits Window {
 
         Text {
             x: 15px; y: 10px; width: 186px; height: 34px;
-            text: "Calendar…";
-            color: #f0f1f3;
-            font-family: "Carlito";
-            font-size: 14px;
-            vertical-alignment: center;
-            TouchArea { clicked => { root.request-open-calendar(); } }
-        }
-        Text {
-            x: 15px; y: 45px; width: 186px; height: 34px;
             text: "Settings…";
             color: #f0f1f3;
             font-family: "Carlito";
             font-size: 14px;
             vertical-alignment: center;
             TouchArea { clicked => { root.request-open-settings(); } }
+        }
+        Text {
+            x: 15px; y: 45px; width: 186px; height: 34px;
+            text: root.show-rulers ? "Hide rulers" : "Show rulers";
+            color: #f0f1f3;
+            font-family: "Carlito";
+            font-size: 14px;
+            vertical-alignment: center;
+            TouchArea { clicked => { root.request-toggle-rulers(); } }
         }
         Text {
             x: 15px; y: 80px; width: 186px; height: 34px;

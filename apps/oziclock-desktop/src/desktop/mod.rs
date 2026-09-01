@@ -115,7 +115,6 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.set_top_most(settings.top_most);
     settings_window.set_show_in_task_bar(settings.show_in_task_bar);
     settings_window.set_compact_mode(settings.compact_mode);
-    settings_window.set_show_rulers(settings.show_rulers);
     settings_window.set_clock_scale_percent(clock_scale_percent);
     settings_window.set_corner_radius(settings.corner_radius.clamp(0.0, 15.5) as f32);
     settings_window.set_soft_clock_style(settings.soft_clock_style);
@@ -288,13 +287,33 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             sync_main_window_size(&main_window);
         }
     });
+    let pending_remove_index = Rc::new(Cell::new(-1));
+    let state = shared_settings.clone();
+    let editor = settings_window.as_weak();
+    let pending_remove_for_request = pending_remove_index.clone();
+    settings_window.on_request_remove(move |index| {
+        if let Some(editor) = editor.upgrade() {
+            let state = state.borrow();
+            let Some(clock) = state.clocks_settings.get(index.max(0) as usize) else {
+                return;
+            };
+            if index < 0 || clock.is_main || state.clocks_settings.len() <= 1 {
+                editor.set_status_message("The primary or only clock cannot be removed.".into());
+                return;
+            }
+            pending_remove_for_request.set(index);
+            editor.set_remove_confirmation_label(clock.label.clone().into());
+            editor.set_remove_confirmation_open(true);
+        }
+    });
     let state = shared_settings.clone();
     let editor = settings_window.as_weak();
     let main_window = window.as_weak();
-    settings_window.on_request_remove(move || {
+    let pending_remove_for_confirm = pending_remove_index.clone();
+    settings_window.on_request_confirm_remove(move || {
         if let Some(editor) = editor.upgrade() {
+            let index = pending_remove_for_confirm.replace(-1);
             let mut state = state.borrow_mut();
-            let index = editor.get_selected_index();
             if index >= 0
                 && execute_clock_command(
                     &mut state.clocks_settings,
@@ -311,6 +330,13 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                     sync_main_window_size(&main_window);
                 }
             }
+            editor.set_remove_confirmation_open(false);
+        }
+    });
+    let editor = settings_window.as_weak();
+    settings_window.on_request_cancel_remove(move || {
+        if let Some(editor) = editor.upgrade() {
+            editor.set_remove_confirmation_open(false);
         }
     });
     let state = shared_settings.clone();
@@ -369,6 +395,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let main_window = window.as_weak();
     let timer_for_seconds = clock_timer.clone();
     let explored_time_for_seconds = explored_time.clone();
+    let calendar_for_seconds = calendar_window.as_weak();
+    let calendar_state_for_seconds = calendar_state.clone();
     settings_window.on_request_set_show_seconds(move |show_seconds| {
         {
             let mut state = state.borrow_mut();
@@ -383,6 +411,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             main_window.clone(),
             state.clone(),
             explored_time_for_seconds.clone(),
+            calendar_for_seconds.clone(),
+            calendar_state_for_seconds.clone(),
         );
     });
     let compact_animation_generation = Rc::new(Cell::new(0_u64));
@@ -405,35 +435,6 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     });
     let state = shared_settings.clone();
     let main_window = window.as_weak();
-    let explored_time_for_visibility = explored_time.clone();
-    settings_window.on_request_set_show_rulers(move |show_rulers| {
-        let settings = {
-            let mut state = state.borrow_mut();
-            state.show_rulers = show_rulers;
-            state.clone()
-        };
-        if let Some(main_window) = main_window.upgrade() {
-            main_window.set_show_rulers(show_rulers);
-            if show_rulers {
-                initialize_ruler_content(&main_window, &settings);
-                main_window.invoke_request_focus_progress(main_window.get_focus_progress());
-            }
-            sync_main_window_size(&main_window);
-        }
-        if !show_rulers {
-            *explored_time_for_visibility.borrow_mut() = None;
-            if let Some(main_window) = main_window.upgrade() {
-                update_clock_tiles(
-                    &main_window,
-                    &settings.clocks_settings,
-                    settings.show_seconds,
-                );
-            }
-        }
-    });
-    let state = shared_settings.clone();
-    let editor = settings_window.as_weak();
-    let main_window = window.as_weak();
     let explored_time_for_toggle = explored_time.clone();
     window.on_request_toggle_rulers(move || {
         let settings = {
@@ -442,9 +443,6 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             state.clone()
         };
         let show_rulers = settings.show_rulers;
-        if let Some(editor) = editor.upgrade() {
-            editor.set_show_rulers(show_rulers);
-        }
         if let Some(main_window) = main_window.upgrade() {
             main_window.set_show_rulers(show_rulers);
             if show_rulers {
@@ -483,11 +481,20 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     });
     let state = shared_settings.clone();
     let main_window = window.as_weak();
+    let about_window_for_radius = Rc::new(RefCell::new(None::<slint::Weak<AboutWindow>>));
+    let about_for_corner_radius = about_window_for_radius.clone();
     settings_window.on_request_set_corner_radius(move |corner_radius| {
         let corner_radius = corner_radius.clamp(0.0, 15.5);
         state.borrow_mut().corner_radius = f64::from(corner_radius);
         if let Some(main_window) = main_window.upgrade() {
             main_window.set_corner_radius(corner_radius);
+        }
+        if let Some(about_window) = about_for_corner_radius
+            .borrow()
+            .as_ref()
+            .and_then(slint::Weak::upgrade)
+        {
+            about_window.set_corner_radius(corner_radius);
         }
     });
     let state = shared_settings.clone();
@@ -671,9 +678,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             return;
         }
         if let Some(editor) = editor.upgrade() {
-            if x >= 202.0 {
+            if (14.0..40.0).contains(&x) {
                 drag_start.set(index);
                 editor.set_dragging_index(index);
+            } else if x >= 202.0 {
+                editor.invoke_request_remove(index);
             } else {
                 select_clock(&editor, &state.borrow().clocks_settings, index);
             }
@@ -687,7 +696,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         if let Some(editor) = editor.upgrade() {
             let current = drag_move.get();
             let target = (y / 43.0).floor() as i32;
-            if current != target && target >= 0 {
+            if current >= 0 && current != target && target >= 0 {
                 let mut state = state.borrow_mut();
                 move_clock_to(&editor, &mut state.clocks_settings, current, target);
                 refresh_clock_order(&main_window_for_drag, &state);
@@ -1091,67 +1100,47 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             }
         }
     });
-    let weak_context_for_calendar = context_menu.as_weak();
-    let calendar_for_menu = calendar_window.as_weak();
-    let main_for_calendar = window.as_weak();
-    let calendar_state_for_menu = calendar_state.clone();
-    let settings_for_calendar_menu = shared_settings.clone();
-    let calendar_generation_for_menu = calendar_refresh_generation.clone();
-    context_menu.on_request_open_calendar(move || {
-        if let Some(menu) = weak_context_for_calendar.upgrade() {
+    let menu_for_ruler_toggle = context_menu.as_weak();
+    let main_window_for_ruler_toggle = window.as_weak();
+    context_menu.on_request_toggle_rulers(move || {
+        if let Some(menu) = menu_for_ruler_toggle.upgrade() {
             let _ = menu.hide();
         }
-        if let Some(calendar) = calendar_for_menu.upgrade() {
-            open_calendar_window(
-                &calendar,
-                &main_for_calendar,
-                &calendar_state_for_menu,
-                &settings_for_calendar_menu,
-                &calendar_generation_for_menu,
-            );
+        if let Some(main_window) = main_window_for_ruler_toggle.upgrade() {
+            main_window.invoke_request_toggle_rulers();
         }
-    });
-    let clock_click_generation = Rc::new(Cell::new(0_u64));
-    let click_generation_for_double = clock_click_generation.clone();
-    window.on_request_clock_double_click(move || {
-        click_generation_for_double.set(click_generation_for_double.get().wrapping_add(1));
     });
     let calendar_for_clock_click = calendar_window.as_weak();
     let main_for_clock_click = window.as_weak();
     let state_for_clock_click = calendar_state.clone();
     let settings_for_clock_click = shared_settings.clone();
     let calendar_refresh_for_clock_click = calendar_refresh_generation.clone();
-    let click_generation = clock_click_generation.clone();
     let focus_guard_for_click = calendar_recently_lost_focus.clone();
     window.on_request_clock_click(move || {
         if focus_guard_for_click.replace(false) {
             return;
         }
-        let revision = click_generation.get().wrapping_add(1);
-        click_generation.set(revision);
-        let calendar = calendar_for_clock_click.clone();
-        let main = main_for_clock_click.clone();
-        let state = state_for_clock_click.clone();
-        let settings = settings_for_clock_click.clone();
-        let calendar_refresh = calendar_refresh_for_clock_click.clone();
-        let generation = click_generation.clone();
-        slint::Timer::single_shot(Duration::from_millis(450), move || {
-            if generation.get() != revision {
-                return;
+        if let Some(calendar) = calendar_for_clock_click.upgrade() {
+            if calendar.window().is_visible() {
+                let _ = calendar.hide();
+                calendar_refresh_for_clock_click
+                    .set(calendar_refresh_for_clock_click.get().wrapping_add(1));
+            } else {
+                open_calendar_window(
+                    &calendar,
+                    &main_for_clock_click,
+                    &state_for_clock_click,
+                    &settings_for_clock_click,
+                    &calendar_refresh_for_clock_click,
+                );
             }
-            if let Some(calendar) = calendar.upgrade() {
-                if calendar.window().is_visible() {
-                    let _ = calendar.hide();
-                    calendar_refresh.set(calendar_refresh.get().wrapping_add(1));
-                } else {
-                    open_calendar_window(&calendar, &main, &state, &settings, &calendar_refresh);
-                }
-            }
-        });
+        }
     });
 
     let about_window = AboutWindow::new()?;
     about_window.set_version(env!("CARGO_PKG_VERSION").into());
+    about_window.set_corner_radius(shared_settings.borrow().corner_radius.clamp(0.0, 15.5) as f32);
+    *about_window_for_radius.borrow_mut() = Some(about_window.as_weak());
     let about_for_keyboard = about_window.as_weak();
     about_window
         .window()
@@ -1246,6 +1235,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         window.as_weak(),
         shared_settings.clone(),
         explored_time.clone(),
+        calendar_window.as_weak(),
+        calendar_state.clone(),
     );
 
     let main_window_for_attached_layout = window.as_weak();
@@ -1802,6 +1793,7 @@ fn refresh_clock_order(main_window: &slint::Weak<AppWindow>, settings: &AppSetti
 }
 
 fn show_context_menu(context_menu: &ContextMenuWindow, owner: &AppWindow) {
+    context_menu.set_show_rulers(owner.get_show_rulers());
     let _ = context_menu.show();
     hide_auxiliary_window_from_taskbar(context_menu.window());
     let requested_x = owner.get_menu_x();

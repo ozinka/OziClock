@@ -8,8 +8,9 @@ export component AboutWindow inherits Window {
     min-height: 280px;
     max-width: 430px;
     max-height: 280px;
-    background: #17181c;
+    background: transparent;
     in property <string> version;
+    in property <float> corner-radius: 12;
     callback request-close();
     callback request-open-project-url();
 
@@ -17,6 +18,8 @@ export component AboutWindow inherits Window {
         width: parent.width;
         height: parent.height;
         background: #17181c;
+        border-radius: root.corner-radius * 1px;
+        clip: true;
         border-width: 1px;
         border-color: #303238;
 

@@ -46,7 +46,6 @@ export component AppWindow inherits Window {
     callback request-window-drag-move(float, float);
     callback request-window-drag-end();
     callback request-clock-click();
-    callback request-clock-double-click();
     callback request-open-menu();
     callback request-open-settings();
     callback request-open-about();
@@ -117,7 +116,6 @@ export component AppWindow inherits Window {
                 property <float> press-x: 0;
                 property <float> press-y: 0;
                 clicked => { if (!self.dragged) { root.request-clock-click(); } }
-                double-clicked => { root.request-clock-double-click(); root.request-toggle-rulers(); }
                 pointer-event(event) => {
                     if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
                         self.left-pressed = true;
