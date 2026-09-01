@@ -5,6 +5,7 @@
   "Opacity": 1.0,
   "TopMost": true,
   "ShowInTaskBar": false,
+  "LaunchAtLogin": false,
   "ShowSeconds": true,
   "CompactMode": false,
   "ShowRulers": false,

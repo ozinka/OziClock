@@ -3,6 +3,7 @@ slint::include_modules!();
 mod calendar_bindings;
 mod clock_refresh;
 mod colors;
+mod launch_at_login;
 mod settings_bindings;
 #[cfg(target_os = "windows")]
 mod tray;
@@ -114,6 +115,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.set_show_seconds(settings.show_seconds);
     settings_window.set_top_most(settings.top_most);
     settings_window.set_show_in_task_bar(settings.show_in_task_bar);
+    settings_window.set_launch_at_login(settings.launch_at_login);
     settings_window.set_compact_mode(settings.compact_mode);
     settings_window.set_clock_scale_percent(clock_scale_percent);
     settings_window.set_corner_radius(settings.corner_radius.clamp(0.0, 15.5) as f32);
@@ -130,6 +132,9 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.set_selected_section(0);
     initialize_ruler_content(&window, &settings);
     let shared_settings = Rc::new(RefCell::new(settings));
+    if shared_settings.borrow().launch_at_login {
+        let _ = launch_at_login::set_enabled(true);
+    }
     let calendar_window = CalendarWindow::new()?;
     let initial_calendar_now = calendar_local_now(&shared_settings.borrow());
     let initial_calendar_date = CalendarDate::new(
@@ -565,6 +570,12 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         state.borrow_mut().show_in_task_bar = show_in_task_bar;
         if let Some(main_window) = main_window.upgrade() {
             set_main_window_taskbar_visibility(&main_window, show_in_task_bar);
+        }
+    });
+    let state = shared_settings.clone();
+    settings_window.on_request_set_launch_at_login(move |enabled| {
+        if launch_at_login::set_enabled(enabled).is_ok() {
+            state.borrow_mut().launch_at_login = enabled;
         }
     });
     let state = shared_settings.clone();

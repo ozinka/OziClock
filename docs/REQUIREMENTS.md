@@ -121,6 +121,7 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **NFR-04:** Keep idle CPU use near zero apart from the once-per-second clock update; extended interactive mode may update more frequently only while visible.
 - **NFR-05:** Work without network access and collect no telemetry by default.
 - **NFR-06:** Use platform-appropriate context menus, tray/status items, startup behavior, packaging, and signing without leaking platform APIs into domain logic.
+- **NFR-07:** Let users opt into launching OziClock automatically at system login through a persisted Settings option.
 
 ## Legacy Gaps to Avoid
 

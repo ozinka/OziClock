@@ -40,3 +40,7 @@ History uses short, imperative, feature-focused subjects such as `implement feat
 ## Configuration & Generated Files
 
 Do not commit `bin/`, `obj/`, `publish/`, IDE settings, or user-specific `appsettings.*.json` files. Never place secrets in the checked-in base configuration.
+
+## Development Workflow
+
+After completing each user-requested task, build the Rust desktop application with `cargo build -p oziclock-desktop` and launch a debug instance with `cargo run -p oziclock-desktop` so the user can manually verify the result.

@@ -35,6 +35,7 @@ export component SettingsWindow inherits Window {
     in-out property <bool> show-seconds;
     in-out property <bool> top-most;
     in-out property <bool> show-in-task-bar;
+    in-out property <bool> launch-at-login;
     in-out property <float> opacity-percent;
     in-out property <bool> compact-mode;
     in-out property <float> clock-scale-percent: 100;
@@ -87,6 +88,7 @@ export component SettingsWindow inherits Window {
     callback request-set-show-seconds(bool);
     callback request-set-top-most(bool);
     callback request-set-show-in-task-bar(bool);
+    callback request-set-launch-at-login(bool);
     callback request-set-opacity(float);
     callback request-set-compact-mode(bool);
     callback request-set-clock-scale(float);
@@ -198,8 +200,10 @@ export component SettingsWindow inherits Window {
         Text { x: 318px; y: 254px; visible: root.selected-section == 0; text: "Compact mode"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; }
         Rectangle { x: 286px; y: 286px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.show-in-task-bar ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.show-in-task-bar ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.show-in-task-bar = !root.show-in-task-bar; root.request-set-show-in-task-bar(root.show-in-task-bar); } } }
         Text { x: 318px; y: 288px; visible: root.selected-section == 0; text: "Show in taskbar"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; }
-        Rectangle { x: 510px; y: 286px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.soft-clock-style ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.soft-clock-style ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.soft-clock-style = !root.soft-clock-style; root.request-set-soft-clock-style(root.soft-clock-style); } } }
-        Text { x: 542px; y: 288px; visible: root.selected-section == 0; text: "Soft color style"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; }
+        Rectangle { x: 510px; y: 184px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.soft-clock-style ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.soft-clock-style ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.soft-clock-style = !root.soft-clock-style; root.request-set-soft-clock-style(root.soft-clock-style); } } }
+        Text { x: 542px; y: 186px; visible: root.selected-section == 0; text: "Soft color style"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; }
+        Rectangle { x: 510px; y: 218px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.launch-at-login ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.launch-at-login ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.launch-at-login = !root.launch-at-login; root.request-set-launch-at-login(root.launch-at-login); } } }
+        Text { x: 542px; y: 220px; visible: root.selected-section == 0; text: "Launch at login"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; }
         Text { x: 286px; y: 332px; visible: root.selected-section == 0; text: "Opacity"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         Slider { x: 286px; y: 352px; width: 310px; height: 24px; visible: root.selected-section == 0; minimum: 2; maximum: 100; step: 1; value <=> root.opacity-percent; changed => { root.request-set-opacity(self.value); } }
         Text { x: 612px; y: 351px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.opacity-percent) + "%"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }

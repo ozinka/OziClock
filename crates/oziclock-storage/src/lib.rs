@@ -17,6 +17,8 @@ pub struct AppSettings {
     pub opacity: f64,
     pub top_most: bool,
     pub show_in_task_bar: bool,
+    #[serde(default)]
+    pub launch_at_login: bool,
     pub show_seconds: bool,
     #[serde(default)]
     pub compact_mode: bool,

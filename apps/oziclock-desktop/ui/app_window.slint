@@ -137,7 +137,7 @@ export component AppWindow inherits Window {
                     }
                 }
                 moved => {
-                    if (self.left-pressed && (abs(self.mouse-x / 1px - self.press-x) > 4 || abs(self.mouse-y / 1px - self.press-y) > 4)) {
+                    if (self.left-pressed && (abs(self.mouse-x / 1px - self.press-x) > 1 || abs(self.mouse-y / 1px - self.press-y) > 1)) {
                         self.dragged = true;
                     }
                     root.request-window-drag-move(self.mouse-x / 1px, self.mouse-y / 1px);
