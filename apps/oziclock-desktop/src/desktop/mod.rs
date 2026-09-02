@@ -1162,13 +1162,18 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             main_window.invoke_request_toggle_rulers();
         }
     });
+    let main_window_drag_state = configure_main_window_drag(&window);
     let calendar_for_clock_click = calendar_window.as_weak();
     let main_for_clock_click = window.as_weak();
     let state_for_clock_click = calendar_state.clone();
     let settings_for_clock_click = shared_settings.clone();
     let calendar_refresh_for_clock_click = calendar_refresh_generation.clone();
     let focus_guard_for_click = calendar_recently_lost_focus.clone();
+    let drag_state_for_click = main_window_drag_state.clone();
     window.on_request_clock_click(move || {
+        if drag_state_for_click.take_moved() {
+            return;
+        }
         if focus_guard_for_click.replace(false) {
             return;
         }
@@ -1270,7 +1275,6 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         let _ = slint::quit_event_loop();
     });
 
-    configure_main_window_drag(&window);
     let state = shared_settings.clone();
     let weak_window = window.as_weak();
     let explored_time_for_refresh = explored_time.clone();

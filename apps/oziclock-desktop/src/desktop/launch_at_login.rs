@@ -1,6 +1,8 @@
 #[cfg(target_os = "windows")]
 use std::process::Command;
-use std::{env, fs, io, path::PathBuf};
+use std::{env, io};
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+use std::{fs, path::PathBuf};
 
 pub(super) fn set_enabled(enabled: bool) -> io::Result<()> {
     let executable = env::current_exe()?;
@@ -81,6 +83,7 @@ pub(super) fn set_enabled(enabled: bool) -> io::Result<()> {
     }
 }
 
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 fn dirs_path(suffix: &str) -> io::Result<PathBuf> {
     env::var_os("HOME")
         .map(|home| PathBuf::from(home).join(suffix))
