@@ -821,7 +821,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let value_for_color = value.clone();
     settings_window.on_request_picker_color(move |x, y| {
         if let Some(editor) = editor.upgrade() {
-            let s = (x / 426.0 * 100.0).clamp(0.0, 100.0);
+            let s = (x / 378.0 * 100.0).clamp(0.0, 100.0);
             let v = (100.0 - y / 180.0 * 100.0).clamp(0.0, 100.0);
             saturation_for_color.set(s);
             value_for_color.set(v);
@@ -846,7 +846,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let value_for_hue = value.clone();
     settings_window.on_request_picker_hue(move |x| {
         if let Some(editor) = editor.upgrade() {
-            let h = (x / 426.0 * 360.0).clamp(0.0, 360.0);
+            let h = (x / 378.0 * 360.0).clamp(0.0, 360.0);
             hue_for_hue.set(h);
             editor.set_picker_hue(h);
             editor.set_picker_hue_color(hsv_color(h, 100.0, 100.0));
@@ -999,6 +999,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         }
     });
     let calendar_for_view = calendar_window.as_weak();
+    let main_for_calendar_view = window.as_weak();
     let calendar_state_for_view = calendar_state.clone();
     let settings_for_calendar_view = shared_settings.clone();
     calendar_window.on_request_view(move |view| {
@@ -1024,6 +1025,13 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             if next_view == CalendarView::Week {
                 calendar.set_week_scroll_y(initial_week_scroll_y(now));
             }
+            let calendar_for_layout = calendar.as_weak();
+            let owner_for_layout = main_for_calendar_view.clone();
+            Timer::single_shot(Duration::from_millis(16), move || {
+                if let Some(calendar) = calendar_for_layout.upgrade() {
+                    position_calendar_window(calendar.window(), &owner_for_layout);
+                }
+            });
         }
     });
     let calendar_for_theme_toggle = calendar_window.as_weak();

@@ -252,19 +252,19 @@ export component SettingsWindow inherits Window {
             TouchArea { clicked => { root.request-close(); } }
         }
         Rectangle {
-            x: 278px; y: 165px; width: 462px; height: 330px; visible: root.color-picker-open; border-radius: root.corner-radius * 1px; border-width: 1px; border-color: #4a4e58; background: #25272d;
+            x: 278px; y: 165px; width: 414px; height: 330px; visible: root.color-picker-open; border-radius: root.corner-radius * 1px; border-width: 1px; border-color: #4a4e58; background: #25272d;
             Text { x: 18px; y: 14px; text: "Choose color"; color: #f0f1f3; font-size: 16px; font-weight: 700; }
-            Rectangle { x: 18px; y: 50px; width: 426px; height: 180px; background: root.picker-hue-color;
+            Rectangle { x: 18px; y: 50px; width: 378px; height: 180px; background: root.picker-hue-color;
                 Rectangle { width: parent.width; height: parent.height; background: @linear-gradient(90deg, #ffffffff, #ffffff00); }
                 Rectangle { width: parent.width; height: parent.height; background: @linear-gradient(180deg, #00000000, #000000ff); }
                 Rectangle { x: root.picker-saturation / 100 * parent.width - 8px; y: (100 - root.picker-value) / 100 * parent.height - 8px; width: 16px; height: 16px; border-radius: 8px; border-width: 2px; border-color: white; background: transparent; }
                 TouchArea { moved => { root.request-picker-color(self.mouse-x / 1px, self.mouse-y / 1px); } clicked => { root.request-picker-color(self.mouse-x / 1px, self.mouse-y / 1px); } }
             }
-            Rectangle { x: 18px; y: 252px; width: 426px; height: 10px; border-radius: 5px; background: @linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); Rectangle { x: root.picker-hue / 360 * parent.width - 9px; y: -4px; width: 18px; height: 18px; border-radius: 9px; border-width: 2px; border-color: white; background: #3c81f6; } TouchArea { moved => { root.request-picker-hue(self.mouse-x / 1px); } clicked => { root.request-picker-hue(self.mouse-x / 1px); } } }
+            Rectangle { x: 18px; y: 252px; width: 378px; height: 10px; border-radius: 5px; background: @linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); Rectangle { x: root.picker-hue / 360 * parent.width - 9px; y: -4px; width: 18px; height: 18px; border-radius: 9px; border-width: 2px; border-color: white; background: #3c81f6; } TouchArea { moved => { root.request-picker-hue(self.mouse-x / 1px); } clicked => { root.request-picker-hue(self.mouse-x / 1px); } } }
             Text { x: 18px; y: 280px; text: root.picking-border-color ? root.border-color-value : root.editor-color; color: #dce0e7; font-size: 13px; }
-            Text { x: 318px; y: 274px; width: 52px; height: 32px; text: "Cancel"; color: #c7ccd5; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-cancel(); } } }
-            Rectangle { x: 376px; y: 274px; width: 68px; height: 32px; border-radius: 5px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "OK"; color: white; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-confirm(); } } } }
-            Text { x: 406px; y: 10px; width: 30px; height: 30px; text: "×"; color: #aeb3bd; font-size: 22px; horizontal-alignment: center; TouchArea { clicked => { root.color-picker-open = false; } } }
+            Text { x: 270px; y: 274px; width: 52px; height: 32px; text: "Cancel"; color: #c7ccd5; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-cancel(); } } }
+            Rectangle { x: 328px; y: 274px; width: 68px; height: 32px; border-radius: 5px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "OK"; color: white; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-confirm(); } } } }
+            Text { x: 358px; y: 10px; width: 30px; height: 30px; text: "×"; color: #aeb3bd; font-size: 22px; horizontal-alignment: center; TouchArea { clicked => { root.color-picker-open = false; } } }
         }
         Rectangle {
             x: 278px; y: 230px; width: 462px; height: 190px; visible: root.remove-confirmation-open; border-radius: root.corner-radius * 1px; border-width: 1px; border-color: #4a4e58; background: #25272d;
