@@ -44,3 +44,5 @@ Do not commit `bin/`, `obj/`, `publish/`, IDE settings, or user-specific `appset
 ## Development Workflow
 
 After completing each user-requested task, build the Rust desktop application with `cargo build -p oziclock-desktop` and launch a debug instance with `cargo run -p oziclock-desktop` so the user can manually verify the result.
+
+Run both commands from the repository root. `cargo run -p oziclock-desktop` starts the debug OziClock window in the foreground; leave it running for manual verification and stop it with `Ctrl-C` before rebuilding if necessary. If the running instance prevents a rebuild, ask the user to close it, then retry. This launch-and-verify step is required after every code change, including changes made while fixing a failed build or release.

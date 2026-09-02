@@ -32,6 +32,17 @@ When the user requests an implementation, proceed immediately if the scope is cl
 
 After every implementation change, run the required build and validation commands. If a build cannot overwrite the executable because the application is running, do not stop at a status report: ask the user to close the application and confirm continuation. The user reply `1` means “Ready, continue”; retry the build immediately without requesting further clarification.
 
+### Manual debug launch
+
+For the Rust desktop application, run commands from the repository root:
+
+```bash
+cargo build -p oziclock-desktop
+cargo run -p oziclock-desktop
+```
+
+`cargo run` builds (when needed) and starts the local debug binary in the foreground. The launched OziClock window is the instance the user should inspect. Keep that process running while the user tests; stop it with `Ctrl-C` when a rebuild is required. After every code change, repeat both commands so the user always receives a fresh debug instance.
+
 Use the conversation language selected by the user for all messages to the user. Keep code, comments, UI copy, documentation, commit messages, and runtime diagnostics in English only.
 
 ## Definition of Done
