@@ -3587,7 +3587,7 @@ dependencies = [
 
 [[package]]
 name = "oziclock-desktop"
-version = "2.1.3"
+version = "2.1.5"
 dependencies = [
  "chrono",
  "chrono-tz",
