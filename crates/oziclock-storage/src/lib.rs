@@ -52,7 +52,7 @@ fn default_schema_version() -> u32 {
 }
 
 fn default_settings_window_width() -> f64 {
-    760.0
+    710.0
 }
 
 fn default_clock_scale() -> f64 {
@@ -68,7 +68,7 @@ fn default_border_color() -> String {
 }
 
 fn default_settings_window_height() -> f64 {
-    700.0
+    632.0
 }
 
 fn default_calendar_light_theme() -> bool {

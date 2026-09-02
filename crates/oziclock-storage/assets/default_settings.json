@@ -17,8 +17,8 @@
   "CalendarLightTheme": false,
   "CalendarMondayFirst": true,
   "CalendarHourRange": 0,
-  "SettingsWindowWidth": 760.0,
-  "SettingsWindowHeight": 700.0,
+  "SettingsWindowWidth": 710.0,
+  "SettingsWindowHeight": 632.0,
   "ClocksSettings": [
     { "Label": "MEX", "TimeZone": "America/Mexico_City", "Color": "#FFFFAA" },
     { "Label": "NYK", "TimeZone": "America/New_York", "Color": "#AAAAFF" },

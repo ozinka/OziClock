@@ -13,9 +13,9 @@ export component SettingsWindow inherits Window {
     always-on-top: true;
     preferred-width: root.saved-window-width * 1px;
     preferred-height: root.saved-window-height * 1px;
-    min-width: 760px;
-    min-height: 700px;
-    resize-border-width: 6px;
+    min-width: 710px;
+    min-height: 632px;
+    resize-border-width: 1px;
     background: transparent;
 
     in property <[ClockListItem]> clocks;
@@ -189,7 +189,7 @@ export component SettingsWindow inherits Window {
         Text { x: 286px; y: 185px; visible: root.selected-section == 1; text: "Name"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
 
         Rectangle {
-            x: 286px; y: 207px; visible: root.selected-section == 1; width: 300px; height: 42px; border-radius: 6px; background: transparent;
+            x: 286px; y: 207px; visible: root.selected-section == 1; width: 243px; height: 42px; border-radius: 6px; background: transparent;
             LineEdit { x: 0px; y: 0px; width: parent.width; height: parent.height; text <=> root.editor-label; edited => { root.request-apply(); } }
         }
         Text { x: 286px; y: 275px; visible: root.selected-section == 1; text: "Time zone"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
@@ -204,9 +204,9 @@ export component SettingsWindow inherits Window {
         }
         time-zone-picker := ComboBox { x: 286px; y: 347px; visible: root.selected-section == 1; width: 390px; height: 42px; model: root.time-zones; current-index <=> root.selected-time-zone-index; selected => { root.request-select-time-zone(self.current-index); } }
         Text { x: 286px; y: 393px; visible: root.selected-section == 1 && root.time-zone-search-message != ""; text: root.time-zone-search-message; color: #969aa4; font-family: "Carlito"; font-size: 13px; }
-        Text { x: 606px; y: 185px; visible: root.selected-section == 1; text: "Color"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
-        Rectangle { x: 606px; y: 207px; visible: root.selected-section == 1; width: 126px; height: 42px; border-radius: 6px; background: transparent; LineEdit { x: 0px; y: 0px; width: parent.width; height: parent.height; text <=> root.editor-color; edited => { root.request-apply(); } } }
-        Text { x: 606px; y: 256px; visible: root.selected-section == 1; width: 126px; height: 24px; text: "Pick color…"; color: #9cc3ff; font-family: "Carlito"; font-size: 13px; vertical-alignment: center; TouchArea { clicked => { root.request-open-color-picker(); } } }
+        Text { x: 539px; y: 185px; visible: root.selected-section == 1; text: "Color"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
+        Rectangle { x: 539px; y: 207px; visible: root.selected-section == 1; width: 88px; height: 42px; border-radius: 6px; background: transparent; LineEdit { x: 0px; y: 0px; width: parent.width; height: parent.height; text <=> root.editor-color; edited => { root.request-apply(); } } }
+        Rectangle { x: 635px; y: 207px; visible: root.selected-section == 1; width: 42px; height: 42px; border-radius: 6px; border-width: 1px; border-color: #70747d; background: root.editor-preview-color; TouchArea { clicked => { root.request-open-color-picker(); } } }
         Rectangle { x: 286px; y: 432px; width: 22px; height: 22px; visible: root.selected-section == 1 && !root.color-picker-open; border-radius: 5px; background: root.editor-is-main ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.editor-is-main ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.editor-is-main = !root.editor-is-main; root.request-apply(); } } }
         Text { x: 318px; y: 434px; visible: root.selected-section == 1 && !root.color-picker-open; text: "Primary clock"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; }
         Rectangle { x: 286px; y: 184px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.top-most ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.top-most ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.top-most = !root.top-most; root.request-set-top-most(root.top-most); } } }
@@ -215,27 +215,27 @@ export component SettingsWindow inherits Window {
         Text { x: 318px; y: 220px; visible: root.selected-section == 0; text: "Show seconds"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; }
         Rectangle { x: 286px; y: 252px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.compact-mode ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.compact-mode ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.compact-mode = !root.compact-mode; root.request-set-compact-mode(root.compact-mode); } } }
         Text { x: 318px; y: 254px; visible: root.selected-section == 0; text: "Compact mode"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; }
-        Rectangle { x: 286px; y: 286px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.show-in-task-bar ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.show-in-task-bar ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.show-in-task-bar = !root.show-in-task-bar; root.request-set-show-in-task-bar(root.show-in-task-bar); } } }
-        Text { x: 318px; y: 288px; visible: root.selected-section == 0; text: "Show in taskbar"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; }
+        Rectangle { x: 510px; y: 252px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.show-in-task-bar ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.show-in-task-bar ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.show-in-task-bar = !root.show-in-task-bar; root.request-set-show-in-task-bar(root.show-in-task-bar); } } }
+        Text { x: 542px; y: 254px; visible: root.selected-section == 0; text: "Show in taskbar"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; }
         Rectangle { x: 510px; y: 184px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.soft-clock-style ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.soft-clock-style ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.soft-clock-style = !root.soft-clock-style; root.request-set-soft-clock-style(root.soft-clock-style); } } }
         Text { x: 542px; y: 186px; visible: root.selected-section == 0; text: "Soft color style"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; }
         Rectangle { x: 510px; y: 218px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.launch-at-login ? #3c81f6 : #24262c; Text { width: parent.width; height: parent.height; text: root.launch-at-login ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.launch-at-login = !root.launch-at-login; root.request-set-launch-at-login(root.launch-at-login); } } }
         Text { x: 542px; y: 220px; visible: root.selected-section == 0; text: "Launch at login"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; }
-        Text { x: 286px; y: 332px; visible: root.selected-section == 0; text: "Opacity"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
-        Slider { x: 286px; y: 352px; width: 310px; height: 24px; visible: root.selected-section == 0; minimum: 2; maximum: 100; step: 1; value <=> root.opacity-percent; changed => { root.request-set-opacity(self.value); } }
-        Text { x: 612px; y: 351px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.opacity-percent) + "%"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
-        Text { x: 286px; y: 386px; visible: root.selected-section == 0; text: "Clock scale"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
-        Slider { x: 286px; y: 406px; width: 310px; height: 24px; visible: root.selected-section == 0; minimum: 80; maximum: 150; step: 5; value <=> root.clock-scale-percent; changed => { root.request-set-clock-scale(self.value); } }
-        Text { x: 612px; y: 405px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.clock-scale-percent) + "%"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
-        Text { x: 286px; y: 440px; visible: root.selected-section == 0; text: "Corner radius"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
-        Slider { x: 286px; y: 460px; width: 310px; height: 24px; visible: root.selected-section == 0; minimum: 0; maximum: 15.5; step: 0.5; value <=> root.corner-radius; changed => { root.request-set-corner-radius(self.value); } }
-        Text { x: 612px; y: 459px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.corner-radius) + " px"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
-        Text { x: 286px; y: 494px; visible: root.selected-section == 0; text: "Border and separator color"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
-        Rectangle { x: 286px; y: 514px; visible: root.selected-section == 0; width: 190px; height: 38px; border-radius: 6px; background: transparent; LineEdit { width: parent.width; height: parent.height; text <=> root.border-color-value; edited => { root.request-set-border-color(root.border-color-value); } } }
-        Rectangle { x: 488px; y: 521px; visible: root.selected-section == 0; width: 24px; height: 24px; border-radius: 5px; border-width: 1px; border-color: #70747d; background: root.border-preview-color; TouchArea { clicked => { root.request-open-border-color-picker(); } } }
-        Text { x: 286px; y: 568px; visible: root.selected-section == 0; text: "Dim non-primary clocks"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
-        Slider { x: 286px; y: 588px; width: 310px; height: 24px; visible: root.selected-section == 0; minimum: 0; maximum: 80; step: 5; value <=> root.non-main-dimming; changed => { root.request-set-non-main-dimming(self.value); } }
-        Text { x: 612px; y: 587px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.non-main-dimming) + "%"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
+        Text { x: 286px; y: 298px; visible: root.selected-section == 0; text: "Opacity"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
+        Slider { x: 276px; y: 318px; width: 320px; height: 24px; visible: root.selected-section == 0; minimum: 2; maximum: 100; step: 1; value <=> root.opacity-percent; changed => { root.request-set-opacity(self.value); } }
+        Text { x: 612px; y: 317px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.opacity-percent) + "%"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
+        Text { x: 286px; y: 352px; visible: root.selected-section == 0; text: "Clock scale"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
+        Slider { x: 276px; y: 372px; width: 320px; height: 24px; visible: root.selected-section == 0; minimum: 80; maximum: 150; step: 5; value <=> root.clock-scale-percent; changed => { root.request-set-clock-scale(self.value); } }
+        Text { x: 612px; y: 371px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.clock-scale-percent) + "%"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
+        Text { x: 286px; y: 406px; visible: root.selected-section == 0; text: "Corner radius"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
+        Slider { x: 276px; y: 426px; width: 320px; height: 24px; visible: root.selected-section == 0; minimum: 0; maximum: 15.5; step: 0.5; value <=> root.corner-radius; changed => { root.request-set-corner-radius(self.value); } }
+        Text { x: 612px; y: 425px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.corner-radius) + " px"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
+        Text { x: 286px; y: 460px; visible: root.selected-section == 0; text: "Dim non-primary clocks"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
+        Slider { x: 276px; y: 480px; width: 320px; height: 24px; visible: root.selected-section == 0; minimum: 0; maximum: 80; step: 5; value <=> root.non-main-dimming; changed => { root.request-set-non-main-dimming(self.value); } }
+        Text { x: 612px; y: 479px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.non-main-dimming) + "%"; color: #d9dce1; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
+        Text { x: 286px; y: 513px; visible: root.selected-section == 0; text: "Border and separator color"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
+        Rectangle { x: 286px; y: 533px; visible: root.selected-section == 0; width: 190px; height: 38px; border-radius: 6px; background: transparent; LineEdit { width: parent.width; height: parent.height; text <=> root.border-color-value; edited => { root.request-set-border-color(root.border-color-value); } } }
+        Rectangle { x: 488px; y: 531px; visible: root.selected-section == 0; width: 42px; height: 42px; border-radius: 6px; border-width: 1px; border-color: #70747d; background: root.border-preview-color; TouchArea { clicked => { root.request-open-border-color-picker(); } } }
         Text { x: 286px; y: 145px; visible: root.selected-section == 2; text: "Calendar appearance and week layout"; color: #969aa4; font-family: "Carlito"; font-size: 13px; }
         Text { x: 286px; y: 192px; visible: root.selected-section == 2; text: "Theme"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         ComboBox { x: 286px; y: 214px; visible: root.selected-section == 2; width: 240px; height: 40px; model: ["Light", "Dark"]; current-index: root.calendar-light-theme ? 0 : 1; selected => { root.calendar-light-theme = self.current-index == 0; root.request-set-calendar-light-theme(root.calendar-light-theme); } }
