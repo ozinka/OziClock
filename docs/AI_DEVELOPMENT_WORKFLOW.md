@@ -41,7 +41,7 @@ cargo build -p oziclock-desktop
 cargo run -p oziclock-desktop
 ```
 
-`cargo run` builds (when needed) and starts the local debug binary in the foreground. The launched OziClock window is the instance the user should inspect. Keep that process running while the user tests; stop it with `Ctrl-C` when a rebuild is required. After every code change, repeat both commands so the user always receives a fresh debug instance.
+`cargo run` builds (when needed) and starts the local debug binary in the foreground. When commands run through an agent shell, the process may belong to an isolated session and its GUI window may not be visible in the user's macOS session. In that case, the user must run the same command in their own Terminal. Keep a visible instance running while the user tests; stop it with `Ctrl-C` when a rebuild is required. After every code change, repeat both commands and explicitly report whether the agent could verify a visible window.
 
 Use the conversation language selected by the user for all messages to the user. Keep code, comments, UI copy, documentation, commit messages, and runtime diagnostics in English only.
 
