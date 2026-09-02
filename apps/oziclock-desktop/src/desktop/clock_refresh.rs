@@ -1,6 +1,6 @@
 use super::{
     AppSettings, AppWindow, CalendarDate, CalendarState, CalendarWindow, calendar_local_now,
-    initial_week_scroll_y, refresh_calendar_window, update_clock_tiles,
+    refresh_calendar_window, update_clock_tiles,
 };
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use slint::{ComponentHandle, Timer, TimerMode};
@@ -39,12 +39,8 @@ pub(super) fn schedule_clock_refresh(
                 let now = calendar_local_now(&settings);
                 let today = CalendarDate::new(now.year(), now.month(), now.day())
                     .expect("current local date is valid");
-                let mut state = calendar_state_for_callback.borrow_mut();
-                let returned_to_today = state.ensure_week_contains(today);
+                let state = calendar_state_for_callback.borrow();
                 refresh_calendar_window(&calendar, &state, today, now);
-                if returned_to_today {
-                    calendar.set_week_scroll_y(initial_week_scroll_y(now));
-                }
             }
             schedule_clock_refresh(
                 timer_for_callback.clone(),

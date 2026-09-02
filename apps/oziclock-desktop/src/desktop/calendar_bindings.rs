@@ -30,7 +30,9 @@ const WEEKDAYS: [&str; 7] = [
 ];
 const WEEK_HOUR_HEIGHT: f32 = 34.0;
 const WEEK_BUFFER_HOURS: f32 = 48.0;
-const WEEK_CONTENT_HOURS: i32 = 144;
+// Keep ample scrollable runway so the logical week can advance continuously
+// across month and year boundaries without the native ScrollView clamping.
+const WEEK_CONTENT_HOURS: i32 = 24 * 42;
 const WEEK_VISIBLE_CENTER: f32 = 202.0;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

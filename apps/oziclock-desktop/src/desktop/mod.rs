@@ -1697,12 +1697,8 @@ fn schedule_calendar_boundary_refresh(
             let now = calendar_local_now(&current_settings);
             let today = CalendarDate::new(now.year(), now.month(), now.day())
                 .expect("current local date is valid");
-            let mut calendar_state = state.borrow_mut();
-            let returned_to_today = calendar_state.ensure_week_contains(today);
+            let calendar_state = state.borrow();
             refresh_calendar_window(&window, &calendar_state, today, now);
-            if returned_to_today {
-                window.set_week_scroll_y(initial_week_scroll_y(now));
-            }
             drop(calendar_state);
             drop(current_settings);
             schedule_calendar_boundary_refresh(
