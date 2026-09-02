@@ -19,6 +19,13 @@ export component AppWindow inherits Window {
     in property <bool> show-seconds: true;
     in property <bool> top-most: false;
     in property <float> inactive-opacity: 1;
+    in property <bool> native-opacity: false;
+    out property <float> effective-opacity: root.show-rulers || interaction.has-hover ? 1 : root.inactive-opacity;
+    animate effective-opacity { duration: 300ms; }
+    callback request-native-opacity(float);
+    changed effective-opacity => {
+        if (root.native-opacity) { root.request-native-opacity(root.effective-opacity); }
+    }
     in property <bool> show-rulers: false;
     in property <bool> compact-mode: false;
     in-out property <float> compact-progress: 0;
@@ -72,8 +79,7 @@ export component AppWindow inherits Window {
         background: root.border-color;
         border-radius: root.corner-radius * 1px * root.clock-scale;
         clip: true;
-        opacity: root.show-rulers || interaction.has-hover ? 1 : root.inactive-opacity;
-        animate opacity { duration: 300ms; }
+        opacity: root.native-opacity ? 1 : root.effective-opacity;
 
         clock-strip := Rectangle {
             y: -31px * root.compact-progress * root.clock-scale;
@@ -171,22 +177,6 @@ export component AppWindow inherits Window {
             border-color: root.border-color;
             time-step <=> root.time-step;
             request-time-step(value) => { root.request-time-step(value); }
-        }
-
-        Rectangle { x: 0px; y: 0px; width: 1px; height: parent.height; background: root.border-color; }
-        Rectangle { x: parent.width - 1px; y: 0px; width: 1px; height: parent.height; background: root.border-color; }
-        Rectangle { x: 0px; y: 0px; width: parent.width; height: 1px; background: root.border-color; }
-        Rectangle { x: 0px; y: parent.height - 1px; width: parent.width; height: 1px; background: root.border-color; }
-
-        Rectangle {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: parent.height;
-            background: transparent;
-            border-width: 1px;
-            border-color: root.border-color;
-            border-radius: root.corner-radius * 1px * root.clock-scale;
         }
 
         TouchArea { visible: root.modal-open; }

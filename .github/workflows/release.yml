@@ -111,16 +111,11 @@ jobs:
 
             ### Highlights
 
-            - Clock tiles, rulers, and the time slider now share one seamless native window.
-            - Compact clock height and ruler visibility can be switched independently with middle-click and double-click.
-            - Smooth compact-to-standard transitions work both with and without visible rulers.
-            - Settings, About, and the context menu open next to the clock instead of below the rulers.
-            - Refined one-pixel rounded outline and larger, better-aligned primary time numerals in both clock styles.
-            - About displays the package version automatically.
-            - Configurable persisted color for the outer outline and separators between clock and ruler blocks.
-            - Optional 0–80% dimming for non-primary clocks, with smooth 200 ms illumination when hovering over the clock strip.
-            - The outline color uses the same full HSV color picker as individual clock colors.
-            - Primary time digits, seconds, and separators have refined vertical alignment in both clock styles.
+            - On macOS, the clock and its system shadow now fade together using native window opacity, eliminating the dark outline left behind at low opacity.
+            - Smooth 300 ms hover fading and one-pixel clock separators are preserved; duplicate outline layers have been removed.
+            - The calendar has a flat header, neutral title, and subtle header and footer separators.
+            - Switching calendar views repositions the panel for its new height near the clock.
+            - A fixed, compact color picker fits the minimum Settings window width for both clock and outline colors.
             - Cross-platform release archives for Windows x64, Linux x64, and macOS Apple Silicon.
 
             ### Packaging

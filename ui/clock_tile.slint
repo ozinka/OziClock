@@ -11,8 +11,6 @@ export component ClockTile inherits Rectangle {
     in property <float> clock-scale: 1.0;
     in property <bool> soft-style: false;
 
-    width: 99px * root.clock-scale;
-    height: 60px * root.clock-scale;
     background: root.soft-style ? accent : @linear-gradient(180deg, #383838 45.3%, accent 77.6%);
     clip: true;
 

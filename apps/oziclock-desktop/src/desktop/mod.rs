@@ -8,6 +8,8 @@ mod settings_bindings;
 #[cfg(target_os = "windows")]
 mod tray;
 mod window_drag;
+#[cfg(target_os = "macos")]
+mod window_opacity;
 
 use calendar_bindings::{
     CalendarState, CalendarView, initial_week_scroll_y, normalize_week_scroll,
@@ -38,6 +40,8 @@ use oziclock_storage::{AppSettings, ClockSettings};
 use slint::winit_030::EventResult;
 use slint::winit_030::WinitWindowAccessor;
 use slint::winit_030::winit::dpi::{LogicalPosition, PhysicalPosition, PhysicalSize};
+#[cfg(target_os = "macos")]
+use slint::winit_030::winit::platform::macos::WindowAttributesExtMacOS;
 #[cfg(target_os = "windows")]
 use slint::winit_030::winit::platform::windows::{MonitorHandleExtWindows, WindowExtWindows};
 use slint::winit_030::winit::{
@@ -64,6 +68,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     slint::BackendSelector::new()
         .with_winit_window_attributes_hook(move |attributes| {
             if first_native_window_for_hook.replace(false) {
+                #[cfg(target_os = "macos")]
+                let attributes = attributes.with_has_shadow(true);
                 attributes.with_position(initial_main_window_position)
             } else {
                 attributes
@@ -71,6 +77,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         })
         .select()?;
     let window = AppWindow::new()?;
+    #[cfg(target_os = "macos")]
+    window_opacity::configure(&window);
     window.set_product_name(oziclock_app::application_name().into());
     window.set_top_most(settings.top_most);
     window.set_inactive_opacity(settings.opacity.clamp(0.02, 1.0) as f32);
@@ -1315,6 +1323,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     });
 
     window.show()?;
+    #[cfg(target_os = "macos")]
+    window_opacity::sync(&window);
     set_main_window_taskbar_visibility(&window, shared_settings.borrow().show_in_task_bar);
     sync_main_window_size(&window);
     #[cfg(target_os = "windows")]

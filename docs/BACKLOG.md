@@ -45,6 +45,7 @@ An item is `Ready` when:
 
 | ID | Completed | Item | Evidence |
 | --- | --- | --- | --- |
+| BL-015 | 2026-09 | Fade the clock and system shadow together on macOS | WIN-06A: native window alpha implemented; user confirmed improved fading with the system shadow enabled. |
 | BL-011 | 2026-08 | Native macOS application icon | `OziClock.icns` is packaged and declared through `CFBundleIconFile`. |
 | BL-012 | 2026-08 | Initialize the color picker from the current color | The desktop adapter converts the current color to HSV and positions all picker controls when opened. |
 | BL-005 | 2026-08 | Searchable IANA time-zone selection | CLK-08A is implemented with case-insensitive ID/display filtering, preserved ordering, empty-state feedback, keyboard-safe focus handling, and focused unit tests. |

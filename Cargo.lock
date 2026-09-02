@@ -3587,10 +3587,11 @@ dependencies = [
 
 [[package]]
 name = "oziclock-desktop"
-version = "2.1.7"
+version = "2.1.8"
 dependencies = [
  "chrono",
  "chrono-tz",
+ "objc2-app-kit 0.3.2",
  "oziclock-app",
  "oziclock-storage",
  "slint",
