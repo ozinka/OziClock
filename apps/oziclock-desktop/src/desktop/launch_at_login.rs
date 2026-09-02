@@ -18,7 +18,7 @@ pub(super) fn set_enabled(enabled: bool) -> io::Result<()> {
         } else if path.exists() {
             fs::remove_file(path)?;
         }
-        return Ok(());
+        Ok(())
     }
     #[cfg(target_os = "linux")]
     {
@@ -39,7 +39,7 @@ pub(super) fn set_enabled(enabled: bool) -> io::Result<()> {
         } else if path.exists() {
             fs::remove_file(path)?;
         }
-        return Ok(());
+        Ok(())
     }
     #[cfg(target_os = "windows")]
     {

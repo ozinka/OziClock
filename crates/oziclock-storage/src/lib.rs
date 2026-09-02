@@ -130,7 +130,7 @@ fn migrate_legacy_settings(
 pub fn settings_path() -> io::Result<PathBuf> {
     #[cfg(target_os = "macos")]
     {
-        return Ok(macos_application_support_directory()?.join("settings.json"));
+        Ok(macos_application_support_directory()?.join("settings.json"))
     }
 
     #[cfg(not(target_os = "macos"))]

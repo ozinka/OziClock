@@ -115,15 +115,6 @@ impl CalendarState {
             self.week_focus = date.into();
         }
     }
-
-    pub(super) fn ensure_week_contains(&mut self, today: CalendarDate) -> bool {
-        if self.view != CalendarView::Week || self.cursor == week_start(today) {
-            return false;
-        }
-        self.cursor = week_start(today);
-        self.week_focus = today;
-        true
-    }
 }
 
 pub(super) fn initial_week_scroll_y(local_now: chrono::NaiveDateTime) -> f32 {
@@ -322,16 +313,5 @@ mod tests {
         assert!(shifted);
         assert_eq!(state.cursor, CalendarDate::new(2026, 8, 31).unwrap());
         assert_eq!(adjusted, midnight_scroll + 24.0 * WEEK_HOUR_HEIGHT);
-    }
-
-    #[test]
-    fn week_view_returns_to_today_when_its_range_has_expired() {
-        let mut state = CalendarState::new(CalendarDate::new(2026, 8, 30).unwrap());
-        state.view = CalendarView::Week;
-        let today = CalendarDate::new(2026, 9, 6).unwrap();
-
-        assert!(state.ensure_week_contains(today));
-        assert_eq!(state.cursor, CalendarDate::new(2026, 8, 31).unwrap());
-        assert_eq!(state.week_focus, today);
     }
 }
