@@ -1036,7 +1036,12 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         state.light_theme = settings.calendar_light_theme;
         if let Some(calendar) = calendar_for_theme_toggle.upgrade() {
             calendar.set_light_theme(state.light_theme);
-            refresh_calendar_window(&calendar, &state, state.selected, calendar_local_now(&settings));
+            refresh_calendar_window(
+                &calendar,
+                &state,
+                state.selected,
+                calendar_local_now(&settings),
+            );
         }
     });
     let calendar_for_previous = calendar_window.as_weak();
@@ -1718,14 +1723,22 @@ fn calendar_accent(settings: &AppSettings) -> slint::Color {
         .iter()
         .find(|clock| clock.is_main)
         .or_else(|| settings.clocks_settings.first());
-    let Some(clock) = clock else { return slint::Color::from_rgb_u8(79, 117, 117) };
+    let Some(clock) = clock else {
+        return slint::Color::from_rgb_u8(79, 117, 117);
+    };
     let (hue, saturation, _) = color_to_hsv(&clock.color);
     hsv_color(hue, saturation, 50.0)
 }
 
 fn accent_foreground(accent: slint::Color) -> slint::Color {
-    let luminance = 0.2126 * f64::from(accent.red()) + 0.7152 * f64::from(accent.green()) + 0.0722 * f64::from(accent.blue());
-    if luminance > 150.0 { slint::Color::from_rgb_u8(23, 32, 39) } else { slint::Color::from_rgb_u8(255, 255, 255) }
+    let luminance = 0.2126 * f64::from(accent.red())
+        + 0.7152 * f64::from(accent.green())
+        + 0.0722 * f64::from(accent.blue());
+    if luminance > 150.0 {
+        slint::Color::from_rgb_u8(23, 32, 39)
+    } else {
+        slint::Color::from_rgb_u8(255, 255, 255)
+    }
 }
 
 struct WorkArea {
