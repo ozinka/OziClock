@@ -32,16 +32,21 @@ When the user requests an implementation, proceed immediately if the scope is cl
 
 After every implementation change, run the required build and validation commands. If a build cannot overwrite the executable because the application is running, do not stop at a status report: ask the user to close the application and confirm continuation. The user reply `1` means “Ready, continue”; retry the build immediately without requesting further clarification.
 
-### Manual debug launch
+### Build and debug launch
 
-For the Rust desktop application, run commands from the repository root:
+After changes, run the required checks and build the Rust desktop application from the repository root:
 
 ```bash
 cargo build -p oziclock-desktop
-cargo run -p oziclock-desktop
 ```
 
-`cargo run` builds (when needed) and starts the local debug binary in the foreground. When commands run through an agent shell, the process may belong to an isolated session and its GUI window may not be visible in the user's macOS session. In that case, the user must run the same command in their own Terminal. Keep a visible instance running while the user tests; stop it with `Ctrl-C` when a rebuild is required. After every code change, repeat both commands and explicitly report whether the agent could verify a visible window.
+After every code change, launch the debug build for user verification. On macOS, run the following command from the repository root:
+
+```bash
+sh scripts/launch-debug-macos.sh
+```
+
+The script builds the debug binary, creates or updates `/private/tmp/OziClock-Debug.app`, links its executable to `target/debug/oziclock-desktop`, and opens the bundle through Launch Services without opening Terminal. If a release build was requested, build and launch the release binary instead.
 
 Use the conversation language selected by the user for all messages to the user. Keep code, comments, UI copy, documentation, commit messages, and runtime diagnostics in English only.
 

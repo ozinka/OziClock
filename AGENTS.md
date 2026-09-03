@@ -19,7 +19,7 @@ dotnet run --project Ozi.Clock/Ozi.Clock.csproj
 dotnet publish Ozi.Clock/Ozi.Clock.csproj -c Release -r win-x64
 ```
 
-`restore` resolves dependencies, `build` compiles the solution, `run` launches the clock locally, and `publish` produces a Windows x64 release. `make_release.ps1` increments a version, creates archives, pushes a Git tag, and publishes a GitHub release; only maintainers should run it intentionally. When Rust is installed, use `cargo check --workspace`, `cargo test --workspace`, and `cargo run -p oziclock-desktop` from the repository root.
+`restore` resolves dependencies, `build` compiles the solution, `run` launches the clock locally, and `publish` produces a Windows x64 release. `make_release.ps1` increments a version, creates archives, pushes a Git tag, and publishes a GitHub release; only maintainers should run it intentionally. When Rust is installed, use `cargo check --workspace`, `cargo test --workspace`, and `cargo build -p oziclock-desktop` from the repository root. The user can launch the built debug binary with `target/debug/oziclock-desktop`.
 
 ## Coding Style & Naming Conventions
 
@@ -43,6 +43,6 @@ Do not commit `bin/`, `obj/`, `publish/`, IDE settings, or user-specific `appset
 
 ## Development Workflow
 
-After completing each user-requested task, build the Rust desktop application with `cargo build -p oziclock-desktop` and launch a debug instance with `cargo run -p oziclock-desktop` so the user can manually verify the result.
+After every code change, run the required checks and launch the debug build for the user to verify. On macOS, run `sh scripts/launch-debug-macos.sh`; it builds the application, creates or updates a temporary `.app` bundle, and opens it through Launch Services without Terminal. If a running instance prevents a rebuild, ask the user to close it, then retry.
 
-Run both commands from the repository root. `cargo run -p oziclock-desktop` starts the debug process in the foreground. Agent-shell processes can run in an isolated macOS session, so their GUI window may not be visible to the user; never claim visibility unless it was verified. If needed, instruct the user to run the same command in their own Terminal. Stop the process with `Ctrl-C` before rebuilding if necessary. If the running instance prevents a rebuild, ask the user to close it, then retry. This build-and-launch attempt is required after every code change, including changes made while fixing a failed build or release.
+Run build commands from the repository root. Prefer debug builds for quick local verification. Build and validation are required after every code change, including changes made while fixing a failed build or release.
