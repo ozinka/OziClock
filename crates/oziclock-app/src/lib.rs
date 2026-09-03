@@ -1,6 +1,7 @@
 //! Application-layer composition points for OziClock use cases.
 
 pub mod calendar;
+pub mod planner;
 
 use oziclock_domain::{Clock, ClockCollection};
 

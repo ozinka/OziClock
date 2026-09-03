@@ -19,6 +19,14 @@
   "CalendarHourRange": 0,
   "SettingsWindowWidth": 710.0,
   "SettingsWindowHeight": 632.0,
+  "Planner": {
+    "events": [],
+    "tasks": [],
+    "reminders": [],
+    "alarms": [],
+    "timers": [],
+    "stopwatch": null
+  },
   "ClocksSettings": [
     { "Label": "MEX", "TimeZone": "America/Mexico_City", "Color": "#FFFFAA" },
     { "Label": "NYK", "TimeZone": "America/New_York", "Color": "#AAAAFF" },

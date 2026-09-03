@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use std::{env, fs, io, path::PathBuf};
 
-pub use oziclock_domain::Clock as ClockSettings;
+pub use oziclock_domain::{Clock as ClockSettings, Planner};
 
 const DEFAULT_SETTINGS: &str = include_str!("../assets/default_settings.json");
 
@@ -44,6 +44,8 @@ pub struct AppSettings {
     pub settings_window_width: f64,
     #[serde(default = "default_settings_window_height")]
     pub settings_window_height: f64,
+    #[serde(default)]
+    pub planner: Planner,
     pub clocks_settings: Vec<ClockSettings>,
 }
 

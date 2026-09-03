@@ -1,8 +1,13 @@
 //! Framework-free domain types and rules for OziClock.
 
 mod clock;
+mod planner;
 
 pub use clock::{Clock, ClockCollection};
+pub use planner::{
+    Alarm, AlarmSchedule, AlertRule, Event, EventTime, Planner, PlannerId, Reminder,
+    ReminderSchedule, Stopwatch, StopwatchState, Task, TaskStatus, Timer, TimerState,
+};
 
 /// Product name shared by all front ends.
 pub const PRODUCT_NAME: &str = "OziClock";
