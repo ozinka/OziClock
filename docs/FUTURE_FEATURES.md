@@ -30,6 +30,10 @@ The approved prototype resolves the initial layout decisions: the calendar is a 
 - Enable, disable, snooze, dismiss, and missed-alarm handling.
 - Native notification with sound policy where supported.
 
+The proposed interaction, persistence, DST, recovery, and future-sync design is
+recorded in `REMINDERS_DESIGN.md`; the interactive exploration is
+`../reminders-tools-prototype.html`.
+
 ### Reminders
 
 - Message attached to an absolute instant or relative delay.

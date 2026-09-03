@@ -29,6 +29,10 @@ Priorities describe sequencing, not severity:
 | BL-008 | P3 | Candidate | Reminders | Add absolute and relative reminders | Define recurrence, clock association, notification history, and duplicate-delivery prevention. |
 | BL-009 | P3 | Candidate | Timers | Add multiple named countdown timers | Define sleep/restart recovery, repeat behavior, persistence, and compact controls. |
 | BL-010 | P3 | Candidate | Stopwatch | Add stopwatch and lap capture | Define paused-session persistence and running-session recovery before writing requirements. |
+| BL-016 | P3 | Discovery | Planner | Design local-first alarms, timers, stopwatch, reminders, and tasks | Agreed prototype and design are recorded; add requirement IDs and acceptance tests before promoting the independent vertical slices. |
+| BL-017 | P3 | Candidate | Planner data | Export and import portable Planner archives | Define archive schema, validation/preview, five-day rolling backups, conflict choices, backup recovery, and `.ics` compatibility scope. |
+| BL-018 | P3 | Candidate | Planner sync | Add multi-device Planner synchronization through a Google Drive/OneDrive folder | Define immutable operation records, folder scanning, per-entity merge/tombstone policy, encrypted-record handling, offline recovery, and conflict-review UX; direct OAuth sync is later. |
+| BL-019 | P3 | Candidate | Planner security | Add optional password-encrypted Planner storage | Define encrypted envelope versioning, audited crypto dependencies, unlock/lock policy, key rotation, encrypted backups/archives, and cloud merge behavior. |
 
 ## Definition of Ready
 
