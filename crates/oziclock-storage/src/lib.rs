@@ -49,11 +49,23 @@ pub struct AppSettings {
     pub settings_window_height: f64,
     #[serde(default)]
     pub planner: Planner,
+    #[serde(default)]
+    pub timer_draft_days: u16,
+    #[serde(default)]
+    pub timer_draft_hours: u8,
+    #[serde(default = "default_timer_draft_minutes")]
+    pub timer_draft_minutes: u8,
+    #[serde(default)]
+    pub timer_draft_seconds: u8,
     pub clocks_settings: Vec<ClockSettings>,
 }
 
 fn default_schema_version() -> u32 {
     1
+}
+
+fn default_timer_draft_minutes() -> u8 {
+    5
 }
 
 fn default_settings_window_width() -> f64 {
@@ -206,6 +218,35 @@ mod tests {
         assert!(!settings.soft_clock_style);
         assert_eq!(settings.border_color, "#000000");
         assert_eq!(settings.non_main_dimming, 0.0);
+    }
+
+    #[test]
+    fn timer_draft_defaults_and_round_trip() {
+        let mut settings: AppSettings = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
+        assert_eq!(
+            (
+                settings.timer_draft_days,
+                settings.timer_draft_hours,
+                settings.timer_draft_minutes,
+                settings.timer_draft_seconds
+            ),
+            (0, 0, 5, 0)
+        );
+        settings.timer_draft_days = 1;
+        settings.timer_draft_hours = 2;
+        settings.timer_draft_minutes = 3;
+        settings.timer_draft_seconds = 4;
+        let restored: AppSettings =
+            serde_json::from_str(&serde_json::to_string(&settings).unwrap()).unwrap();
+        assert_eq!(
+            (
+                restored.timer_draft_days,
+                restored.timer_draft_hours,
+                restored.timer_draft_minutes,
+                restored.timer_draft_seconds
+            ),
+            (1, 2, 3, 4)
+        );
     }
 
     #[test]

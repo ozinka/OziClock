@@ -94,6 +94,14 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 
 ## Auxiliary Windows and Interaction
 
+- **ALM-04:** Override ALM-03's Once label accent with neutral gray; only Weekly is accented. Dates use 13px text. Saved alarm times use 14px text centered vertically beside the toggle. Selected weekdays are bold in the editor and saved weekly rows. Alarm action captions and H:M digits receive a 2px optical downward correction without moving their hit targets.
+
+- **ALM-03:** Saved alarm cards align with the section heading's left edge. Once/Weekly labels use the Planner accent; one-time dates remain below the title and both alarm types show the time right-aligned before the toggle. Planner uses a 40% brighter variant of the shared clock-derived accent, both initially and during live updates. The alarm editor weekday selectors use 14px text without button backgrounds, retaining 42px by 30px hit targets. Selected weekdays are blue and weekends red; unselected days and all days in Once mode are gray. Once disables day selection without clearing it.
+
+- **UI-08:** Planner and Calendar accents update immediately when the main clock color or main clock selection is applied in Settings, including live color preview. Hidden windows retain the updated accent for their next opening; no window recreation or restart is required.
+
+- **UI-07:** Planner can be dragged from non-interactive background areas, including the full header and empty sidebar. Interactive controls (including close, navigation, text editors, and scroll areas) retain their pointer behavior; the resize edge remains available. Selecting Planner from the clock context menu shows, restores, raises, and focuses the existing window without hiding/recreating it or resetting its selected section and drafts.
+
 - **UI-01 (Legacy):** Edit, Settings, About, color picker, rulers, and slider use frameless custom styling and do not create separate taskbar entries; the main clock is the only taskbar entry. Settings and About remain above an always-on-top clock.
 - **UI-02 (Legacy):** Position Edit and Settings near the clock strip, preferring below it, falling back above, and constraining them to the working area.
 - **UI-03 (Legacy):** The color picker offers the existing curated palette, closes after selection, and dismisses when it loses focus.
@@ -113,6 +121,16 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **CAL-06:** Year view shows twelve readable 7-by-6 mini-months, highlights the current month and date, shows adjacent-month dates quietly, and opens a month when selected.
 - **CAL-07:** Calendar date calculations are deterministic Rust logic covered by focused tests. While visible, the calendar refreshes its current time and date marker on the same periodic clock refresh as the clock strip, and does not reset a manually browsed week.
 - **CAL-08:** At four or more clocks the calendar may visually join the strip. With one to three clocks it retains a usable minimum width, centers below the strip, and keeps rounded upper corners. Calendar height must not grow merely because clock UI scale or clock count increases.
+
+## Planner Timer Duration Editor
+
+- **ALM-02:** The alarm creation form has a 70-pixel top row: name at the top left, weekdays below it, and the H:M editor on the right spanning both left rows. The fixed-width (74-pixel) Once/Weekly button is right-aligned below the name; resizing increases the gap after Sun, not the button width. Add alarm occupies a separate full-width row below. In Once mode, weekday controls remain visible but disabled, preserving the layout and previous selections.
+
+- **ALM-01:** Alarm creation uses the same single-frame segmented time editor as timers, with H:M only and initial time 07:00. The active segment is highlighted; shared arrow symbols and keyboard Up/Down adjust the current text within 0–23 hours and 0–59 minutes without wrapping. Tab and direct entry remain available. Both one-time and weekly alarms store normalized HH:MM values; invalid or incomplete times are rejected and midnight is valid.
+
+- **TMR-01:** Create timer durations using a single framed D:H:M:S control. Defaults are 0:0:5:0. Each segment supports direct text entry, with the active segment highlighted; one shared pair of unfilled arrow symbols adjusts the active segment. Keyboard Up/Down provides the same adjustment and Tab moves between segments.
+- **TMR-02:** Days range from 0 to 999, hours from 0 to 23, and minutes/seconds from 0 to 59. Adjustment stops at the limits without wrapping or carrying into other segments. Invalid or all-zero durations do not create a timer. Adjustments use the current text, never stale stored values.
+- **TMR-03:** Remember the last valid edited duration across section changes, timer creation, and application restart; incomplete or invalid text must not overwrite the last valid stored value.
 
 ## Cross-Platform Quality Requirements
 

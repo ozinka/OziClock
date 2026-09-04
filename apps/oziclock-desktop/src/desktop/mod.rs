@@ -151,11 +151,34 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     }
     let calendar_window = CalendarWindow::new()?;
     let planner_window = PlannerWindow::new()?;
-    let planner_accent = calendar_accent(&shared_settings.borrow());
+    let planner_accent = calendar_accent(&shared_settings.borrow()).brighter(0.4);
     planner_window.set_accent(planner_accent);
     planner_window
         .set_corner_radius(shared_settings.borrow().corner_radius.clamp(0.0, 15.5) as f32);
     planner_window.set_task_count(open_task_count(&shared_settings.borrow()));
+    planner_window
+        .set_timer_days_draft(shared_settings.borrow().timer_draft_days.to_string().into());
+    planner_window.set_timer_hours_draft(
+        shared_settings
+            .borrow()
+            .timer_draft_hours
+            .to_string()
+            .into(),
+    );
+    planner_window.set_timer_minutes_draft(
+        shared_settings
+            .borrow()
+            .timer_draft_minutes
+            .to_string()
+            .into(),
+    );
+    planner_window.set_timer_seconds_draft(
+        shared_settings
+            .borrow()
+            .timer_draft_seconds
+            .to_string()
+            .into(),
+    );
     let planner_task_model = Rc::new(VecModel::from(planner_task_rows(&shared_settings.borrow())));
     planner_window.set_tasks(ModelRc::from(planner_task_model.clone()));
     let planner_for_drag = planner_window.as_weak();
@@ -226,14 +249,36 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         &shared_settings.borrow(),
     )));
     planner_window.set_alarms(ModelRc::from(planner_alarm_model.clone()));
+    let planner_for_adjust_alarm = planner_window.as_weak();
+    planner_window.on_request_adjust_alarm_part(move |part, direction| {
+        let Some(planner) = planner_for_adjust_alarm.upgrade() else {
+            return;
+        };
+        let text = match part {
+            1 => planner.get_alarm_hours_draft(),
+            2 => planner.get_alarm_minutes_draft(),
+            _ => return,
+        };
+        let Some(value) = adjust_timer_part(&text, part, direction) else {
+            return;
+        };
+        let value = format!("{value:02}").into();
+        if part == 1 {
+            planner.set_alarm_hours_draft(value);
+        } else {
+            planner.set_alarm_minutes_draft(value);
+        }
+    });
     let planner_for_add_alarm = planner_window.as_weak();
     let settings_for_add_alarm = shared_settings.clone();
     let alarm_model_for_add_alarm = planner_alarm_model.clone();
     planner_window.on_request_add_alarm(
         move |title, time, weekly, mon, tue, wed, thu, fri, sat, sun| {
             let title = title.trim();
-            let time = time.trim();
-            if title.is_empty() || NaiveTime::parse_from_str(time, "%H:%M").is_err() {
+            let Some(time) = normalize_alarm_time(&time) else {
+                return;
+            };
+            if title.is_empty() {
                 return;
             }
             let weekdays = [mon, tue, wed, thu, fri, sat, sun]
@@ -279,6 +324,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             let _ = oziclock_storage::save(&settings);
             if let Some(planner) = planner_for_add_alarm.upgrade() {
                 planner.set_alarm_title_draft("Alarm".into());
+                planner.set_alarm_hours_draft(time[..2].into());
+                planner.set_alarm_minutes_draft(time[3..].into());
             }
         },
     );
@@ -301,16 +348,57 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         &shared_settings.borrow(),
     )));
     planner_window.set_timers(ModelRc::from(planner_timer_model.clone()));
+    let settings_for_edit_timer = shared_settings.clone();
+    planner_window.on_request_edit_timer_part(move |part, text| {
+        let Some(value) = parse_timer_part(&text, part) else {
+            return;
+        };
+        let mut settings = settings_for_edit_timer.borrow_mut();
+        store_timer_part(&mut settings, part, value);
+        let _ = oziclock_storage::save(&settings);
+    });
+    let planner_for_adjust_timer = planner_window.as_weak();
+    let settings_for_adjust_timer = shared_settings.clone();
+    planner_window.on_request_adjust_timer_part(move |part, direction| {
+        let Some(planner) = planner_for_adjust_timer.upgrade() else {
+            return;
+        };
+        let text = match part {
+            0 => planner.get_timer_days_draft(),
+            1 => planner.get_timer_hours_draft(),
+            2 => planner.get_timer_minutes_draft(),
+            3 => planner.get_timer_seconds_draft(),
+            _ => return,
+        };
+        let Some(value) = adjust_timer_part(&text, part, direction) else {
+            return;
+        };
+        let mut settings = settings_for_adjust_timer.borrow_mut();
+        store_timer_part(&mut settings, part, value);
+        match part {
+            0 => planner.set_timer_days_draft(value.to_string().into()),
+            1 => planner.set_timer_hours_draft(value.to_string().into()),
+            2 => planner.set_timer_minutes_draft(value.to_string().into()),
+            _ => planner.set_timer_seconds_draft(value.to_string().into()),
+        }
+        let _ = oziclock_storage::save(&settings);
+    });
     let planner_for_add_timer = planner_window.as_weak();
     let settings_for_add_timer = shared_settings.clone();
     let timer_model_for_add_timer = planner_timer_model.clone();
-    planner_window.on_request_add_timer(move |minutes| {
-        let Ok(minutes) = minutes.trim().parse::<u64>() else {
+    planner_window.on_request_add_timer(move |days, hours, minutes, seconds| {
+        let Some((days, hours, minutes, seconds)) =
+            parse_timer_duration(&days, &hours, &minutes, &seconds)
+        else {
             return;
         };
-        let Some(duration_seconds) = minutes.checked_mul(60).filter(|seconds| *seconds > 0) else {
+        let duration_seconds = u64::from(days) * 86_400
+            + u64::from(hours) * 3_600
+            + u64::from(minutes) * 60
+            + u64::from(seconds);
+        if duration_seconds == 0 {
             return;
-        };
+        }
         let mut settings = settings_for_add_timer.borrow_mut();
         let id = PlannerId::new(format!(
             "timer-{}",
@@ -319,7 +407,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         .expect("generated timer id is valid");
         settings.planner.timers.push(PlannerTimer {
             id,
-            title: format!("{minutes} minute timer"),
+            title: format_timer_title(days, hours, minutes, seconds),
             duration_seconds,
             remaining_seconds: duration_seconds,
             state: TimerState::Idle,
@@ -327,9 +415,16 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             started_at_utc: None,
         });
         timer_model_for_add_timer.set_vec(planner_timer_rows(&settings));
+        settings.timer_draft_days = days;
+        settings.timer_draft_hours = hours;
+        settings.timer_draft_minutes = minutes;
+        settings.timer_draft_seconds = seconds;
         let _ = oziclock_storage::save(&settings);
         if let Some(planner) = planner_for_add_timer.upgrade() {
-            planner.set_timer_minutes_draft("25".into());
+            planner.set_timer_days_draft(days.to_string().into());
+            planner.set_timer_hours_draft(hours.to_string().into());
+            planner.set_timer_minutes_draft(minutes.to_string().into());
+            planner.set_timer_seconds_draft(seconds.to_string().into());
         }
     });
     let settings_for_toggle_timer = shared_settings.clone();
@@ -693,6 +788,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let state = shared_settings.clone();
     let editor = settings_window.as_weak();
     let main_window = window.as_weak();
+    let planner_for_apply = planner_window.as_weak();
+    let calendar_for_apply = calendar_window.as_weak();
     settings_window.on_request_apply(move || {
         if let Some(editor) = editor.upgrade() {
             let index = editor.get_selected_index();
@@ -724,6 +821,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                     previous_main_clock != main_clock_index(&state.clocks_settings);
                 (state.clone(), main_clock_changed)
             };
+            refresh_auxiliary_accents(&planner_for_apply, &calendar_for_apply, &settings);
             if main_clock_changed {
                 update_settings_preview(&editor, &settings.clocks_settings);
                 if let Some(main_window) = main_window.upgrade() {
@@ -1211,6 +1309,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let editor = settings_window.as_weak();
     let main_window = window.as_weak();
     let main_window_for_save_modal = window.as_weak();
+    let planner_for_save = planner_window.as_weak();
+    let calendar_for_save = calendar_window.as_weak();
     settings_window.on_request_save(move || {
         if let Some(editor) = editor.upgrade() {
             let mut state = state.borrow_mut();
@@ -1254,6 +1354,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 persist_main_window_position(&main_window, &mut state);
             }
             persist_settings_window_size(&editor, &mut state);
+            refresh_auxiliary_accents(&planner_for_save, &calendar_for_save, &state);
             match oziclock_storage::save(&state) {
                 Ok(()) => {
                     *saved.borrow_mut() = state.clone();
@@ -1279,8 +1380,13 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         if let Some(menu) = menu_for_planner.upgrade() {
             let _ = menu.hide();
         }
-        if let Some(planner) = planner_for_menu.upgrade() {
-            let _ = planner.show();
+        if let Some(planner) = planner_for_menu.upgrade()
+            && planner.show().is_ok()
+        {
+            let _ = planner
+                .window()
+                .with_winit_window(|native| native.set_minimized(false));
+            focus_auxiliary_window(planner.window());
         }
     });
     let menu_for_dismiss = context_menu.as_weak();
@@ -2086,12 +2192,30 @@ fn schedule_calendar_boundary_refresh(
     });
 }
 
+fn refresh_auxiliary_accents(
+    planner: &slint::Weak<PlannerWindow>,
+    calendar: &slint::Weak<CalendarWindow>,
+    settings: &AppSettings,
+) {
+    let accent = calendar_accent(settings);
+    if let Some(planner) = planner.upgrade() {
+        planner.set_accent(accent.brighter(0.4));
+    }
+    if let Some(calendar) = calendar.upgrade() {
+        calendar.set_accent(accent);
+        calendar.set_accent_foreground(accent_foreground(accent));
+    }
+}
+
 fn calendar_accent(settings: &AppSettings) -> slint::Color {
-    let clock = settings
-        .clocks_settings
+    clock_accent(&settings.clocks_settings)
+}
+
+fn clock_accent(clocks: &[ClockSettings]) -> slint::Color {
+    let clock = clocks
         .iter()
         .find(|clock| clock.is_main)
-        .or_else(|| settings.clocks_settings.first());
+        .or_else(|| clocks.first());
     let Some(clock) = clock else {
         return slint::Color::from_rgb_u8(79, 117, 117);
     };
@@ -2132,7 +2256,7 @@ fn planner_alarm_rows(settings: &AppSettings) -> Vec<PlannerAlarmData> {
                     local_date,
                     local_time,
                 } => (
-                    format!("Once · {local_date} at {local_time}"),
+                    local_date.clone(),
                     local_time.clone(),
                     false,
                     vec![false; 7],
@@ -2216,6 +2340,83 @@ fn timer_remaining_seconds(timer: &PlannerTimer, now: DateTime<Utc>) -> u64 {
         .unwrap_or_default()
         .max(0) as u64;
     timer.remaining_seconds.saturating_sub(elapsed_seconds)
+}
+
+fn timer_part_limit(part: i32) -> Option<u16> {
+    match part {
+        0 => Some(999),
+        1 => Some(23),
+        2 | 3 => Some(59),
+        _ => None,
+    }
+}
+
+fn normalize_alarm_time(text: &str) -> Option<String> {
+    let (hours, minutes) = text.split_once(':')?;
+    let hours = parse_timer_part(hours, 1)?;
+    let minutes = parse_timer_part(minutes, 2)?;
+    Some(
+        NaiveTime::from_hms_opt(hours.into(), minutes.into(), 0)?
+            .format("%H:%M")
+            .to_string(),
+    )
+}
+
+fn parse_timer_part(text: &str, part: i32) -> Option<u16> {
+    let maximum = timer_part_limit(part)?;
+    let value = text.trim().parse::<u16>().ok()?;
+    (value <= maximum).then_some(value)
+}
+
+fn adjust_timer_part(text: &str, part: i32, direction: i32) -> Option<u16> {
+    let value = if text.trim().is_empty() {
+        0
+    } else {
+        parse_timer_part(text, part)?
+    };
+    Some(
+        (i32::from(value) + direction.signum()).clamp(0, i32::from(timer_part_limit(part)?)) as u16,
+    )
+}
+
+fn store_timer_part(settings: &mut AppSettings, part: i32, value: u16) {
+    match part {
+        0 => settings.timer_draft_days = value,
+        1 => settings.timer_draft_hours = value as u8,
+        2 => settings.timer_draft_minutes = value as u8,
+        3 => settings.timer_draft_seconds = value as u8,
+        _ => {}
+    }
+}
+
+fn parse_timer_duration(
+    days: &str,
+    hours: &str,
+    minutes: &str,
+    seconds: &str,
+) -> Option<(u16, u8, u8, u8)> {
+    let days = parse_timer_part(days, 0)?;
+    let hours = parse_timer_part(hours, 1)? as u8;
+    let minutes = parse_timer_part(minutes, 2)? as u8;
+    let seconds = parse_timer_part(seconds, 3)? as u8;
+    Some((days, hours, minutes, seconds))
+}
+
+fn format_timer_title(days: u16, hours: u8, minutes: u8, seconds: u8) -> String {
+    let mut parts = Vec::new();
+    if days > 0 {
+        parts.push(format!("{days}d"));
+    }
+    if hours > 0 {
+        parts.push(format!("{hours}h"));
+    }
+    if minutes > 0 {
+        parts.push(format!("{minutes}m"));
+    }
+    if seconds > 0 {
+        parts.push(format!("{seconds}s"));
+    }
+    format!("{} timer", parts.join(" "))
 }
 
 fn format_duration(total_seconds: u64) -> String {
@@ -2569,5 +2770,79 @@ fn to_clock_tile(
         },
         accent: parse_color(&settings.color),
         main_zone: settings.is_main,
+    }
+}
+
+#[cfg(test)]
+mod timer_editor_tests {
+    use super::*;
+
+    #[test]
+    fn accent_tracks_color_edits_and_main_clock_selection() {
+        let mut clocks = vec![
+            ClockSettings {
+                label: "A".into(),
+                time_zone: "UTC".into(),
+                color: "#FF0000".into(),
+                is_main: true,
+            },
+            ClockSettings {
+                label: "B".into(),
+                time_zone: "UTC".into(),
+                color: "#0000FF".into(),
+                is_main: false,
+            },
+        ];
+        let original = clock_accent(&clocks);
+        clocks[0].color = "#00FF00".into();
+        let edited = clock_accent(&clocks);
+        assert_ne!(original, edited);
+        clocks[0].is_main = false;
+        clocks[1].is_main = true;
+        assert_ne!(edited, clock_accent(&clocks));
+        assert_eq!(clock_accent(&clocks), clock_accent(&clocks[1..]));
+        clocks[1].is_main = false;
+        assert_eq!(clock_accent(&clocks), edited);
+    }
+
+    #[test]
+    fn alarm_time_accepts_single_digits_and_normalizes_storage() {
+        assert_eq!(normalize_alarm_time("6:0").as_deref(), Some("06:00"));
+        assert_eq!(normalize_alarm_time("0:0").as_deref(), Some("00:00"));
+        assert_eq!(normalize_alarm_time("23:59").as_deref(), Some("23:59"));
+        for invalid in ["24:00", "12:60", "-1:30", ":30", "7:", "7:00:00"] {
+            assert_eq!(normalize_alarm_time(invalid), None);
+        }
+    }
+
+    #[test]
+    fn adjustment_uses_current_text_and_stops_at_limits() {
+        assert_eq!(adjust_timer_part("17", 2, 1), Some(18));
+        assert_eq!(adjust_timer_part("0", 0, -1), Some(0));
+        assert_eq!(adjust_timer_part("23", 1, 1), Some(23));
+        assert_eq!(adjust_timer_part("59", 3, 1), Some(59));
+        assert_eq!(adjust_timer_part("", 2, 1), Some(1));
+        assert_eq!(adjust_timer_part("invalid", 2, 1), None);
+    }
+
+    #[test]
+    fn duration_rejects_invalid_parts_without_silent_truncation() {
+        assert_eq!(parse_timer_duration("0", "0", "5", "0"), Some((0, 0, 5, 0)));
+        assert_eq!(
+            parse_timer_duration("999", "23", "59", "59"),
+            Some((999, 23, 59, 59))
+        );
+        for parts in [
+            ["1000", "0", "0", "0"],
+            ["0", "24", "0", "0"],
+            ["0", "0", "60", "0"],
+            ["0", "0", "0", "-1"],
+            ["", "0", "5", "0"],
+        ] {
+            assert_eq!(
+                parse_timer_duration(parts[0], parts[1], parts[2], parts[3]),
+                None
+            );
+        }
     }
 }

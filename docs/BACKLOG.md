@@ -21,6 +21,12 @@ Priorities describe sequencing, not severity:
 
 | ID | Priority | Status | Area | Item | Next step |
 | --- | --- | --- | --- | --- | --- |
+| BL-026 | P2 | In Progress | Alarms | Refine typography and optical alignment | ALM-04 implemented; verify larger dates/times, bold selected days, neutral Once, and action/input alignment. |
+| BL-025 | P2 | In Progress | Alarms | Align saved cards and clarify schedule/time styling | ALM-03 implemented, including text-only 14px weekday selectors and a 40% brighter accent; visual verification pending. |
+| BL-024 | P1 | In Progress | Planner appearance | Update the accent live after clock settings changes | UI-08 implemented in Apply and Save; verify live color preview and switching the main clock in the debug build. |
+| BL-023 | P2 | In Progress | Planner windowing | Drag from the background and reactivate Planner from the menu | UI-07 implemented; all 34 tests and build pass. Latest debug launched; user verification of dragging, control hit targets, and foreground activation remains. |
+| BL-022 | P2 | In Progress | Alarms | Reuse the segmented H:M time editor for alarms | ALM-01 and ALM-02 implemented; 34 tests and build pass. Compact two-row layout awaits user visual confirmation in the latest debug instance. |
+| BL-021 | P2 | Done | Timers | Implement the approved single-field D:H:M:S editor | TMR-01–03 implemented. Focused parsing/adjustment and persistence tests pass; macOS visual smoke check verified alignment, shared arrows, segment selection, and keyboard adjustment. |
 | BL-003 | P2 | Discovery | Windowing | Add live edge snapping while dragging | Define per-platform drag-lifecycle behavior and acceptance tests for compact mode and high DPI. |
 | BL-004 | P2 | Ready | Windows | Preserve multi-resolution frames in the taskbar icon | Verify 16/32/48/64-pixel ICO selection against WPF at common display scales. |
 | BL-013 | P1 | Discovery | macOS windowing | Diagnose the clock strip moving down when resized or restored | Compact mode, rulers, and relaunch/login restore can shift the window downward by about 30 physical pixels at 85% clock scale. Establish the native frame/content-coordinate model and an acceptance test before changing production window behavior. |

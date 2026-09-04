@@ -22,12 +22,61 @@ export struct PlannerAlarmData {
     enabled: bool,
 }
 
+component TimeSegmentField inherits Rectangle {
+    in property <length> text-offset: 0px;
+    in property <string> label;
+    in-out property <string> value;
+    in property <bool> selected;
+    callback selected-field();
+    callback edited(string);
+    callback request-adjust(int);
+    width: 52px;
+    height: 54px;
+    Text { x: 0px; y: 0px; width: parent.width; height: 16px; text: root.label; color: #a7b7b4; font-size: 11px; horizontal-alignment: center; vertical-alignment: center;
+        TouchArea { clicked => { input.focus(); root.selected-field(); } }
+    }
+    Rectangle { y: 18px; width: parent.width; height: 36px; border-radius: 5px; background: root.selected ? #38414c : transparent;
+        input := TextInput {
+            y: root.text-offset;
+            width: parent.width; height: parent.height;
+            text <=> root.value; font-size: 20px; font-weight: 500;
+            color: root.selected ? #b5d6f5 : #e1eae8;
+            selection-background-color: #5b9bd5; selection-foreground-color: #13191b;
+            horizontal-alignment: center; vertical-alignment: center; single-line: true;
+            accessible-label: root.label;
+            changed has-focus => { if self.has-focus { root.selected-field(); } }
+            edited => { root.edited(self.text); }
+            key-pressed(event) => {
+                if event.text == Key.UpArrow { root.request-adjust(1); return accept; }
+                if event.text == Key.DownArrow { root.request-adjust(-1); return accept; }
+                return reject;
+            }
+        }
+    }
+}
+
 export component PlannerWindow inherits Window {
+    private property <int> timer-selected-part: 2;
+    in-out property <string> alarm-hours-draft: "07";
+    in-out property <string> alarm-minutes-draft: "00";
+    private property <int> alarm-selected-part: 1;
+    callback request-adjust-alarm-part(int, int);
+    callback request-edit-timer-part(int, string);
     title: "OziClock Planner"; no-frame: true;
     preferred-width: 900px; preferred-height: 780px; min-width: 900px; min-height: 780px; background: transparent;
-    in property <color> accent: #77d7cb; in property <float> corner-radius: 12; in-out property <int> selected-view: 0; in-out property <int> selected-section: 0; in property <int> task-count: 0; in property <[PlannerTaskData]> tasks; in property <[PlannerTimerData]> timers; in property <[PlannerAlarmData]> alarms; in property <string> stopwatch-time: "00:00:00"; in property <string> stopwatch-milliseconds: ".00"; in property <bool> stopwatch-running: false; in property <[string]> stopwatch-laps; in-out property <string> task-draft: ""; in-out property <string> timer-minutes-draft: "25"; in-out property <string> alarm-title-draft: "Alarm"; in-out property <string> alarm-time-draft: "07:00"; in-out property <bool> alarm-weekly: false; in-out property <bool> alarm-mon: true; in-out property <bool> alarm-tue: true; in-out property <bool> alarm-wed: true; in-out property <bool> alarm-thu: true; in-out property <bool> alarm-fri: true; in-out property <bool> alarm-sat: false; in-out property <bool> alarm-sun: false;
-    callback request-close(); callback request-window-drag(); callback request-add-task(string); callback request-complete-task(string); callback request-add-timer(string); callback request-toggle-timer(string); callback request-add-alarm(string, string, bool, bool, bool, bool, bool, bool, bool, bool); callback request-toggle-alarm(string, bool); callback request-toggle-stopwatch(); callback request-reset-stopwatch(); callback request-stopwatch-lap();
+    in property <color> accent: #77d7cb; in property <float> corner-radius: 12; in-out property <int> selected-view: 0; in-out property <int> selected-section: 0; in property <int> task-count: 0; in property <[PlannerTaskData]> tasks; in property <[PlannerTimerData]> timers; in property <[PlannerAlarmData]> alarms; in property <string> stopwatch-time: "00:00:00"; in property <string> stopwatch-milliseconds: ".00"; in property <bool> stopwatch-running: false; in property <[string]> stopwatch-laps; in-out property <string> task-draft: ""; in-out property <string> timer-days-draft: "0"; in-out property <string> timer-hours-draft: "0"; in-out property <string> timer-minutes-draft: "5"; in-out property <string> timer-seconds-draft: "0"; in-out property <string> alarm-title-draft: "Alarm"; private property <string> alarm-time-draft: root.alarm-hours-draft + ":" + root.alarm-minutes-draft; in-out property <bool> alarm-weekly: false; in-out property <bool> alarm-mon: true; in-out property <bool> alarm-tue: true; in-out property <bool> alarm-wed: true; in-out property <bool> alarm-thu: true; in-out property <bool> alarm-fri: true; in-out property <bool> alarm-sat: false; in-out property <bool> alarm-sun: false;
+    callback request-close(); callback request-window-drag(); callback request-add-task(string); callback request-complete-task(string); callback request-add-timer(string, string, string, string); callback request-adjust-timer-part(int, int); callback request-toggle-timer(string); callback request-add-alarm(string, string, bool, bool, bool, bool, bool, bool, bool, bool); callback request-toggle-alarm(string, bool); callback request-toggle-stopwatch(); callback request-reset-stopwatch(); callback request-stopwatch-lap();
     Rectangle { width: parent.width; height: parent.height; border-radius: root.corner-radius * 1px; background: #171d1f; border-width: 1px; border-color: #344144; clip: true;
+        // Background hit target stays behind all interactive children.
+        // Leave the outer edge available for native window resizing.
+        TouchArea {
+            x: 4px; y: 4px; width: parent.width - 8px; height: parent.height - 8px;
+            pointer-event(event) => {
+                if event.kind == PointerEventKind.down && event.button == PointerEventButton.left {
+                    root.request-window-drag();
+                }
+            }
+        }
         Rectangle { x: 0px; y: 0px; width: 166px; height: parent.height; background: #13191b; VerticalLayout { padding: 14px; spacing: 7px;
                 Text { text: "Planner"; color: #edf4f2; font-family: "Carlito"; font-size: 21px; font-weight: 700; }
                 Text { text: "Personal time tools"; color: #839694; font-family: "Carlito"; font-size: 12px; }
@@ -71,13 +120,13 @@ export component PlannerWindow inherits Window {
                 if root.selected-section == 1 : Rectangle { vertical-stretch: 1; border-radius: 8px; background: #1b2325; border-width: 1px; border-color: #344144;
                     Text { x: 14px; y: 14px; text: "Saved alarms"; color: #e0eae8; font-size: 13px; font-weight: 700; }
                     ScrollView { x: 14px; y: 40px; width: parent.width - 28px; height: parent.height - 54px; viewport-width: self.width; viewport-height: root.alarms.length * 50px; horizontal-scrollbar-policy: ScrollBarPolicy.always-off; vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
-                        for alarm[index] in root.alarms: Rectangle { y: index * 50px; width: parent.width - 14px; height: 43px; border-radius: 6px; background: #20292b;
+                        for alarm[index] in root.alarms: Rectangle { x: 0px; y: index * 50px; width: parent.width - 14px; height: 43px; border-radius: 6px; background: #20292b;
                             Text { x: 10px; y: 5px; width: parent.width - 120px; height: 17px; text: alarm.title; color: #d7e2df; font-size: 13px; font-weight: 700; }
-                            Text { x: 10px; y: 22px; width: parent.width - 120px; height: 16px; visible: !alarm.weekly; text: alarm.schedule; color: #829492; font-size: 11px; }
-                            Text { x: 10px; y: 22px; width: 46px; height: 16px; visible: alarm.weekly; text: "Weekly ·"; color: #829492; font-size: 11px; }
-                            for label[day] in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]: Text { x: 58px + day * 31px; y: 22px; width: 30px; height: 16px; visible: alarm.weekly && alarm.weekdays[day]; text: label; color: day < 5 ? #5b9bd5 : #d96d74; font-size: 11px; }
-                            Text { x: parent.width - 150px; y: 22px; width: 62px; height: 16px; visible: alarm.weekly; text: alarm.time; color: #829492; font-size: 11px; horizontal-alignment: right; }
-                            Rectangle { x: parent.width - 74px; y: 8px; width: 62px; height: 27px; border-radius: 5px; background: alarm.enabled ? root.accent : #344144; Text { width: parent.width; height: parent.height; text: alarm.enabled ? "On" : "Off"; horizontal-alignment: center; vertical-alignment: center; color: alarm.enabled ? #082725 : #dce8e5; font-size: 11px; font-weight: 700; } TouchArea { clicked => { root.request-toggle-alarm(alarm.id, !alarm.enabled); } } }
+                            Text { x: 10px; y: 22px; width: 46px; height: 16px; text: alarm.weekly ? "Weekly ·" : "Once ·"; color: alarm.weekly ? root.accent : #829492; font-size: 11px; }
+                            Text { x: 58px; y: 22px; width: parent.width - 218px; height: 16px; visible: !alarm.weekly; text: alarm.schedule; color: #829492; font-size: 13px; }
+                            for label[day] in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]: Text { x: 58px + day * 31px; y: 22px; width: 30px; height: 16px; visible: alarm.weekly && alarm.weekdays[day]; text: label; color: day < 5 ? #5b9bd5 : #d96d74; font-size: 11px; font-weight: 700; }
+                            Text { x: parent.width - 150px; y: 2px; width: 62px; height: parent.height; text: alarm.time; color: #829492; font-size: 14px; vertical-alignment: center; horizontal-alignment: right; }
+                            Rectangle { x: parent.width - 74px; y: 8px; width: 62px; height: 27px; border-radius: 5px; background: alarm.enabled ? root.accent : #344144; Text { y: 2px; width: parent.width; height: parent.height; text: alarm.enabled ? "On" : "Off"; horizontal-alignment: center; vertical-alignment: center; color: alarm.enabled ? #082725 : #dce8e5; font-size: 11px; font-weight: 700; } TouchArea { clicked => { root.request-toggle-alarm(alarm.id, !alarm.enabled); } } }
                         }
                     }
                     Text { x: 14px; y: 40px; visible: root.alarms.length == 0; text: "Create your first alarm below."; color: #718280; font-size: 13px; }
@@ -110,20 +159,60 @@ export component PlannerWindow inherits Window {
                     Rectangle { width: 76px; border-radius: 6px; background: root.accent; Text { width: parent.width; height: parent.height; text: "Add task"; horizontal-alignment: center; vertical-alignment: center; color: #082725; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-add-task(root.task-draft); } } }
                     Text { width: 52px; text: root.task-count + " tasks"; color: #829492; font-size: 11px; vertical-alignment: center; }
                 }
-                if root.selected-section == 2 : HorizontalLayout { height: 34px; spacing: 8px;
-                    Text { width: 58px; text: "Duration"; color: #aab9b7; font-size: 12px; vertical-alignment: center; }
-                    LineEdit { width: 96px; height: 34px; text <=> root.timer-minutes-draft; }
-                    Text { width: 52px; text: "minutes"; color: #829492; font-size: 12px; vertical-alignment: center; }
+                if root.selected-section == 2 : HorizontalLayout { height: 70px; spacing: 18px;
+                    Rectangle { width: 324px; height: 70px; border-radius: 8px; border-width: 1px; border-color: #344144; background: #20292b;
+                        HorizontalLayout { padding: 8px; spacing: 3px;
+                            TimeSegmentField { label: "D"; value <=> root.timer-days-draft; selected: root.timer-selected-part == 0; selected-field => { root.timer-selected-part = 0; } edited(value) => { root.request-edit-timer-part(0, value); } request-adjust(delta) => { root.request-adjust-timer-part(0, delta); } }
+                            Rectangle { width: 10px; Text { x: 0px; y: 18px; width: parent.width; height: 36px; text: ":"; color: #899b97; font-size: 20px; vertical-alignment: center; horizontal-alignment: center; } }
+                            TimeSegmentField { label: "H"; value <=> root.timer-hours-draft; selected: root.timer-selected-part == 1; selected-field => { root.timer-selected-part = 1; } edited(value) => { root.request-edit-timer-part(1, value); } request-adjust(delta) => { root.request-adjust-timer-part(1, delta); } }
+                            Rectangle { width: 10px; Text { x: 0px; y: 18px; width: parent.width; height: 36px; text: ":"; color: #899b97; font-size: 20px; vertical-alignment: center; horizontal-alignment: center; } }
+                            TimeSegmentField { label: "M"; value <=> root.timer-minutes-draft; selected: root.timer-selected-part == 2; selected-field => { root.timer-selected-part = 2; } edited(value) => { root.request-edit-timer-part(2, value); } request-adjust(delta) => { root.request-adjust-timer-part(2, delta); } }
+                            Rectangle { width: 10px; Text { x: 0px; y: 18px; width: parent.width; height: 36px; text: ":"; color: #899b97; font-size: 20px; vertical-alignment: center; horizontal-alignment: center; } }
+                            TimeSegmentField { label: "S"; value <=> root.timer-seconds-draft; selected: root.timer-selected-part == 3; selected-field => { root.timer-selected-part = 3; } edited(value) => { root.request-edit-timer-part(3, value); } request-adjust(delta) => { root.request-adjust-timer-part(3, delta); } }
+                            Rectangle { width: 1px; background: #344144; }
+                            VerticalLayout { width: 40px; spacing: 0;
+                                for delta in [1, -1]: Rectangle { height: 27px; border-radius: 4px; background: arrow.has-hover ? #344144 : transparent;
+                                    Text { width: parent.width; height: parent.height; text: delta == 1 ? "▲" : "▼"; color: #b5c4c1; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
+                                    arrow := TouchArea { clicked => { root.request-adjust-timer-part(root.timer-selected-part, delta); } }
+                                }
+                            }
+                        }
+                    }
+                    Rectangle { width: 104px;
+                        Rectangle { x: 0px; y: (parent.height - self.height) / 2; width: parent.width; height: 36px; border-radius: 6px; background: root.accent; Text { width: parent.width; height: parent.height; text: "New timer"; horizontal-alignment: center; vertical-alignment: center; color: #082725; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-add-timer(root.timer-days-draft, root.timer-hours-draft, root.timer-minutes-draft, root.timer-seconds-draft); } } }
+                    }
                     Rectangle { horizontal-stretch: 1; }
-                    Rectangle { width: 96px; border-radius: 6px; background: root.accent; Text { width: parent.width; height: parent.height; text: "New timer"; horizontal-alignment: center; vertical-alignment: center; color: #082725; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-add-timer(root.timer-minutes-draft); } } }
                 }
-                if root.selected-section == 1 : VerticalLayout { height: 103px; spacing: 7px;
-                    HorizontalLayout { height: 34px; spacing: 8px; LineEdit { horizontal-stretch: 1; text <=> root.alarm-title-draft; placeholder-text: "Alarm title"; } LineEdit { width: 78px; text <=> root.alarm-time-draft; } Rectangle { width: 74px; border-radius: 6px; background: root.alarm-weekly ? root.accent : #344144; Text { width: parent.width; height: parent.height; text: root.alarm-weekly ? "Weekly" : "Once"; horizontal-alignment: center; vertical-alignment: center; color: root.alarm-weekly ? #082725 : #dce8e5; font-size: 11px; font-weight: 700; } TouchArea { clicked => { root.alarm-weekly = !root.alarm-weekly; } } } }
-                    HorizontalLayout { visible: root.alarm-weekly; height: 26px; spacing: 5px; for label[index] in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]: Rectangle { width: 42px; border-radius: 5px; background: index == 0 ? (root.alarm-mon ? #5b9bd5 : #344144) : index == 1 ? (root.alarm-tue ? #5b9bd5 : #344144) : index == 2 ? (root.alarm-wed ? #5b9bd5 : #344144) : index == 3 ? (root.alarm-thu ? #5b9bd5 : #344144) : index == 4 ? (root.alarm-fri ? #5b9bd5 : #344144) : index == 5 ? (root.alarm-sat ? #d96d74 : #344144) : (root.alarm-sun ? #d96d74 : #344144); Text { width: parent.width; height: parent.height; text: label; horizontal-alignment: center; vertical-alignment: center; color: #f5f7f7; font-size: 10px; } TouchArea { clicked => { if (index == 0) { root.alarm-mon = !root.alarm-mon; } else if (index == 1) { root.alarm-tue = !root.alarm-tue; } else if (index == 2) { root.alarm-wed = !root.alarm-wed; } else if (index == 3) { root.alarm-thu = !root.alarm-thu; } else if (index == 4) { root.alarm-fri = !root.alarm-fri; } else if (index == 5) { root.alarm-sat = !root.alarm-sat; } else { root.alarm-sun = !root.alarm-sun; } } } } }
-                    Rectangle { height: 34px; border-radius: 6px; background: root.accent; Text { width: parent.width; height: parent.height; text: "Add alarm"; horizontal-alignment: center; vertical-alignment: center; color: #082725; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-add-alarm(root.alarm-title-draft, root.alarm-time-draft, root.alarm-weekly, root.alarm-mon, root.alarm-tue, root.alarm-wed, root.alarm-thu, root.alarm-fri, root.alarm-sat, root.alarm-sun); } } }
+                if root.selected-section == 1 : VerticalLayout { height: 111px; spacing: 7px;
+                    HorizontalLayout { height: 70px; spacing: 12px;
+                        Rectangle { horizontal-stretch: 1;
+                            LineEdit { x: 0px; y: 0px; width: parent.width; height: 34px; text <=> root.alarm-title-draft; placeholder-text: "Alarm title"; }
+                            HorizontalLayout { x: 0px; y: 40px; width: parent.width; height: 30px; spacing: 5px; for label[index] in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]: Rectangle { width: 42px; private property <bool> selected: index == 0 ? root.alarm-mon : index == 1 ? root.alarm-tue : index == 2 ? root.alarm-wed : index == 3 ? root.alarm-thu : index == 4 ? root.alarm-fri : index == 5 ? root.alarm-sat : root.alarm-sun; background: transparent; Text { width: parent.width; height: parent.height; text: label; horizontal-alignment: center; vertical-alignment: center; color: root.alarm-weekly && parent.selected ? (index < 5 ? #5b9bd5 : #d96d74) : #829492; font-size: 14px; font-weight: root.alarm-weekly && parent.selected ? 700 : 400; } TouchArea { enabled: root.alarm-weekly; clicked => { if (index == 0) { root.alarm-mon = !root.alarm-mon; } else if (index == 1) { root.alarm-tue = !root.alarm-tue; } else if (index == 2) { root.alarm-wed = !root.alarm-wed; } else if (index == 3) { root.alarm-thu = !root.alarm-thu; } else if (index == 4) { root.alarm-fri = !root.alarm-fri; } else if (index == 5) { root.alarm-sat = !root.alarm-sat; } else { root.alarm-sun = !root.alarm-sun; } } } }
+                                Rectangle { horizontal-stretch: 1; }
+                                Rectangle { width: 74px; border-radius: 6px; background: root.alarm-weekly ? root.accent : #344144;
+                                    Text { y: 2px; width: parent.width; height: parent.height; text: root.alarm-weekly ? "Weekly" : "Once"; horizontal-alignment: center; vertical-alignment: center; color: root.alarm-weekly ? #082725 : #dce8e5; font-size: 11px; font-weight: 700; }
+                                    TouchArea { clicked => { root.alarm-weekly = !root.alarm-weekly; } }
+                                }
+                            }
+                        }
+                        Rectangle { width: 190px; height: 70px; border-radius: 8px; border-width: 1px; border-color: #344144; background: #20292b;
+                            HorizontalLayout { padding: 8px; spacing: 3px;
+                                TimeSegmentField { text-offset: 2px; label: "H"; value <=> root.alarm-hours-draft; selected: root.alarm-selected-part == 1; selected-field => { root.alarm-selected-part = 1; } request-adjust(delta) => { root.request-adjust-alarm-part(1, delta); } }
+                                Rectangle { width: 10px; Text { x: 0px; y: 18px; width: parent.width; height: 36px; text: ":"; color: #899b97; font-size: 20px; vertical-alignment: center; horizontal-alignment: center; } }
+                                TimeSegmentField { text-offset: 2px; label: "M"; value <=> root.alarm-minutes-draft; selected: root.alarm-selected-part == 2; selected-field => { root.alarm-selected-part = 2; } request-adjust(delta) => { root.request-adjust-alarm-part(2, delta); } }
+                                Rectangle { width: 1px; background: #344144; }
+                                VerticalLayout { width: 40px; spacing: 0;
+                                    for delta in [1, -1]: Rectangle { height: 27px; border-radius: 4px; background: alarm-arrow.has-hover ? #344144 : transparent;
+                                        Text { width: parent.width; height: parent.height; text: delta == 1 ? "▲" : "▼"; color: #b5c4c1; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
+                                        alarm-arrow := TouchArea { clicked => { root.request-adjust-alarm-part(root.alarm-selected-part, delta); } }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Rectangle { height: 34px; border-radius: 6px; background: root.accent; Text { y: 2px; width: parent.width; height: parent.height; text: "Add alarm"; horizontal-alignment: center; vertical-alignment: center; color: #082725; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-add-alarm(root.alarm-title-draft, root.alarm-time-draft, root.alarm-weekly, root.alarm-mon, root.alarm-tue, root.alarm-wed, root.alarm-thu, root.alarm-fri, root.alarm-sat, root.alarm-sun); } } }
                 }
             }
         }
     }
-    TouchArea { x: 166px; y: 0px; width: 300px; height: 52px; pointer-event(event) => { if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) { root.request-window-drag(); } } }
 }
