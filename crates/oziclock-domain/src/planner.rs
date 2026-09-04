@@ -152,6 +152,10 @@ impl Alarm {
             }
         }
     }
+
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

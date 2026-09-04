@@ -8,6 +8,10 @@ pub enum PlannerCommand {
     ArchiveTask {
         id: PlannerId,
     },
+    SetAlarmEnabled {
+        id: PlannerId,
+        enabled: bool,
+    },
     StartTimer {
         id: PlannerId,
         started_at_utc: String,
@@ -42,6 +46,14 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
             .iter_mut()
             .find(|task| task.id == id)
             .is_some_and(|task| task.archive()),
+        PlannerCommand::SetAlarmEnabled { id, enabled } => planner
+            .alarms
+            .iter_mut()
+            .find(|alarm| alarm.id == id)
+            .is_some_and(|alarm| {
+                alarm.set_enabled(enabled);
+                true
+            }),
         PlannerCommand::StartTimer { id, started_at_utc } => planner
             .timers
             .iter_mut()

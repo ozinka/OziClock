@@ -32,14 +32,16 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chrono::{DateTime, Datelike, LocalResult, NaiveDateTime, Offset, TimeZone, Timelike, Utc};
+use chrono::{
+    DateTime, Datelike, LocalResult, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike, Utc,
+};
 use chrono_tz::Tz;
 use oziclock_app::calendar::CalendarDate;
 use oziclock_app::planner::{PlannerCommand, execute_planner_command};
 use oziclock_app::{ClockCommand, execute_clock_command};
 use oziclock_storage::{
-    AppSettings, ClockSettings, PlannerId, PlannerTimer, Stopwatch, StopwatchState, Task,
-    TaskStatus, TimerState,
+    Alarm, AlarmSchedule, AppSettings, ClockSettings, PlannerId, PlannerTimer, Stopwatch,
+    StopwatchState, Task, TaskStatus, TimerState,
 };
 use slint::winit_030::EventResult;
 use slint::winit_030::WinitWindowAccessor;
@@ -218,6 +220,81 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         let _ = oziclock_storage::save(&settings);
         if let Some(planner) = planner_for_complete_task.upgrade() {
             planner.set_task_count(open_task_count(&settings));
+        }
+    });
+    let planner_alarm_model = Rc::new(VecModel::from(planner_alarm_rows(
+        &shared_settings.borrow(),
+    )));
+    planner_window.set_alarms(ModelRc::from(planner_alarm_model.clone()));
+    let planner_for_add_alarm = planner_window.as_weak();
+    let settings_for_add_alarm = shared_settings.clone();
+    let alarm_model_for_add_alarm = planner_alarm_model.clone();
+    planner_window.on_request_add_alarm(
+        move |title, time, weekly, mon, tue, wed, thu, fri, sat, sun| {
+            let title = title.trim();
+            let time = time.trim();
+            if title.is_empty() || NaiveTime::parse_from_str(time, "%H:%M").is_err() {
+                return;
+            }
+            let weekdays = [mon, tue, wed, thu, fri, sat, sun]
+                .into_iter()
+                .enumerate()
+                .filter_map(|(index, selected)| selected.then_some(index as u8))
+                .collect::<Vec<_>>();
+            if weekly && weekdays.is_empty() {
+                return;
+            }
+            let mut settings = settings_for_add_alarm.borrow_mut();
+            let id = PlannerId::new(format!(
+                "alarm-{}",
+                Utc::now().timestamp_nanos_opt().unwrap_or_default()
+            ))
+            .expect("generated alarm id is valid");
+            let schedule = if weekly {
+                AlarmSchedule::Weekly {
+                    local_time: time.to_owned(),
+                    weekdays,
+                }
+            } else {
+                AlarmSchedule::Once {
+                    local_date: calendar_local_now(&settings).date().to_string(),
+                    local_time: time.to_owned(),
+                }
+            };
+            let time_zone = settings
+                .clocks_settings
+                .iter()
+                .find(|clock| clock.is_main)
+                .or_else(|| settings.clocks_settings.first())
+                .map(|clock| clock.time_zone.clone())
+                .unwrap_or_else(|| "UTC".to_owned());
+            settings.planner.alarms.push(Alarm {
+                id,
+                title: title.to_owned(),
+                schedule,
+                time_zone,
+                enabled: true,
+            });
+            alarm_model_for_add_alarm.set_vec(planner_alarm_rows(&settings));
+            let _ = oziclock_storage::save(&settings);
+            if let Some(planner) = planner_for_add_alarm.upgrade() {
+                planner.set_alarm_title_draft("Alarm".into());
+            }
+        },
+    );
+    let settings_for_toggle_alarm = shared_settings.clone();
+    let alarm_model_for_toggle_alarm = planner_alarm_model.clone();
+    planner_window.on_request_toggle_alarm(move |alarm_id, enabled| {
+        let Some(id) = PlannerId::new(alarm_id.to_string()) else {
+            return;
+        };
+        let mut settings = settings_for_toggle_alarm.borrow_mut();
+        if execute_planner_command(
+            &mut settings.planner,
+            PlannerCommand::SetAlarmEnabled { id, enabled },
+        ) {
+            alarm_model_for_toggle_alarm.set_vec(planner_alarm_rows(&settings));
+            let _ = oziclock_storage::save(&settings);
         }
     });
     let planner_timer_model = Rc::new(VecModel::from(planner_timer_rows(
@@ -2042,6 +2119,68 @@ fn planner_task_rows(settings: &AppSettings) -> Vec<PlannerTaskData> {
             title: task.title.clone().into(),
         })
         .collect()
+}
+
+fn planner_alarm_rows(settings: &AppSettings) -> Vec<PlannerAlarmData> {
+    settings
+        .planner
+        .alarms
+        .iter()
+        .map(|alarm| {
+            let (schedule, time, weekly, weekdays) = match &alarm.schedule {
+                AlarmSchedule::Once {
+                    local_date,
+                    local_time,
+                } => (
+                    format!("Once · {local_date} at {local_time}"),
+                    local_time.clone(),
+                    false,
+                    vec![false; 7],
+                ),
+                AlarmSchedule::Weekly {
+                    local_time,
+                    weekdays,
+                } => (
+                    alarm_schedule_label(&alarm.schedule),
+                    local_time.clone(),
+                    true,
+                    (0..7).map(|day| weekdays.contains(&(day as u8))).collect(),
+                ),
+            };
+            PlannerAlarmData {
+                id: alarm.id.to_string().into(),
+                title: alarm.title.clone().into(),
+                schedule: schedule.into(),
+                time: time.into(),
+                weekly,
+                weekdays: ModelRc::from(weekdays.as_slice()),
+                enabled: alarm.enabled,
+            }
+        })
+        .collect()
+}
+
+fn alarm_schedule_label(schedule: &AlarmSchedule) -> String {
+    match schedule {
+        AlarmSchedule::Once {
+            local_date,
+            local_time,
+        } => format!("Once · {local_date} at {local_time}"),
+        AlarmSchedule::Weekly {
+            local_time,
+            weekdays,
+        } => {
+            let days = weekdays
+                .iter()
+                .filter_map(|day| {
+                    ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].get(*day as usize)
+                })
+                .copied()
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("Weekly · {days} at {local_time}")
+        }
+    }
 }
 
 fn planner_timer_rows(settings: &AppSettings) -> Vec<PlannerTimerData> {

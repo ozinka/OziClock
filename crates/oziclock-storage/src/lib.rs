@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::{env, fs, io, path::PathBuf};
 
 pub use oziclock_domain::{
-    Clock as ClockSettings, Planner, PlannerId, Stopwatch, StopwatchState, Task, TaskStatus,
-    Timer as PlannerTimer, TimerState,
+    Alarm, AlarmSchedule, Clock as ClockSettings, Planner, PlannerId, Stopwatch, StopwatchState,
+    Task, TaskStatus, Timer as PlannerTimer, TimerState,
 };
 
 const DEFAULT_SETTINGS: &str = include_str!("../assets/default_settings.json");
