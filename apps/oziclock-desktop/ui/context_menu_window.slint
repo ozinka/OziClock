@@ -3,14 +3,15 @@ export component ContextMenuWindow inherits Window {
     no-frame: true;
     always-on-top: true;
     preferred-width: 216px;
-    preferred-height: 180px;
+    preferred-height: 215px;
     min-width: 216px;
-    min-height: 180px;
+    min-height: 215px;
     max-width: 216px;
-    max-height: 180px;
+    max-height: 215px;
     background: transparent;
 
     callback request-open-settings();
+    callback request-open-planner();
     callback request-toggle-rulers();
     callback request-open-about();
     callback request-exit();
@@ -26,6 +27,15 @@ export component ContextMenuWindow inherits Window {
 
         Text {
             x: 15px; y: 10px; width: 186px; height: 34px;
+            text: "Open Planner";
+            color: #f0f1f3;
+            font-family: "Carlito";
+            font-size: 14px;
+            vertical-alignment: center;
+            TouchArea { clicked => { root.request-open-planner(); } }
+        }
+        Text {
+            x: 15px; y: 45px; width: 186px; height: 34px;
             text: "Settings…";
             color: #f0f1f3;
             font-family: "Carlito";
@@ -34,7 +44,7 @@ export component ContextMenuWindow inherits Window {
             TouchArea { clicked => { root.request-open-settings(); } }
         }
         Text {
-            x: 15px; y: 45px; width: 186px; height: 34px;
+            x: 15px; y: 80px; width: 186px; height: 34px;
             text: root.show-rulers ? "Hide rulers" : "Show rulers";
             color: #f0f1f3;
             font-family: "Carlito";
@@ -43,7 +53,7 @@ export component ContextMenuWindow inherits Window {
             TouchArea { clicked => { root.request-toggle-rulers(); } }
         }
         Text {
-            x: 15px; y: 80px; width: 186px; height: 34px;
+            x: 15px; y: 115px; width: 186px; height: 34px;
             text: "About OziClock";
             color: #d4d7dd;
             font-family: "Carlito";
@@ -51,9 +61,9 @@ export component ContextMenuWindow inherits Window {
             vertical-alignment: center;
             TouchArea { clicked => { root.request-open-about(); } }
         }
-        Rectangle { x: 12px; y: 123px; width: 192px; height: 1px; background: #3b3e46; }
+        Rectangle { x: 12px; y: 158px; width: 192px; height: 1px; background: #3b3e46; }
         Text {
-            x: 15px; y: 131px; width: 186px; height: 34px;
+            x: 15px; y: 166px; width: 186px; height: 34px;
             text: "Exit";
             color: #f09090;
             font-family: "Carlito";

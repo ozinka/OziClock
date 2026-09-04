@@ -33,6 +33,7 @@ Priorities describe sequencing, not severity:
 | BL-017 | P3 | Candidate | Planner data | Export and import portable Planner archives | Define archive schema, validation/preview, five-day rolling backups, conflict choices, backup recovery, and `.ics` compatibility scope. |
 | BL-018 | P3 | Candidate | Planner sync | Add multi-device Planner synchronization through a Google Drive/OneDrive folder | Define immutable operation records, folder scanning, per-entity merge/tombstone policy, encrypted-record handling, offline recovery, and conflict-review UX; direct OAuth sync is later. |
 | BL-019 | P3 | Candidate | Planner security | Add optional password-encrypted Planner storage | Define encrypted envelope versioning, audited crypto dependencies, unlock/lock policy, key rotation, encrypted backups/archives, and cloud merge behavior. |
+| BL-020 | P2 | Discovery | Planner windowing | Revisit adaptive Planner window sizes | Define a flicker-free, cross-platform transition between compact tools such as Stopwatch and full planning views; preserve user resizing and verify no temporary window disappearance on macOS. |
 
 ## Definition of Ready
 

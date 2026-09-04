@@ -35,8 +35,12 @@ use std::{
 use chrono::{DateTime, Datelike, LocalResult, NaiveDateTime, Offset, TimeZone, Timelike, Utc};
 use chrono_tz::Tz;
 use oziclock_app::calendar::CalendarDate;
+use oziclock_app::planner::{PlannerCommand, execute_planner_command};
 use oziclock_app::{ClockCommand, execute_clock_command};
-use oziclock_storage::{AppSettings, ClockSettings};
+use oziclock_storage::{
+    AppSettings, ClockSettings, PlannerId, PlannerTimer, Stopwatch, StopwatchState, Task,
+    TaskStatus, TimerState,
+};
 use slint::winit_030::EventResult;
 use slint::winit_030::WinitWindowAccessor;
 use slint::winit_030::winit::dpi::{LogicalPosition, PhysicalPosition, PhysicalSize};
@@ -48,7 +52,7 @@ use slint::winit_030::winit::{
     event::{ElementState, WindowEvent},
     keyboard::{Key, NamedKey},
 };
-use slint::{Model, ModelRc, Timer, VecModel};
+use slint::{Model, ModelRc, Timer, TimerMode, VecModel};
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::Graphics::Gdi::{GetMonitorInfoW, MONITORINFO};
 
@@ -144,6 +148,261 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         let _ = launch_at_login::set_enabled(true);
     }
     let calendar_window = CalendarWindow::new()?;
+    let planner_window = PlannerWindow::new()?;
+    let planner_accent = calendar_accent(&shared_settings.borrow());
+    planner_window.set_accent(planner_accent);
+    planner_window
+        .set_corner_radius(shared_settings.borrow().corner_radius.clamp(0.0, 15.5) as f32);
+    planner_window.set_task_count(open_task_count(&shared_settings.borrow()));
+    let planner_task_model = Rc::new(VecModel::from(planner_task_rows(&shared_settings.borrow())));
+    planner_window.set_tasks(ModelRc::from(planner_task_model.clone()));
+    let planner_for_drag = planner_window.as_weak();
+    planner_window.on_request_window_drag(move || {
+        if let Some(planner) = planner_for_drag.upgrade() {
+            let _ = planner
+                .window()
+                .with_winit_window(|window| window.drag_window());
+        }
+    });
+    let planner_for_close = planner_window.as_weak();
+    planner_window.on_request_close(move || {
+        if let Some(planner) = planner_for_close.upgrade() {
+            let _ = planner.hide();
+        }
+    });
+    let planner_for_add_task = planner_window.as_weak();
+    let settings_for_add_task = shared_settings.clone();
+    let task_model_for_add_task = planner_task_model.clone();
+    planner_window.on_request_add_task(move |title| {
+        let title = title.trim();
+        if title.is_empty() {
+            return;
+        }
+        let mut settings = settings_for_add_task.borrow_mut();
+        let id = PlannerId::new(format!(
+            "task-{}",
+            Utc::now().timestamp_nanos_opt().unwrap_or_default()
+        ))
+        .expect("generated task id is valid");
+        settings.planner.tasks.push(Task {
+            id,
+            title: title.into(),
+            status: TaskStatus::Open,
+            due_utc: None,
+            scheduled_start_utc: None,
+            scheduled_end_utc: None,
+            color: None,
+            tags: vec![],
+            notes: None,
+            alerts: vec![],
+        });
+        task_model_for_add_task.set_vec(planner_task_rows(&settings));
+        let _ = oziclock_storage::save(&settings);
+        if let Some(planner) = planner_for_add_task.upgrade() {
+            planner.set_task_count(open_task_count(&settings));
+            planner.set_task_draft("".into());
+        }
+    });
+    let planner_for_complete_task = planner_window.as_weak();
+    let settings_for_complete_task = shared_settings.clone();
+    let task_model_for_complete_task = planner_task_model.clone();
+    planner_window.on_request_complete_task(move |task_id| {
+        let Some(id) = PlannerId::new(task_id.to_string()) else {
+            return;
+        };
+        let mut settings = settings_for_complete_task.borrow_mut();
+        if !execute_planner_command(&mut settings.planner, PlannerCommand::CompleteTask { id }) {
+            return;
+        }
+        task_model_for_complete_task.set_vec(planner_task_rows(&settings));
+        let _ = oziclock_storage::save(&settings);
+        if let Some(planner) = planner_for_complete_task.upgrade() {
+            planner.set_task_count(open_task_count(&settings));
+        }
+    });
+    let planner_timer_model = Rc::new(VecModel::from(planner_timer_rows(
+        &shared_settings.borrow(),
+    )));
+    planner_window.set_timers(ModelRc::from(planner_timer_model.clone()));
+    let planner_for_add_timer = planner_window.as_weak();
+    let settings_for_add_timer = shared_settings.clone();
+    let timer_model_for_add_timer = planner_timer_model.clone();
+    planner_window.on_request_add_timer(move |minutes| {
+        let Ok(minutes) = minutes.trim().parse::<u64>() else {
+            return;
+        };
+        let Some(duration_seconds) = minutes.checked_mul(60).filter(|seconds| *seconds > 0) else {
+            return;
+        };
+        let mut settings = settings_for_add_timer.borrow_mut();
+        let id = PlannerId::new(format!(
+            "timer-{}",
+            Utc::now().timestamp_nanos_opt().unwrap_or_default()
+        ))
+        .expect("generated timer id is valid");
+        settings.planner.timers.push(PlannerTimer {
+            id,
+            title: format!("{minutes} minute timer"),
+            duration_seconds,
+            remaining_seconds: duration_seconds,
+            state: TimerState::Idle,
+            repeat: false,
+            started_at_utc: None,
+        });
+        timer_model_for_add_timer.set_vec(planner_timer_rows(&settings));
+        let _ = oziclock_storage::save(&settings);
+        if let Some(planner) = planner_for_add_timer.upgrade() {
+            planner.set_timer_minutes_draft("25".into());
+        }
+    });
+    let settings_for_toggle_timer = shared_settings.clone();
+    let timer_model_for_toggle_timer = planner_timer_model.clone();
+    planner_window.on_request_toggle_timer(move |timer_id| {
+        let Some(id) = PlannerId::new(timer_id.to_string()) else {
+            return;
+        };
+        let mut settings = settings_for_toggle_timer.borrow_mut();
+        let command = settings
+            .planner
+            .timers
+            .iter()
+            .find(|timer| timer.id == id)
+            .map(|timer| {
+                if timer.state == TimerState::Running {
+                    PlannerCommand::PauseTimer {
+                        id: id.clone(),
+                        remaining_seconds: timer_remaining_seconds(timer, Utc::now()),
+                    }
+                } else {
+                    PlannerCommand::StartTimer {
+                        id: id.clone(),
+                        started_at_utc: Utc::now().to_rfc3339(),
+                    }
+                }
+            });
+        if let Some(command) = command
+            && execute_planner_command(&mut settings.planner, command)
+        {
+            timer_model_for_toggle_timer.set_vec(planner_timer_rows(&settings));
+            let _ = oziclock_storage::save(&settings);
+        }
+    });
+    schedule_planner_timer_refresh(
+        Rc::new(Timer::default()),
+        planner_timer_model.clone(),
+        shared_settings.clone(),
+    );
+    let stopwatch_started_at = Rc::new(Cell::new(None::<Instant>));
+    if shared_settings
+        .borrow()
+        .planner
+        .stopwatch
+        .as_ref()
+        .is_some_and(|stopwatch| stopwatch.state == StopwatchState::Running)
+    {
+        shared_settings
+            .borrow_mut()
+            .planner
+            .stopwatch
+            .as_mut()
+            .expect("running stopwatch exists")
+            .interrupt();
+    }
+    let stopwatch_lap_model = Rc::new(VecModel::from(stopwatch_lap_rows(
+        &shared_settings.borrow(),
+    )));
+    planner_window.set_stopwatch_laps(ModelRc::from(stopwatch_lap_model.clone()));
+    refresh_stopwatch_ui(
+        &planner_window,
+        &shared_settings.borrow(),
+        None,
+        &stopwatch_lap_model,
+    );
+    let stopwatch_for_toggle = planner_window.as_weak();
+    let settings_for_stopwatch_toggle = shared_settings.clone();
+    let started_for_stopwatch_toggle = stopwatch_started_at.clone();
+    let laps_for_stopwatch_toggle = stopwatch_lap_model.clone();
+    planner_window.on_request_toggle_stopwatch(move || {
+        let mut settings = settings_for_stopwatch_toggle.borrow_mut();
+        if settings.planner.stopwatch.is_none() {
+            settings.planner.stopwatch = Some(Stopwatch {
+                state: StopwatchState::Idle,
+                elapsed_seconds: 0,
+                elapsed_milliseconds: 0,
+                laps_seconds: vec![],
+            });
+        }
+        let elapsed_milliseconds =
+            stopwatch_elapsed_milliseconds(&settings, started_for_stopwatch_toggle.get());
+        let command = if settings
+            .planner
+            .stopwatch
+            .as_ref()
+            .is_some_and(|stopwatch| stopwatch.state == StopwatchState::Running)
+        {
+            started_for_stopwatch_toggle.set(None);
+            PlannerCommand::PauseStopwatch {
+                elapsed_milliseconds: elapsed_milliseconds as u64,
+            }
+        } else {
+            started_for_stopwatch_toggle.set(Some(Instant::now()));
+            PlannerCommand::StartStopwatch
+        };
+        if execute_planner_command(&mut settings.planner, command) {
+            let _ = oziclock_storage::save(&settings);
+            if let Some(planner) = stopwatch_for_toggle.upgrade() {
+                refresh_stopwatch_ui(
+                    &planner,
+                    &settings,
+                    started_for_stopwatch_toggle.get(),
+                    &laps_for_stopwatch_toggle,
+                );
+            }
+        }
+    });
+    let stopwatch_for_reset = planner_window.as_weak();
+    let settings_for_stopwatch_reset = shared_settings.clone();
+    let started_for_stopwatch_reset = stopwatch_started_at.clone();
+    let laps_for_stopwatch_reset = stopwatch_lap_model.clone();
+    planner_window.on_request_reset_stopwatch(move || {
+        let mut settings = settings_for_stopwatch_reset.borrow_mut();
+        started_for_stopwatch_reset.set(None);
+        if execute_planner_command(&mut settings.planner, PlannerCommand::ResetStopwatch) {
+            let _ = oziclock_storage::save(&settings);
+            if let Some(planner) = stopwatch_for_reset.upgrade() {
+                refresh_stopwatch_ui(&planner, &settings, None, &laps_for_stopwatch_reset);
+            }
+        }
+    });
+    let stopwatch_for_lap = planner_window.as_weak();
+    let settings_for_stopwatch_lap = shared_settings.clone();
+    let started_for_stopwatch_lap = stopwatch_started_at.clone();
+    let laps_for_stopwatch_lap = stopwatch_lap_model.clone();
+    planner_window.on_request_stopwatch_lap(move || {
+        let mut settings = settings_for_stopwatch_lap.borrow_mut();
+        let elapsed_seconds = stopwatch_elapsed_seconds(&settings, started_for_stopwatch_lap.get());
+        if execute_planner_command(
+            &mut settings.planner,
+            PlannerCommand::RecordStopwatchLap { elapsed_seconds },
+        ) {
+            let _ = oziclock_storage::save(&settings);
+            if let Some(planner) = stopwatch_for_lap.upgrade() {
+                refresh_stopwatch_ui(
+                    &planner,
+                    &settings,
+                    started_for_stopwatch_lap.get(),
+                    &laps_for_stopwatch_lap,
+                );
+            }
+        }
+    });
+    schedule_stopwatch_refresh(
+        Rc::new(Timer::default()),
+        planner_window.as_weak(),
+        shared_settings.clone(),
+        stopwatch_started_at,
+        stopwatch_lap_model,
+    );
     let initial_calendar_now = calendar_local_now(&shared_settings.borrow());
     let initial_calendar_date = CalendarDate::new(
         initial_calendar_now.year(),
@@ -937,6 +1196,16 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     });
 
     let context_menu = ContextMenuWindow::new()?;
+    let planner_for_menu = planner_window.as_weak();
+    let menu_for_planner = context_menu.as_weak();
+    context_menu.on_request_open_planner(move || {
+        if let Some(menu) = menu_for_planner.upgrade() {
+            let _ = menu.hide();
+        }
+        if let Some(planner) = planner_for_menu.upgrade() {
+            let _ = planner.show();
+        }
+    });
     let menu_for_dismiss = context_menu.as_weak();
     context_menu
         .window()
@@ -1327,6 +1596,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     });
 
     window.show()?;
+    planner_window.show()?;
     #[cfg(target_os = "macos")]
     window_opacity::sync(&window);
     set_main_window_taskbar_visibility(&window, shared_settings.borrow().show_in_task_bar);
@@ -1750,6 +2020,222 @@ fn calendar_accent(settings: &AppSettings) -> slint::Color {
     };
     let (hue, saturation, _) = color_to_hsv(&clock.color);
     hsv_color(hue, saturation, 50.0)
+}
+
+fn open_task_count(settings: &AppSettings) -> i32 {
+    settings
+        .planner
+        .tasks
+        .iter()
+        .filter(|task| task.status == TaskStatus::Open)
+        .count() as i32
+}
+
+fn planner_task_rows(settings: &AppSettings) -> Vec<PlannerTaskData> {
+    settings
+        .planner
+        .tasks
+        .iter()
+        .filter(|task| task.status == TaskStatus::Open)
+        .map(|task| PlannerTaskData {
+            id: task.id.to_string().into(),
+            title: task.title.clone().into(),
+        })
+        .collect()
+}
+
+fn planner_timer_rows(settings: &AppSettings) -> Vec<PlannerTimerData> {
+    let now = Utc::now();
+    settings
+        .planner
+        .timers
+        .iter()
+        .map(|timer| {
+            let remaining_seconds = timer_remaining_seconds(timer, now);
+            PlannerTimerData {
+                id: timer.id.to_string().into(),
+                title: timer.title.clone().into(),
+                remaining: format_duration(remaining_seconds).into(),
+                running: timer.state == TimerState::Running,
+            }
+        })
+        .collect()
+}
+
+fn timer_remaining_seconds(timer: &PlannerTimer, now: DateTime<Utc>) -> u64 {
+    if timer.state != TimerState::Running {
+        return timer.remaining_seconds;
+    }
+    let elapsed_seconds = timer
+        .started_at_utc
+        .as_deref()
+        .and_then(|started| DateTime::parse_from_rfc3339(started).ok())
+        .map(|started| {
+            now.signed_duration_since(started.with_timezone(&Utc))
+                .num_seconds()
+        })
+        .unwrap_or_default()
+        .max(0) as u64;
+    timer.remaining_seconds.saturating_sub(elapsed_seconds)
+}
+
+fn format_duration(total_seconds: u64) -> String {
+    format!("{:02}:{:02}", total_seconds / 60, total_seconds % 60)
+}
+
+fn schedule_planner_timer_refresh(
+    timer: Rc<Timer>,
+    model: Rc<VecModel<PlannerTimerData>>,
+    settings: Rc<RefCell<AppSettings>>,
+) {
+    let next_timer = timer.clone();
+    let next_model = model.clone();
+    let next_settings = settings.clone();
+    timer.start(TimerMode::SingleShot, Duration::from_secs(1), move || {
+        let mut settings = next_settings.borrow_mut();
+        let finished_ids = settings
+            .planner
+            .timers
+            .iter()
+            .filter(|timer| {
+                timer.state == TimerState::Running
+                    && timer_remaining_seconds(timer, Utc::now()) == 0
+            })
+            .map(|timer| timer.id.clone())
+            .collect::<Vec<_>>();
+        let timer_finished = !finished_ids.is_empty();
+        for id in finished_ids {
+            let _ =
+                execute_planner_command(&mut settings.planner, PlannerCommand::FinishTimer { id });
+        }
+        if settings
+            .planner
+            .timers
+            .iter()
+            .any(|timer| timer.state == TimerState::Running || timer.state == TimerState::Finished)
+        {
+            next_model.set_vec(planner_timer_rows(&settings));
+        }
+        if timer_finished {
+            let _ = oziclock_storage::save(&settings);
+        }
+        drop(settings);
+        schedule_planner_timer_refresh(
+            next_timer.clone(),
+            next_model.clone(),
+            next_settings.clone(),
+        );
+    });
+}
+
+fn stopwatch_elapsed_seconds(settings: &AppSettings, started_at: Option<Instant>) -> u64 {
+    let elapsed_seconds = settings
+        .planner
+        .stopwatch
+        .as_ref()
+        .map_or(0, |stopwatch| stopwatch.elapsed_seconds);
+    elapsed_seconds.saturating_add(
+        started_at
+            .map(|started_at| started_at.elapsed().as_secs())
+            .unwrap_or(0),
+    )
+}
+
+fn stopwatch_elapsed_milliseconds(settings: &AppSettings, started_at: Option<Instant>) -> u128 {
+    settings.planner.stopwatch.as_ref().map_or(0, |stopwatch| {
+        u128::from(stopwatch.elapsed_seconds) * 1_000 + u128::from(stopwatch.elapsed_milliseconds)
+    }) + started_at
+        .map(|started_at| started_at.elapsed().as_millis())
+        .unwrap_or(0)
+}
+
+fn format_stopwatch(milliseconds: u128) -> (String, String) {
+    let total_seconds = milliseconds / 1_000;
+    let hours = total_seconds / 3_600;
+    let minutes = (total_seconds % 3_600) / 60;
+    let seconds = total_seconds % 60;
+    (
+        format!("{hours:02}:{minutes:02}:{seconds:02}"),
+        format!(".{:02}", (milliseconds % 1_000) / 10),
+    )
+}
+
+fn stopwatch_lap_rows(settings: &AppSettings) -> Vec<slint::SharedString> {
+    settings
+        .planner
+        .stopwatch
+        .as_ref()
+        .map(|stopwatch| {
+            stopwatch
+                .laps_seconds
+                .iter()
+                .map(|seconds| format_duration(*seconds).into())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn refresh_stopwatch_ui(
+    planner: &PlannerWindow,
+    settings: &AppSettings,
+    started_at: Option<Instant>,
+    lap_model: &VecModel<slint::SharedString>,
+) {
+    let (time, milliseconds) =
+        format_stopwatch(stopwatch_elapsed_milliseconds(settings, started_at));
+    planner.set_stopwatch_time(time.into());
+    planner.set_stopwatch_milliseconds(milliseconds.into());
+    planner.set_stopwatch_running(
+        settings
+            .planner
+            .stopwatch
+            .as_ref()
+            .is_some_and(|stopwatch| stopwatch.state == StopwatchState::Running),
+    );
+    lap_model.set_vec(stopwatch_lap_rows(settings));
+}
+
+fn schedule_stopwatch_refresh(
+    timer: Rc<Timer>,
+    planner: slint::Weak<PlannerWindow>,
+    settings: Rc<RefCell<AppSettings>>,
+    started_at: Rc<Cell<Option<Instant>>>,
+    lap_model: Rc<VecModel<slint::SharedString>>,
+) {
+    let next_timer = timer.clone();
+    let next_planner = planner.clone();
+    let next_settings = settings.clone();
+    let next_started_at = started_at.clone();
+    let next_lap_model = lap_model.clone();
+    timer.start(
+        TimerMode::SingleShot,
+        Duration::from_millis(16),
+        move || {
+            if let Some(planner) = next_planner.upgrade() {
+                let settings = next_settings.borrow();
+                if settings
+                    .planner
+                    .stopwatch
+                    .as_ref()
+                    .is_some_and(|stopwatch| stopwatch.state == StopwatchState::Running)
+                {
+                    refresh_stopwatch_ui(
+                        &planner,
+                        &settings,
+                        next_started_at.get(),
+                        &next_lap_model,
+                    );
+                }
+            }
+            schedule_stopwatch_refresh(
+                next_timer.clone(),
+                next_planner.clone(),
+                next_settings.clone(),
+                next_started_at.clone(),
+                next_lap_model.clone(),
+            );
+        },
+    );
 }
 
 fn accent_foreground(accent: slint::Color) -> slint::Color {

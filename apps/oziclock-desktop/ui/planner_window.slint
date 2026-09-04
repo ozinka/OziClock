@@ -1,0 +1,100 @@
+import { LineEdit, ScrollView } from "std-widgets.slint";
+
+export struct PlannerTaskData {
+    id: string,
+    title: string,
+}
+
+export struct PlannerTimerData {
+    id: string,
+    title: string,
+    remaining: string,
+    running: bool,
+}
+
+export component PlannerWindow inherits Window {
+    title: "OziClock Planner"; no-frame: true;
+    preferred-width: 900px; preferred-height: 780px; min-width: 720px; min-height: 780px; background: transparent;
+    in property <color> accent: #77d7cb; in property <float> corner-radius: 12; in-out property <int> selected-view: 0; in-out property <int> selected-section: 0; in property <int> task-count: 0; in property <[PlannerTaskData]> tasks; in property <[PlannerTimerData]> timers; in property <string> stopwatch-time: "00:00:00"; in property <string> stopwatch-milliseconds: ".00"; in property <bool> stopwatch-running: false; in property <[string]> stopwatch-laps; in-out property <string> task-draft: ""; in-out property <string> timer-minutes-draft: "25";
+    callback request-close(); callback request-window-drag(); callback request-add-task(string); callback request-complete-task(string); callback request-add-timer(string); callback request-toggle-timer(string); callback request-toggle-stopwatch(); callback request-reset-stopwatch(); callback request-stopwatch-lap();
+    Rectangle { width: parent.width; height: parent.height; border-radius: root.corner-radius * 1px; background: #171d1f; border-width: 1px; border-color: #344144; clip: true;
+        HorizontalLayout { spacing: 0;
+            Rectangle { width: 166px; background: #13191b; VerticalLayout { padding: 14px; spacing: 7px;
+                Text { text: "Planner"; color: #edf4f2; font-family: "Carlito"; font-size: 21px; font-weight: 700; }
+                Text { text: "Personal time tools"; color: #839694; font-family: "Carlito"; font-size: 12px; }
+                Rectangle { height: 12px; }
+                for label[index] in ["Plan", "Alarms", "Timers", "Stopwatch", "Reminders", "Tasks"]: Rectangle { height: 34px; border-radius: 6px; background: index == root.selected-section ? root.accent : transparent;
+                    Text { x: 10px; width: parent.width - 20px; height: parent.height; text: label; vertical-alignment: center; color: index == root.selected-section ? #082725 : #b8c7c4; font-family: "Carlito"; font-size: 14px; }
+                    TouchArea { clicked => { root.selected-section = index; } }
+                }
+                Rectangle { vertical-stretch: 1; } Text { text: "Local-first"; color: #60716f; font-size: 11px; }
+            }}
+            Rectangle { width: 1px; background: #344144; }
+            VerticalLayout { padding: 20px; spacing: 14px;
+                HorizontalLayout { Text { text: root.selected-section == 5 ? "Tasks" : root.selected-section == 3 ? "Stopwatch" : root.selected-section == 2 ? "Timers" : "Plan"; color: #edf4f2; font-family: "Carlito"; font-size: 25px; font-weight: 700; } Rectangle { horizontal-stretch: 1; } Text { text: "×"; color: #aab9b7; font-size: 25px; TouchArea { clicked => { root.request-close(); } } } }
+                HorizontalLayout { visible: root.selected-section == 0; height: 30px; vertical-stretch: 0; spacing: 6px;
+                    for label[index] in ["Week", "Month", "Year"]: Rectangle { width: 66px; height: 30px; border-radius: 6px; background: index == root.selected-view ? root.accent : #20292b;
+                        Text { width: parent.width; height: parent.height; text: label; horizontal-alignment: center; vertical-alignment: center; color: index == root.selected-view ? #082725 : #c4d0ce; font-size: 12px; font-weight: 700; }
+                        TouchArea { clicked => { root.selected-view = index; } }
+                    }
+                    Rectangle { horizontal-stretch: 1; } Text { text: "‹   This week   ›"; color: #c4d0ce; font-size: 13px; }
+                }
+                if root.selected-section != 5 : Rectangle { height: 1px; background: #344144; }
+                if root.selected-section == 0 && root.selected-view == 0 : Rectangle { vertical-stretch: 1; border-radius: 8px; background: #1b2325; border-width: 1px; border-color: #344144;
+                    VerticalLayout { padding-left: 6px; padding-right: 10px; padding-top: 10px; padding-bottom: 10px; spacing: 0;
+                        HorizontalLayout { height: 34px; Text { width: 48px; } Rectangle { width: 6px; } for day in ["Mon 31", "Tue 1", "Wed 2", "Thu 3", "Fri 4", "Sat 5", "Sun 6"]: Text { horizontal-stretch: 1; height: parent.height; text: day; horizontal-alignment: center; vertical-alignment: center; color: #aab9b7; font-size: 11px; } }
+                        for hour in ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"]: HorizontalLayout { min-height: 42px; vertical-stretch: 1; Text { width: 48px; text: hour; color: #829492; font-size: 12px; horizontal-alignment: right; vertical-alignment: center; } Rectangle { width: 6px; } for day in [0, 1, 2, 3, 4, 5, 6]: Rectangle { horizontal-stretch: 1; border-width: 1px; border-color: #293436; } }
+                    }
+                }
+                if root.selected-section == 0 && root.selected-view != 0 : Rectangle { vertical-stretch: 1; border-radius: 8px; background: #1b2325; Text { width: parent.width; height: parent.height; text: root.selected-view == 1 ? "Month view" : "Year view"; horizontal-alignment: center; vertical-alignment: center; color: #829492; font-size: 15px; } }
+                if root.selected-section == 5 : Rectangle { vertical-stretch: 1; border-radius: 8px; background: #1b2325; border-width: 1px; border-color: #344144;
+                    Text { x: 14px; y: 14px; text: "Open tasks"; color: #e0eae8; font-size: 13px; font-weight: 700; }
+                    ScrollView { x: 14px; y: 40px; width: parent.width - 28px; height: parent.height - 54px; viewport-width: self.width; viewport-height: root.tasks.length * 43px; horizontal-scrollbar-policy: ScrollBarPolicy.always-off; vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
+                        for task[index] in root.tasks: Rectangle { y: index * 43px; width: parent.width - 14px; height: 36px; border-radius: 6px; background: #20292b;
+                            Rectangle { x: 10px; y: 9px; width: 18px; height: 18px; border-radius: 9px; border-width: 1px; border-color: root.accent; background: transparent; TouchArea { clicked => { root.request-complete-task(task.id); } } }
+                            Text { x: 38px; width: parent.width - 104px; height: parent.height; text: task.title; color: #d7e2df; font-size: 13px; vertical-alignment: center; }
+                            Text { x: parent.width - 50px; width: 40px; height: parent.height; text: "Done"; color: root.accent; font-size: 11px; horizontal-alignment: right; vertical-alignment: center; TouchArea { clicked => { root.request-complete-task(task.id); } } }
+                        }
+                    }
+                    Text { x: 14px; y: 40px; visible: root.tasks.length == 0; text: "All clear — no open tasks."; color: #718280; font-size: 13px; }
+                }
+                if root.selected-section == 2 : Rectangle { vertical-stretch: 1; border-radius: 8px; background: #1b2325; border-width: 1px; border-color: #344144;
+                    VerticalLayout { padding: 14px; spacing: 7px;
+                        Text { text: "Saved timers"; color: #e0eae8; font-size: 13px; font-weight: 700; }
+                        for timer in root.timers: Rectangle { height: 44px; border-radius: 6px; background: #20292b;
+                            Text { x: 10px; width: parent.width - 158px; height: parent.height; text: timer.title; color: #d7e2df; font-size: 13px; vertical-alignment: center; }
+                            Text { x: parent.width - 140px; width: 58px; height: parent.height; text: timer.remaining; color: timer.running ? root.accent : #aab9b7; font-size: 13px; font-weight: 700; horizontal-alignment: right; vertical-alignment: center; }
+                            Rectangle { x: parent.width - 72px; y: 8px; width: 62px; height: 27px; border-radius: 5px; background: timer.running ? #344144 : root.accent; Text { width: parent.width; height: parent.height; text: timer.running ? "Pause" : "Start"; horizontal-alignment: center; vertical-alignment: center; color: timer.running ? #dce8e5 : #082725; font-size: 11px; font-weight: 700; } TouchArea { clicked => { root.request-toggle-timer(timer.id); } } }
+                        }
+                        Text { visible: root.timers.length == 0; text: "Create a focus timer below."; color: #718280; font-size: 13px; }
+                        Rectangle { vertical-stretch: 1; }
+                    }
+                }
+                if root.selected-section == 3 : Rectangle { vertical-stretch: 1; border-radius: 8px; background: #1b2325; border-width: 1px; border-color: #344144;
+                    Text { x: (parent.width - 362px) / 2; y: 42px; width: 270px; height: 88px; text: root.stopwatch-time; color: root.accent; font-size: 58px; font-weight: 700; horizontal-alignment: right; vertical-alignment: bottom; }
+                    Text { x: (parent.width - 362px) / 2 + 275px; y: 34px; width: 87px; height: 88px; text: root.stopwatch-milliseconds; color: root.accent; font-size: 29px; font-weight: 700; vertical-alignment: bottom; }
+                    HorizontalLayout { x: 0px; y: 154px; width: parent.width; height: 36px; spacing: 8px; padding-left: (parent.width - 226px) / 2; padding-right: (parent.width - 226px) / 2;
+                        Rectangle { width: 92px; border-radius: 6px; background: root.accent; Text { width: parent.width; height: parent.height; text: root.stopwatch-running ? "Pause" : "Start"; horizontal-alignment: center; vertical-alignment: center; color: #082725; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-toggle-stopwatch(); } } }
+                        Rectangle { width: 58px; border-radius: 6px; background: #344144; Text { width: parent.width; height: parent.height; text: "Lap"; horizontal-alignment: center; vertical-alignment: center; color: #dce8e5; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-stopwatch-lap(); } } }
+                        Rectangle { width: 60px; border-radius: 6px; background: #344144; Text { width: parent.width; height: parent.height; text: "Reset"; horizontal-alignment: center; vertical-alignment: center; color: #dce8e5; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-reset-stopwatch(); } } }
+                    }
+                    ScrollView { x: 14px; y: 214px; width: parent.width - 28px; height: parent.height - 228px; viewport-width: self.width; viewport-height: root.stopwatch-laps.length * 32px; horizontal-scrollbar-policy: ScrollBarPolicy.always-off; vertical-scrollbar-policy: ScrollBarPolicy.as-needed; for lap[index] in root.stopwatch-laps: Text { y: index * 32px; width: parent.width - 12px; height: 28px; text: "Lap " + (index + 1) + "     " + lap; color: #b5c4c1; font-size: 13px; vertical-alignment: center; } }
+                }
+                if root.selected-section == 0 : Rectangle { height: 92px; border-radius: 8px; background: #1b2325; border-width: 1px; border-color: #344144; clip: true; VerticalLayout { padding: 8px; spacing: 3px; Text { text: "Unscheduled tasks"; color: #e0eae8; font-size: 12px; font-weight: 700; } for task[index] in root.tasks: Text { visible: index < 3; text: "• " + task.title; color: #b5c4c1; font-size: 12px; } Text { visible: root.tasks.length == 0; text: "No open tasks"; color: #718280; font-size: 12px; } } }
+                if root.selected-section == 0 || root.selected-section == 5 : HorizontalLayout { height: 34px; spacing: 8px;
+                    LineEdit { horizontal-stretch: 1; height: 34px; text <=> root.task-draft; placeholder-text: "Task title"; }
+                    Rectangle { width: 76px; border-radius: 6px; background: root.accent; Text { width: parent.width; height: parent.height; text: "Add task"; horizontal-alignment: center; vertical-alignment: center; color: #082725; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-add-task(root.task-draft); } } }
+                    Text { width: 52px; text: root.task-count + " tasks"; color: #829492; font-size: 11px; vertical-alignment: center; }
+                }
+                if root.selected-section == 2 : HorizontalLayout { height: 34px; spacing: 8px;
+                    Text { width: 58px; text: "Duration"; color: #aab9b7; font-size: 12px; vertical-alignment: center; }
+                    LineEdit { width: 96px; height: 34px; text <=> root.timer-minutes-draft; }
+                    Text { width: 52px; text: "minutes"; color: #829492; font-size: 12px; vertical-alignment: center; }
+                    Rectangle { horizontal-stretch: 1; }
+                    Rectangle { width: 96px; border-radius: 6px; background: root.accent; Text { width: parent.width; height: parent.height; text: "New timer"; horizontal-alignment: center; vertical-alignment: center; color: #082725; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-add-timer(root.timer-minutes-draft); } } }
+                }
+            }
+        }
+    }
+    TouchArea { x: 166px; y: 0px; width: parent.width - 216px; height: 52px; pointer-event(event) => { if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) { root.request-window-drag(); } } }
+}

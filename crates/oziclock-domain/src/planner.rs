@@ -219,6 +219,8 @@ pub enum StopwatchState {
 pub struct Stopwatch {
     pub state: StopwatchState,
     pub elapsed_seconds: u64,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub elapsed_milliseconds: u16,
     pub laps_seconds: Vec<u64>,
 }
 
@@ -231,12 +233,13 @@ impl Stopwatch {
         true
     }
 
-    pub fn pause(&mut self, elapsed_seconds: u64) -> bool {
+    pub fn pause(&mut self, elapsed_milliseconds: u64) -> bool {
         if self.state != StopwatchState::Running {
             return false;
         }
         self.state = StopwatchState::Paused;
-        self.elapsed_seconds = elapsed_seconds;
+        self.elapsed_seconds = elapsed_milliseconds / 1_000;
+        self.elapsed_milliseconds = (elapsed_milliseconds % 1_000) as u16;
         true
     }
 
@@ -244,6 +247,21 @@ impl Stopwatch {
         if self.state == StopwatchState::Running {
             self.state = StopwatchState::Interrupted;
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.state = StopwatchState::Idle;
+        self.elapsed_seconds = 0;
+        self.elapsed_milliseconds = 0;
+        self.laps_seconds.clear();
+    }
+
+    pub fn record_lap(&mut self, elapsed_seconds: u64) -> bool {
+        if self.state != StopwatchState::Running {
+            return false;
+        }
+        self.laps_seconds.push(elapsed_seconds);
+        true
     }
 }
 
@@ -299,5 +317,19 @@ mod tests {
             enabled: true,
         };
         assert!(!alarm.has_valid_schedule());
+    }
+
+    #[test]
+    fn stopwatch_pause_retains_fractional_seconds() {
+        let mut stopwatch = Stopwatch {
+            state: StopwatchState::Running,
+            elapsed_seconds: 0,
+            elapsed_milliseconds: 0,
+            laps_seconds: vec![],
+        };
+
+        assert!(stopwatch.pause(12_345));
+        assert_eq!(stopwatch.elapsed_seconds, 12);
+        assert_eq!(stopwatch.elapsed_milliseconds, 345);
     }
 }

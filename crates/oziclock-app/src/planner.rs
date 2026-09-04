@@ -21,6 +21,10 @@ pub enum PlannerCommand {
     },
     StartStopwatch,
     PauseStopwatch {
+        elapsed_milliseconds: u64,
+    },
+    ResetStopwatch,
+    RecordStopwatchLap {
         elapsed_seconds: u64,
     },
 }
@@ -65,10 +69,20 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
             .stopwatch
             .as_mut()
             .is_some_and(|stopwatch| stopwatch.start()),
-        PlannerCommand::PauseStopwatch { elapsed_seconds } => planner
+        PlannerCommand::PauseStopwatch {
+            elapsed_milliseconds,
+        } => planner
             .stopwatch
             .as_mut()
-            .is_some_and(|stopwatch| stopwatch.pause(elapsed_seconds)),
+            .is_some_and(|stopwatch| stopwatch.pause(elapsed_milliseconds)),
+        PlannerCommand::ResetStopwatch => planner.stopwatch.as_mut().is_some_and(|stopwatch| {
+            stopwatch.reset();
+            true
+        }),
+        PlannerCommand::RecordStopwatchLap { elapsed_seconds } => planner
+            .stopwatch
+            .as_mut()
+            .is_some_and(|stopwatch| stopwatch.record_lap(elapsed_seconds)),
     }
 }
 
