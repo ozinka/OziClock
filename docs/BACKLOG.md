@@ -21,6 +21,7 @@ Priorities describe sequencing, not severity:
 
 | ID | Priority | Status | Area | Item | Next step |
 | --- | --- | --- | --- | --- | --- |
+| BL-043 | P1 | In Progress | Alarm attention | Restore unacknowledged alarm cards after restart | ALM-19 persists acknowledgement for Dismiss/Snooze and rebuilds the FIFO attention queue from Delivered receipts; verify restart before dismissal and queue advancement. |
 | BL-042 | P2 | Candidate | Alarm delivery | Add native operating-system notifications | Define and test a platform adapter with permission handling, non-crashing fallback, title/time content and notification actions. On macOS use `UNUserNotificationCenter`; the deprecated AppleScript-dependent backend crashed inside the Slint event loop and must not be used. Keep the local attention card as the active delivery surface until this slice is promoted. Sound remains separate. |
 | BL-041 | P2 | In Progress | Alarm history | Retain occurrence receipts for 30 days | ALM-18 implemented in the storage adapter and scheduler persistence path; verify recent status persistence after restart. |
 | BL-040 | P1 | In Progress | Alarm history | Expose the latest delivery result in saved alarms | ALM-17 implemented; verify Delivered/Missed placement and persistence for Once and Weekly. |

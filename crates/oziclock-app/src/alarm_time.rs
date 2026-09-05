@@ -52,6 +52,7 @@ pub fn reconcile_snoozes(
                 AlarmOccurrenceStatus::Missed
             },
             recorded_at_utc: now.to_rfc3339(),
+            acknowledged_at_utc: None,
         };
         if !planner.alarm_receipts.iter().any(|existing| {
             existing.alarm_id == receipt.alarm_id
@@ -193,6 +194,44 @@ pub fn enabled_after_edit(alarm: &Alarm, receipts: &[AlarmReceipt]) -> bool {
     })
 }
 
+pub fn pending_attention(planner: &Planner) -> Vec<AlarmReceipt> {
+    let mut pending = planner
+        .alarm_receipts
+        .iter()
+        .filter(|receipt| {
+            receipt.status == AlarmOccurrenceStatus::Delivered
+                && receipt.acknowledged_at_utc.is_none()
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    pending.sort_by_key(|receipt| {
+        DateTime::parse_from_rfc3339(&receipt.occurrence_utc)
+            .map(|occurrence| occurrence.timestamp_millis())
+            .unwrap_or(i64::MAX)
+    });
+    pending
+}
+
+pub fn acknowledge_attention(
+    planner: &mut Planner,
+    alarm_id: &PlannerId,
+    occurrence_utc: &str,
+    now: DateTime<Utc>,
+) -> bool {
+    let Some(receipt) = planner.alarm_receipts.iter_mut().find(|receipt| {
+        &receipt.alarm_id == alarm_id
+            && receipt.occurrence_utc == occurrence_utc
+            && receipt.status == AlarmOccurrenceStatus::Delivered
+    }) else {
+        return false;
+    };
+    if receipt.acknowledged_at_utc.is_some() {
+        return false;
+    }
+    receipt.acknowledged_at_utc = Some(now.to_rfc3339());
+    true
+}
+
 /// Return enabled alarm occurrences in `(after, through]` without mutating storage.
 pub fn due_between(
     alarms: &[Alarm],
@@ -242,6 +281,7 @@ pub fn reconcile(
             occurrence_utc,
             status,
             recorded_at_utc: through.to_rfc3339(),
+            acknowledged_at_utc: None,
         };
         if let Some(alarm) = planner.alarms.iter_mut().find(|alarm| alarm.id == alarm_id)
             && matches!(alarm.schedule, AlarmSchedule::Once { .. })
@@ -535,6 +575,7 @@ mod tests {
             occurrence_utc: "2026-09-05T09:00:00Z".into(),
             status: AlarmOccurrenceStatus::Delivered,
             recorded_at_utc: "2026-09-05T09:00:01Z".into(),
+            acknowledged_at_utc: None,
         };
 
         assert!(!enabled_after_edit(&once, &[]));
@@ -546,5 +587,46 @@ mod tests {
             weekdays: vec![5],
         };
         assert!(!enabled_after_edit(&weekly, &[receipt]));
+    }
+
+    #[test]
+    fn pending_attention_is_ordered_and_acknowledged_once() {
+        let id = oziclock_domain::PlannerId::new("a").unwrap();
+        let receipt = |occurrence: &str, status: AlarmOccurrenceStatus| AlarmReceipt {
+            alarm_id: id.clone(),
+            occurrence_utc: occurrence.into(),
+            status,
+            recorded_at_utc: occurrence.into(),
+            acknowledged_at_utc: None,
+        };
+        let mut planner = Planner {
+            alarm_receipts: vec![
+                receipt("2026-09-05T09:02:00Z", AlarmOccurrenceStatus::Delivered),
+                receipt("2026-09-05T09:00:00Z", AlarmOccurrenceStatus::Delivered),
+                receipt("2026-09-05T09:01:00Z", AlarmOccurrenceStatus::Missed),
+            ],
+            ..Planner::default()
+        };
+
+        assert_eq!(
+            pending_attention(&planner)
+                .iter()
+                .map(|receipt| receipt.occurrence_utc.as_str())
+                .collect::<Vec<_>>(),
+            ["2026-09-05T09:00:00Z", "2026-09-05T09:02:00Z"]
+        );
+        assert!(acknowledge_attention(
+            &mut planner,
+            &id,
+            "2026-09-05T09:00:00Z",
+            utc("2026-09-05T09:03:00Z")
+        ));
+        assert!(!acknowledge_attention(
+            &mut planner,
+            &id,
+            "2026-09-05T09:00:00Z",
+            utc("2026-09-05T09:04:00Z")
+        ));
+        assert_eq!(pending_attention(&planner).len(), 1);
     }
 }

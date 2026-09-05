@@ -94,6 +94,8 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 
 ## Auxiliary Windows and Interaction
 
+- **ALM-19:** Every Delivered alarm receipt starts as unacknowledged. The local attention queue restores all unacknowledged deliveries in occurrence order after restart. Dismiss persists acknowledgement before advancing the queue; Snooze atomically persists both acknowledgement of the shown occurrence and its replacement deadline. A save failure keeps the card visible. Missed and acknowledged receipts never enter the attention queue.
+
 - **ALM-18:** Alarm occurrence history is retained for 30 days based on each receipt's recorded UTC time. The exact 30-day boundary remains available; older valid receipts are pruned before scheduler persistence. A malformed timestamp is retained rather than silently deleting data.
 
 - **ALM-17:** Each saved alarm card shows the latest persisted occurrence result: Delivered in the Planner accent or Missed in red. The latest result is selected by recorded UTC time and remains visible across restart. Alarms without receipts show no status. This is history feedback and does not replace On/Off.

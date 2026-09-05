@@ -481,17 +481,34 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             alarm_model_for_toggle_alarm.set_vec(planner_alarm_rows(&settings));
         }
     });
-    let alarm_attention_queue = Rc::new(RefCell::new(VecDeque::<AlarmAttentionItem>::new()));
+    let alarm_attention_queue = Rc::new(RefCell::new(pending_alarm_attention_items(
+        &shared_settings.borrow(),
+    )));
     let queue_for_dismiss = alarm_attention_queue.clone();
+    let settings_for_dismiss = shared_settings.clone();
     let attention_for_dismiss = alarm_attention_window.as_weak();
     let owner_for_dismiss = window.as_weak();
     alarm_attention_window.on_request_dismiss(move || {
-        queue_for_dismiss.borrow_mut().pop_front();
-        display_alarm_attention(
-            &attention_for_dismiss,
-            &owner_for_dismiss,
-            &queue_for_dismiss,
-        );
+        let Some(item) = queue_for_dismiss.borrow().front().cloned() else {
+            return;
+        };
+        let mut settings = settings_for_dismiss.borrow_mut();
+        let mut updated = settings.clone();
+        if oziclock_app::alarm_time::acknowledge_attention(
+            &mut updated.planner,
+            &item.alarm_id,
+            &item.occurrence_utc,
+            Utc::now(),
+        ) && oziclock_storage::save(&updated).is_ok()
+        {
+            *settings = updated;
+            queue_for_dismiss.borrow_mut().pop_front();
+            display_alarm_attention(
+                &attention_for_dismiss,
+                &owner_for_dismiss,
+                &queue_for_dismiss,
+            );
+        }
     });
     let queue_for_snooze = alarm_attention_queue.clone();
     let settings_for_snooze = shared_settings.clone();
@@ -503,7 +520,14 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         };
         let mut settings = settings_for_snooze.borrow_mut();
         let mut updated = settings.clone();
-        if oziclock_app::alarm_time::snooze(&mut updated.planner, &item.alarm_id, Utc::now())
+        let now = Utc::now();
+        if oziclock_app::alarm_time::snooze(&mut updated.planner, &item.alarm_id, now)
+            && oziclock_app::alarm_time::acknowledge_attention(
+                &mut updated.planner,
+                &item.alarm_id,
+                &item.occurrence_utc,
+                now,
+            )
             && oziclock_storage::save(&updated).is_ok()
         {
             *settings = updated;
@@ -512,6 +536,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         }
     });
     schedule_alarm_attention_pulse(Rc::new(Timer::default()), alarm_attention_window.as_weak());
+    display_alarm_attention(
+        &alarm_attention_window.as_weak(),
+        &window.as_weak(),
+        &alarm_attention_queue,
+    );
     let alarm_scheduler_timer = Rc::new(Timer::default());
     schedule_alarm_refresh(
         alarm_scheduler_timer,
@@ -2626,8 +2655,28 @@ fn format_duration(total_seconds: u64) -> String {
 #[derive(Clone)]
 struct AlarmAttentionItem {
     alarm_id: PlannerId,
+    occurrence_utc: String,
     title: String,
     time: String,
+}
+
+fn pending_alarm_attention_items(settings: &AppSettings) -> VecDeque<AlarmAttentionItem> {
+    oziclock_app::alarm_time::pending_attention(&settings.planner)
+        .into_iter()
+        .filter_map(|receipt| {
+            settings
+                .planner
+                .alarms
+                .iter()
+                .find(|alarm| alarm.id == receipt.alarm_id)
+                .map(|alarm| AlarmAttentionItem {
+                    alarm_id: receipt.alarm_id,
+                    occurrence_utc: receipt.occurrence_utc,
+                    title: alarm.title.clone(),
+                    time: alarm_time_label(alarm),
+                })
+        })
+        .collect()
 }
 
 fn display_alarm_attention(
@@ -2719,6 +2768,7 @@ fn schedule_alarm_refresh(
                 if let Some((title, time)) = titles.get(&receipt.alarm_id) {
                     queue.borrow_mut().push_back(AlarmAttentionItem {
                         alarm_id: receipt.alarm_id.clone(),
+                        occurrence_utc: receipt.occurrence_utc.clone(),
                         title: title.clone(),
                         time: time.clone(),
                     });
@@ -3120,6 +3170,7 @@ mod timer_editor_tests {
             occurrence_utc: recorded.into(),
             status,
             recorded_at_utc: recorded.into(),
+            acknowledged_at_utc: None,
         };
         let receipts = vec![
             receipt(

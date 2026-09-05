@@ -157,6 +157,8 @@ pub struct AlarmReceipt {
     pub occurrence_utc: String,
     pub status: AlarmOccurrenceStatus,
     pub recorded_at_utc: String,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub acknowledged_at_utc: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

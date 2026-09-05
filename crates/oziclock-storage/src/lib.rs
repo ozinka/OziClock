@@ -270,6 +270,7 @@ mod tests {
             occurrence_utc: recorded_at_utc.into(),
             status: AlarmOccurrenceStatus::Delivered,
             recorded_at_utc: recorded_at_utc.into(),
+            acknowledged_at_utc: None,
         };
         settings.planner.alarm_receipts = vec![
             receipt("2026-08-05T11:59:59Z"),
