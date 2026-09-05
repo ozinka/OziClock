@@ -21,6 +21,11 @@ Priorities describe sequencing, not severity:
 
 | ID | Priority | Status | Area | Item | Next step |
 | --- | --- | --- | --- | --- | --- |
+| BL-031 | P2 | In Progress | Alarms | Separate alarm selection from editing | ALM-09 implemented; verify select/deselect and Edit/Cancel transitions without affecting On/Off or Delete. |
+| BL-030 | P2 | In Progress | Alarms | Make the compact editor responsive without stretching actions | ALM-08 implemented; verify minimum and expanded widths plus one-pixel edited-card highlight. |
+| BL-029 | P2 | In Progress | Alarms | Compact and clarify the alarm editor layout | ALM-07 implemented; verify resizing, right-side actions, and edited-card highlight. |
+| BL-028 | P1 | In Progress | Alarms | Edit, confirm deletion and rearm Once | ALM-06 implemented; verify trash icon, cancel, persistence and rearm. Delivery statuses remain deferred to BL-007. |
+| BL-027 | P1 | In Progress | Alarm scheduling | Select the next future Once occurrence | ALM-05: application-layer wall-time resolution and creation integration; verify today/tomorrow behavior. Delivery, receipts, snooze and sound remain in BL-007. |
 | BL-026 | P2 | In Progress | Alarms | Refine typography and optical alignment | ALM-04 implemented; verify larger dates/times, bold selected days, neutral Once, and action/input alignment. |
 | BL-025 | P2 | In Progress | Alarms | Align saved cards and clarify schedule/time styling | ALM-03 implemented, including text-only 14px weekday selectors and a 40% brighter accent; visual verification pending. |
 | BL-024 | P1 | In Progress | Planner appearance | Update the accent live after clock settings changes | UI-08 implemented in Apply and Save; verify live color preview and switching the main clock in the debug build. |

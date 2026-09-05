@@ -2,6 +2,9 @@ use oziclock_domain::{Planner, PlannerId, TimerState};
 
 /// Typed Planner intents issued by presentation adapters.
 pub enum PlannerCommand {
+    DeleteAlarm {
+        id: PlannerId,
+    },
     CompleteTask {
         id: PlannerId,
     },
@@ -36,6 +39,11 @@ pub enum PlannerCommand {
 /// Applies a Planner use case while preserving the domain state machine.
 pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -> bool {
     match command {
+        PlannerCommand::DeleteAlarm { id } => {
+            let count = planner.alarms.len();
+            planner.alarms.retain(|alarm| alarm.id != id);
+            count != planner.alarms.len()
+        }
         PlannerCommand::CompleteTask { id } => planner
             .tasks
             .iter_mut()
@@ -105,6 +113,34 @@ mod tests {
 
     fn id(value: &str) -> PlannerId {
         PlannerId::new(value).unwrap()
+    }
+
+    #[test]
+    fn deletion_removes_only_the_requested_alarm() {
+        use oziclock_domain::{Alarm, AlarmSchedule};
+        let mut planner = Planner::default();
+        for name in ["a", "b"] {
+            planner.alarms.push(Alarm {
+                id: id(name),
+                title: name.into(),
+                enabled: true,
+                time_zone: "UTC".into(),
+                schedule: AlarmSchedule::Once {
+                    local_date: "2026-09-04".into(),
+                    local_time: "07:00".into(),
+                },
+            });
+        }
+        assert!(execute_planner_command(
+            &mut planner,
+            PlannerCommand::DeleteAlarm { id: id("a") }
+        ));
+        assert_eq!(planner.alarms.len(), 1);
+        assert_eq!(planner.alarms[0].id, id("b"));
+        assert!(!execute_planner_command(
+            &mut planner,
+            PlannerCommand::DeleteAlarm { id: id("a") }
+        ));
     }
 
     #[test]

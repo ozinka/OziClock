@@ -94,6 +94,16 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 
 ## Auxiliary Windows and Interaction
 
+- **ALM-09:** Clicking an alarm card selects it without entering edit mode and reveals Edit in the lower action slot. Clicking Edit loads the alarm into the form and changes that action to Cancel. Cancel exits editing but keeps the alarm selected so Edit remains available. Clicking the selected card again deselects it and exits editing. The accent border indicates selection, not merely editing; On/Off and Delete do not select the card.
+
+- **ALM-08:** Override ALM-07's fixed left column: its minimum is 354px and it alone absorbs additional width. Weekday hit targets are 38px wide with 2px spacing, followed immediately by the fixed Once/Weekly control. H:M and the 125px action column remain fixed-width and move right as the window expands. The edited-card accent border is one pixel.
+
+- **ALM-07:** The alarm editor uses a fixed 403px left column so Once/Weekly follows Sun directly. The H:M editor remains in the middle. Add alarm/Save changes occupies the top of the flexible right column, with Cancel directly below only while editing. The edited saved-alarm card is identified by a two-pixel accent border.
+
+- **ALM-06:** Alarm cards open editing in the existing footer with Save changes and Cancel editing. Saving preserves identity, enabled state and saved zone, and recalculates Once's next date. A trailing shared trash icon (identical to Settings clock deletion) opens deletion confirmation directly; editing is available only through the card, without a duplicate menu action. Cancel does not change stored data. Re-enabling a disabled Once recalculates its next date in its saved zone. Completed/missed statuses are deferred until delivery exists. Save failures must not remove or overwrite in-memory alarms.
+
+- **ALM-05:** Creating a Once alarm without a date picker selects the next strictly future occurrence of the entered H:M in the main clock's IANA zone. A passed or equal time rolls to tomorrow, including month/year boundaries. DST gaps resolve to the first valid minute after the gap; overlaps use the earlier instant only. Store the requested local date/time and zone. This slice computes the occurrence but does not deliver notifications or sound.
+
 - **ALM-04:** Override ALM-03's Once label accent with neutral gray; only Weekly is accented. Dates use 13px text. Saved alarm times use 14px text centered vertically beside the toggle. Selected weekdays are bold in the editor and saved weekly rows. Alarm action captions and H:M digits receive a 2px optical downward correction without moving their hit targets.
 
 - **ALM-03:** Saved alarm cards align with the section heading's left edge. Once/Weekly labels use the Planner accent; one-time dates remain below the title and both alarm types show the time right-aligned before the toggle. Planner uses a 40% brighter variant of the shared clock-derived accent, both initially and during live updates. The alarm editor weekday selectors use 14px text without button backgrounds, retaining 42px by 30px hit targets. Selected weekdays are blue and weekends red; unselected days and all days in Once mode are gray. Once disables day selection without clearing it.

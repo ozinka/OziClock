@@ -249,6 +249,78 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         &shared_settings.borrow(),
     )));
     planner_window.set_alarms(ModelRc::from(planner_alarm_model.clone()));
+    let edit_settings = shared_settings.clone();
+    let edit_window = planner_window.as_weak();
+    planner_window.on_request_edit_alarm(move |id| {
+        let settings = edit_settings.borrow();
+        let Some(alarm) = settings
+            .planner
+            .alarms
+            .iter()
+            .find(|a| a.id.to_string() == id.as_str())
+        else {
+            return;
+        };
+        let Some(ui) = edit_window.upgrade() else {
+            return;
+        };
+        let (time, days) = match &alarm.schedule {
+            AlarmSchedule::Once { local_time, .. } => (local_time, None),
+            AlarmSchedule::Weekly {
+                local_time,
+                weekdays,
+            } => (local_time, Some(weekdays)),
+        };
+        let Some(time) = normalize_alarm_time(time) else {
+            return;
+        };
+        ui.set_editing_alarm(id);
+        ui.set_alarm_error("".into());
+        ui.set_alarm_title_draft(alarm.title.clone().into());
+        ui.set_alarm_hours_draft(time[..2].into());
+        ui.set_alarm_minutes_draft(time[3..].into());
+        ui.set_alarm_weekly(days.is_some());
+        let selected = |d| days.is_some_and(|days| days.contains(&d));
+        ui.set_alarm_mon(selected(0));
+        ui.set_alarm_tue(selected(1));
+        ui.set_alarm_wed(selected(2));
+        ui.set_alarm_thu(selected(3));
+        ui.set_alarm_fri(selected(4));
+        ui.set_alarm_sat(selected(5));
+        ui.set_alarm_sun(selected(6));
+    });
+    let delete_settings = shared_settings.clone();
+    let delete_model = planner_alarm_model.clone();
+    let delete_window = planner_window.as_weak();
+    planner_window.on_request_delete_alarm(move |id| {
+        let Some(key) = PlannerId::new(id.to_string()) else {
+            return;
+        };
+        let mut settings = delete_settings.borrow_mut();
+        let mut updated = settings.clone();
+        if execute_planner_command(
+            &mut updated.planner,
+            PlannerCommand::DeleteAlarm { id: key },
+        ) {
+            if let Err(error) = oziclock_storage::save(&updated) {
+                if let Some(ui) = delete_window.upgrade() {
+                    ui.set_alarm_error(format!("Save failed: {error}").into());
+                }
+                return;
+            }
+            *settings = updated;
+            delete_model.set_vec(planner_alarm_rows(&settings));
+            if let Some(ui) = delete_window.upgrade() {
+                if ui.get_selected_alarm() == id {
+                    ui.set_selected_alarm("".into());
+                }
+                if ui.get_editing_alarm() == id {
+                    ui.set_editing_alarm("".into());
+                    ui.set_alarm_title_draft("Alarm".into());
+                }
+            }
+        }
+    });
     let planner_for_adjust_alarm = planner_window.as_weak();
     planner_window.on_request_adjust_alarm_part(move |part, direction| {
         let Some(planner) = planner_for_adjust_alarm.upgrade() else {
@@ -274,11 +346,17 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let alarm_model_for_add_alarm = planner_alarm_model.clone();
     planner_window.on_request_add_alarm(
         move |title, time, weekly, mon, tue, wed, thu, fri, sat, sun| {
+            let Some(ui) = planner_for_add_alarm.upgrade() else {
+                return;
+            };
+            ui.set_alarm_error("".into());
             let title = title.trim();
             let Some(time) = normalize_alarm_time(&time) else {
+                ui.set_alarm_error("Enter a valid time.".into());
                 return;
             };
             if title.is_empty() {
+                ui.set_alarm_error("Enter an alarm name.".into());
                 return;
             }
             let weekdays = [mon, tue, wed, thu, fri, sat, sun]
@@ -287,6 +365,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 .filter_map(|(index, selected)| selected.then_some(index as u8))
                 .collect::<Vec<_>>();
             if weekly && weekdays.is_empty() {
+                ui.set_alarm_error("Select at least one weekday.".into());
                 return;
             }
             let mut settings = settings_for_add_alarm.borrow_mut();
@@ -295,33 +374,65 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 Utc::now().timestamp_nanos_opt().unwrap_or_default()
             ))
             .expect("generated alarm id is valid");
+            let editing = ui.get_editing_alarm();
+            let existing = settings
+                .planner
+                .alarms
+                .iter()
+                .find(|a| a.id.to_string() == editing.as_str())
+                .cloned();
+            if !editing.is_empty() && existing.is_none() {
+                return;
+            }
+            let time_zone = existing
+                .as_ref()
+                .map(|a| a.time_zone.clone())
+                .unwrap_or_else(|| {
+                    settings
+                        .clocks_settings
+                        .iter()
+                        .find(|clock| clock.is_main)
+                        .or_else(|| settings.clocks_settings.first())
+                        .map(|clock| clock.time_zone.clone())
+                        .unwrap_or_else(|| "UTC".to_owned())
+                });
             let schedule = if weekly {
                 AlarmSchedule::Weekly {
                     local_time: time.to_owned(),
                     weekdays,
                 }
             } else {
+                let Some((date, _)) =
+                    oziclock_app::alarm_time::next_once(&time, &time_zone, Utc::now())
+                else {
+                    return;
+                };
                 AlarmSchedule::Once {
-                    local_date: calendar_local_now(&settings).date().to_string(),
+                    local_date: date.to_string(),
                     local_time: time.to_owned(),
                 }
             };
-            let time_zone = settings
-                .clocks_settings
-                .iter()
-                .find(|clock| clock.is_main)
-                .or_else(|| settings.clocks_settings.first())
-                .map(|clock| clock.time_zone.clone())
-                .unwrap_or_else(|| "UTC".to_owned());
-            settings.planner.alarms.push(Alarm {
-                id,
+            let alarm = Alarm {
+                id: existing.as_ref().map(|a| a.id.clone()).unwrap_or(id),
                 title: title.to_owned(),
                 schedule,
                 time_zone,
-                enabled: true,
-            });
+                enabled: existing.as_ref().is_none_or(|a| a.enabled),
+            };
+            let mut updated = settings.clone();
+            if let Some(item) = updated.planner.alarms.iter_mut().find(|a| a.id == alarm.id) {
+                *item = alarm;
+            } else {
+                updated.planner.alarms.push(alarm);
+            }
+            if let Err(error) = oziclock_storage::save(&updated) {
+                ui.set_alarm_error(format!("Save failed: {error}").into());
+                return;
+            }
+            *settings = updated;
+            ui.set_editing_alarm("".into());
+            ui.set_selected_alarm("".into());
             alarm_model_for_add_alarm.set_vec(planner_alarm_rows(&settings));
-            let _ = oziclock_storage::save(&settings);
             if let Some(planner) = planner_for_add_alarm.upgrade() {
                 planner.set_alarm_title_draft("Alarm".into());
                 planner.set_alarm_hours_draft(time[..2].into());
@@ -336,12 +447,17 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             return;
         };
         let mut settings = settings_for_toggle_alarm.borrow_mut();
-        if execute_planner_command(
-            &mut settings.planner,
-            PlannerCommand::SetAlarmEnabled { id, enabled },
-        ) {
+        let mut updated = settings.clone();
+        if updated
+            .planner
+            .alarms
+            .iter_mut()
+            .find(|a| a.id == id)
+            .is_some_and(|alarm| oziclock_app::alarm_time::set_enabled(alarm, enabled, Utc::now()))
+            && oziclock_storage::save(&updated).is_ok()
+        {
+            *settings = updated;
             alarm_model_for_toggle_alarm.set_vec(planner_alarm_rows(&settings));
-            let _ = oziclock_storage::save(&settings);
         }
     });
     let planner_timer_model = Rc::new(VecModel::from(planner_timer_rows(

@@ -1,5 +1,6 @@
 //! Application-layer composition points for OziClock use cases.
 
+pub mod alarm_time;
 pub mod calendar;
 pub mod planner;
 

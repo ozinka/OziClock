@@ -3582,6 +3582,7 @@ name = "oziclock-app"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "chrono-tz",
  "oziclock-domain",
 ]
 
