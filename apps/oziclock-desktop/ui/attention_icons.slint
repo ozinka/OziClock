@@ -27,3 +27,17 @@ export component TimerAttentionIcon inherits Rectangle {
         Rectangle { x: 14px; y: 14px; width: 7px; height: 7px; border-radius: 4px; background: root.accent; }
     }
 }
+
+export component ReminderAttentionIcon inherits Rectangle {
+    in property <color> accent: #77d7cb;
+    width: 48px;
+    height: 48px;
+    background: transparent;
+
+    Rectangle { x: 8px; y: 6px; width: 32px; height: 38px; border-radius: 5px; border-width: 3px; border-color: root.accent; background: transparent; }
+    Rectangle { x: 16px; y: 2px; width: 16px; height: 8px; border-radius: 4px; background: root.accent; }
+    Rectangle { x: 15px; y: 17px; width: 4px; height: 4px; border-radius: 2px; background: root.accent; }
+    Rectangle { x: 23px; y: 18px; width: 11px; height: 2px; border-radius: 1px; background: root.accent; }
+    Rectangle { x: 15px; y: 28px; width: 4px; height: 4px; border-radius: 2px; background: root.accent; }
+    Rectangle { x: 23px; y: 29px; width: 11px; height: 2px; border-radius: 1px; background: root.accent; }
+}

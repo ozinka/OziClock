@@ -3,6 +3,7 @@
 pub mod alarm_time;
 pub mod calendar;
 pub mod planner;
+pub mod reminder_time;
 pub mod timer_time;
 
 use oziclock_domain::{Clock, ClockCollection};

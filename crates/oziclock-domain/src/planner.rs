@@ -135,6 +135,47 @@ pub struct Reminder {
     pub schedule: ReminderSchedule,
     pub alerts: Vec<AlertRule>,
     pub enabled: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub attention_pending: bool,
+}
+
+impl Reminder {
+    pub fn set_enabled(&mut self, enabled: bool) -> bool {
+        if self.enabled == enabled || (enabled && self.attention_pending) {
+            return false;
+        }
+        self.enabled = enabled;
+        true
+    }
+
+    pub fn deliver(&mut self) -> bool {
+        if !self.enabled || self.attention_pending {
+            return false;
+        }
+        self.enabled = false;
+        self.attention_pending = true;
+        true
+    }
+
+    pub fn dismiss(&mut self) -> bool {
+        if !self.attention_pending {
+            return false;
+        }
+        self.attention_pending = false;
+        true
+    }
+
+    pub fn update(&mut self, title: String, schedule: ReminderSchedule) -> bool {
+        let title = title.trim();
+        if title.is_empty() {
+            return false;
+        }
+        self.title = title.to_owned();
+        self.schedule = schedule;
+        self.enabled = true;
+        self.attention_pending = false;
+        true
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

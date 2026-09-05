@@ -34,7 +34,8 @@ use std::{
 };
 
 use chrono::{
-    DateTime, Datelike, LocalResult, NaiveDateTime, NaiveTime, Offset, TimeZone, Timelike, Utc,
+    DateTime, Datelike, LocalResult, Months, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone,
+    Timelike, Utc,
 };
 use chrono_tz::Tz;
 use oziclock_app::calendar::CalendarDate;
@@ -42,7 +43,8 @@ use oziclock_app::planner::{PlannerCommand, execute_planner_command};
 use oziclock_app::{ClockCommand, execute_clock_command};
 use oziclock_storage::{
     Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AppSettings, ClockSettings,
-    PlannerId, PlannerTimer, Stopwatch, StopwatchState, Task, TaskStatus, TimerState,
+    PlannerId, PlannerTimer, Reminder, ReminderSchedule, Stopwatch, StopwatchState, Task,
+    TaskStatus, TimerState,
 };
 use slint::winit_030::EventResult;
 use slint::winit_030::WinitWindowAccessor;
@@ -154,10 +156,12 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let planner_window = PlannerWindow::new()?;
     let alarm_attention_window = AlarmAttentionWindow::new()?;
     let timer_attention_window = TimerAttentionWindow::new()?;
+    let reminder_attention_window = ReminderAttentionWindow::new()?;
     let planner_accent = calendar_accent(&shared_settings.borrow()).brighter(0.4);
     planner_window.set_accent(planner_accent);
     alarm_attention_window.set_accent(planner_accent);
     timer_attention_window.set_accent(planner_accent);
+    reminder_attention_window.set_accent(planner_accent);
     planner_window
         .set_corner_radius(shared_settings.borrow().corner_radius.clamp(0.0, 15.5) as f32);
     planner_window.set_task_count(open_task_count(&shared_settings.borrow()));
@@ -185,6 +189,10 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             .to_string()
             .into(),
     );
+    let (reminder_date, reminder_time) = default_reminder_datetime(&shared_settings.borrow());
+    planner_window.set_reminder_date_draft(reminder_date.into());
+    planner_window.set_reminder_hours_draft(reminder_time[..2].into());
+    planner_window.set_reminder_minutes_draft(reminder_time[3..].into());
     let planner_for_alarm_entry = planner_window.as_weak();
     let settings_for_alarm_entry = shared_settings.clone();
     planner_window.on_request_alarm_section_enter(move || {
@@ -197,6 +205,85 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         let default = default_alarm_time(calendar_local_now(&settings_for_alarm_entry.borrow()));
         planner.set_alarm_hours_draft(default[..2].into());
         planner.set_alarm_minutes_draft(default[3..].into());
+    });
+    let planner_for_reminder_entry = planner_window.as_weak();
+    let settings_for_reminder_entry = shared_settings.clone();
+    planner_window.on_request_reminder_section_enter(move || {
+        let Some(planner) = planner_for_reminder_entry.upgrade() else {
+            return;
+        };
+        if !planner.get_editing_reminder().is_empty() {
+            return;
+        }
+        let (date, time) = default_reminder_datetime(&settings_for_reminder_entry.borrow());
+        planner.set_reminder_date_draft(date.into());
+        planner.set_reminder_hours_draft(time[..2].into());
+        planner.set_reminder_minutes_draft(time[3..].into());
+    });
+    let reminder_calendar_model = Rc::new(VecModel::from(Vec::<ReminderCalendarDayData>::new()));
+    planner_window.set_reminder_calendar_days(ModelRc::from(reminder_calendar_model.clone()));
+    let reminder_calendar_anchor = Rc::new(RefCell::new(Utc::now().date_naive()));
+    let planner_for_open_reminder_calendar = planner_window.as_weak();
+    let settings_for_open_reminder_calendar = shared_settings.clone();
+    let model_for_open_reminder_calendar = reminder_calendar_model.clone();
+    let anchor_for_open_reminder_calendar = reminder_calendar_anchor.clone();
+    planner_window.on_request_open_reminder_calendar(move || {
+        let Some(planner) = planner_for_open_reminder_calendar.upgrade() else {
+            return;
+        };
+        let today = calendar_local_now(&settings_for_open_reminder_calendar.borrow()).date();
+        let selected =
+            NaiveDate::parse_from_str(&planner.get_reminder_date_draft(), "%Y-%m-%d").ok();
+        let anchor = selected
+            .unwrap_or(today)
+            .with_day(1)
+            .expect("the first day exists in every month");
+        *anchor_for_open_reminder_calendar.borrow_mut() = anchor;
+        refresh_reminder_calendar(
+            &planner,
+            &model_for_open_reminder_calendar,
+            anchor,
+            selected,
+            today,
+        );
+        planner.set_reminder_calendar_visible(true);
+    });
+    let planner_for_navigate_reminder_calendar = planner_window.as_weak();
+    let settings_for_navigate_reminder_calendar = shared_settings.clone();
+    let model_for_navigate_reminder_calendar = reminder_calendar_model.clone();
+    let anchor_for_navigate_reminder_calendar = reminder_calendar_anchor.clone();
+    planner_window.on_request_navigate_reminder_calendar(move |direction| {
+        let Some(planner) = planner_for_navigate_reminder_calendar.upgrade() else {
+            return;
+        };
+        let current = *anchor_for_navigate_reminder_calendar.borrow();
+        let shifted = if direction < 0 {
+            current.checked_sub_months(Months::new(1))
+        } else {
+            current.checked_add_months(Months::new(1))
+        };
+        let Some(anchor) = shifted else {
+            return;
+        };
+        *anchor_for_navigate_reminder_calendar.borrow_mut() = anchor;
+        let today = calendar_local_now(&settings_for_navigate_reminder_calendar.borrow()).date();
+        let selected =
+            NaiveDate::parse_from_str(&planner.get_reminder_date_draft(), "%Y-%m-%d").ok();
+        refresh_reminder_calendar(
+            &planner,
+            &model_for_navigate_reminder_calendar,
+            anchor,
+            selected,
+            today,
+        );
+    });
+    let planner_for_select_reminder_date = planner_window.as_weak();
+    planner_window.on_request_select_reminder_date(move |date| {
+        if let Some(planner) = planner_for_select_reminder_date.upgrade() {
+            planner.set_reminder_date_draft(date);
+            planner.set_reminder_calendar_visible(false);
+            planner.set_reminder_error("".into());
+        }
     });
     let planner_task_model = Rc::new(VecModel::from(planner_task_rows(&shared_settings.borrow())));
     let planner_completed_task_model = Rc::new(VecModel::from(planner_completed_task_rows(
@@ -1016,6 +1103,255 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         timer_attention_window.as_weak(),
         window.as_weak(),
         timer_attention_queue,
+    );
+    let planner_reminder_model = Rc::new(VecModel::from(planner_reminder_rows(
+        &shared_settings.borrow(),
+    )));
+    planner_window.set_reminders(ModelRc::from(planner_reminder_model.clone()));
+    let reminder_attention_queue = Rc::new(RefCell::new(pending_reminder_attention_items(
+        &shared_settings.borrow(),
+    )));
+    let queue_for_reminder_dismiss = reminder_attention_queue.clone();
+    let settings_for_reminder_dismiss = shared_settings.clone();
+    let model_for_reminder_dismiss = planner_reminder_model.clone();
+    let attention_for_reminder_dismiss = reminder_attention_window.as_weak();
+    let owner_for_reminder_dismiss = window.as_weak();
+    reminder_attention_window.on_request_dismiss(move || {
+        let Some(item) = queue_for_reminder_dismiss.borrow().front().cloned() else {
+            return;
+        };
+        let mut settings = settings_for_reminder_dismiss.borrow_mut();
+        let mut updated = settings.clone();
+        if execute_planner_command(
+            &mut updated.planner,
+            PlannerCommand::DismissReminder {
+                id: item.reminder_id,
+            },
+        ) && oziclock_storage::save(&updated).is_ok()
+        {
+            *settings = updated;
+            model_for_reminder_dismiss.set_vec(planner_reminder_rows(&settings));
+            queue_for_reminder_dismiss.borrow_mut().pop_front();
+            display_reminder_attention(
+                &attention_for_reminder_dismiss,
+                &owner_for_reminder_dismiss,
+                &queue_for_reminder_dismiss,
+            );
+        }
+    });
+    display_reminder_attention(
+        &reminder_attention_window.as_weak(),
+        &window.as_weak(),
+        &reminder_attention_queue,
+    );
+    schedule_reminder_attention_pulse(
+        Rc::new(Timer::default()),
+        reminder_attention_window.as_weak(),
+    );
+    let planner_for_adjust_reminder = planner_window.as_weak();
+    planner_window.on_request_adjust_reminder_part(move |part, direction| {
+        let Some(planner) = planner_for_adjust_reminder.upgrade() else {
+            return;
+        };
+        let text = match part {
+            1 => planner.get_reminder_hours_draft(),
+            2 => planner.get_reminder_minutes_draft(),
+            _ => return,
+        };
+        let Some(value) = adjust_timer_part(&text, part, direction) else {
+            return;
+        };
+        let value = format!("{value:02}").into();
+        if part == 1 {
+            planner.set_reminder_hours_draft(value);
+        } else {
+            planner.set_reminder_minutes_draft(value);
+        }
+    });
+    let planner_for_add_reminder = planner_window.as_weak();
+    let settings_for_add_reminder = shared_settings.clone();
+    let model_for_add_reminder = planner_reminder_model.clone();
+    let queue_for_add_reminder = reminder_attention_queue.clone();
+    let attention_for_add_reminder = reminder_attention_window.as_weak();
+    let owner_for_add_reminder = window.as_weak();
+    planner_window.on_request_add_reminder(move |title, date, hours, minutes| {
+        let Some(planner) = planner_for_add_reminder.upgrade() else {
+            return;
+        };
+        planner.set_reminder_error("".into());
+        let title = title.trim();
+        if title.is_empty() {
+            planner.set_reminder_error("Enter a reminder name.".into());
+            return;
+        }
+        let Some(time) = normalize_alarm_time(&format!("{hours}:{minutes}")) else {
+            planner.set_reminder_error("Enter a valid time.".into());
+            return;
+        };
+        let mut settings = settings_for_add_reminder.borrow_mut();
+        let mut updated = settings.clone();
+        let zone = main_time_zone(&updated);
+        let Some(due) = oziclock_app::reminder_time::resolve_local(&date, &time, &zone) else {
+            planner.set_reminder_error("Enter a valid date.".into());
+            return;
+        };
+        if due <= Utc::now() {
+            planner.set_reminder_error("Choose a future date and time.".into());
+            return;
+        }
+        let schedule = ReminderSchedule::Absolute {
+            at_utc: due.to_rfc3339(),
+            source_time_zone: zone,
+        };
+        let editing = planner.get_editing_reminder();
+        let editing_id = PlannerId::new(editing.to_string());
+        let changed = if editing.is_empty() {
+            updated.planner.reminders.push(Reminder {
+                id: PlannerId::new(format!(
+                    "reminder-{}",
+                    Utc::now().timestamp_nanos_opt().unwrap_or_default()
+                ))
+                .expect("generated reminder id is valid"),
+                title: title.to_owned(),
+                schedule,
+                alerts: vec![],
+                enabled: true,
+                attention_pending: false,
+            });
+            true
+        } else {
+            let Some(id) = editing_id.clone() else {
+                return;
+            };
+            execute_planner_command(
+                &mut updated.planner,
+                PlannerCommand::UpdateReminder {
+                    id,
+                    title: title.to_owned(),
+                    schedule,
+                },
+            )
+        };
+        if !changed {
+            return;
+        }
+        if let Err(error) = oziclock_storage::save(&updated) {
+            planner.set_reminder_error(format!("Save failed: {error}").into());
+            return;
+        }
+        *settings = updated;
+        model_for_add_reminder.set_vec(planner_reminder_rows(&settings));
+        if let Some(id) = editing_id {
+            queue_for_add_reminder
+                .borrow_mut()
+                .retain(|item| item.reminder_id != id);
+            display_reminder_attention(
+                &attention_for_add_reminder,
+                &owner_for_add_reminder,
+                &queue_for_add_reminder,
+            );
+        }
+        planner.set_editing_reminder("".into());
+        planner.set_selected_reminder("".into());
+        planner.set_reminder_title_draft("Reminder".into());
+        let (date, time) = default_reminder_datetime(&settings);
+        planner.set_reminder_date_draft(date.into());
+        planner.set_reminder_hours_draft(time[..2].into());
+        planner.set_reminder_minutes_draft(time[3..].into());
+    });
+    let settings_for_edit_reminder = shared_settings.clone();
+    let planner_for_edit_reminder = planner_window.as_weak();
+    planner_window.on_request_edit_reminder(move |reminder_id| {
+        let settings = settings_for_edit_reminder.borrow();
+        let Some(reminder) = settings
+            .planner
+            .reminders
+            .iter()
+            .find(|reminder| reminder.id.to_string() == reminder_id.as_str())
+        else {
+            return;
+        };
+        let ReminderSchedule::Absolute {
+            at_utc,
+            source_time_zone,
+        } = &reminder.schedule
+        else {
+            return;
+        };
+        let Some(due) = DateTime::parse_from_rfc3339(at_utc).ok() else {
+            return;
+        };
+        let Some(zone) = source_time_zone.parse::<Tz>().ok() else {
+            return;
+        };
+        let local = due.with_timezone(&zone);
+        let Some(planner) = planner_for_edit_reminder.upgrade() else {
+            return;
+        };
+        planner.set_editing_reminder(reminder_id);
+        planner.set_reminder_title_draft(reminder.title.clone().into());
+        planner.set_reminder_date_draft(local.format("%Y-%m-%d").to_string().into());
+        planner.set_reminder_hours_draft(local.format("%H").to_string().into());
+        planner.set_reminder_minutes_draft(local.format("%M").to_string().into());
+        planner.set_reminder_error("".into());
+    });
+    let settings_for_toggle_reminder = shared_settings.clone();
+    let model_for_toggle_reminder = planner_reminder_model.clone();
+    planner_window.on_request_toggle_reminder(move |reminder_id, enabled| {
+        let Some(id) = PlannerId::new(reminder_id.to_string()) else {
+            return;
+        };
+        let mut settings = settings_for_toggle_reminder.borrow_mut();
+        let mut updated = settings.clone();
+        if execute_planner_command(
+            &mut updated.planner,
+            PlannerCommand::SetReminderEnabled { id, enabled },
+        ) && oziclock_storage::save(&updated).is_ok()
+        {
+            *settings = updated;
+            model_for_toggle_reminder.set_vec(planner_reminder_rows(&settings));
+        }
+    });
+    let settings_for_delete_reminder = shared_settings.clone();
+    let model_for_delete_reminder = planner_reminder_model.clone();
+    let planner_for_delete_reminder = planner_window.as_weak();
+    let queue_for_delete_reminder = reminder_attention_queue.clone();
+    let attention_for_delete_reminder = reminder_attention_window.as_weak();
+    let owner_for_delete_reminder = window.as_weak();
+    planner_window.on_request_delete_reminder(move |reminder_id| {
+        let Some(id) = PlannerId::new(reminder_id.to_string()) else {
+            return;
+        };
+        let mut settings = settings_for_delete_reminder.borrow_mut();
+        let mut updated = settings.clone();
+        if execute_planner_command(
+            &mut updated.planner,
+            PlannerCommand::DeleteReminder { id: id.clone() },
+        ) && oziclock_storage::save(&updated).is_ok()
+        {
+            *settings = updated;
+            model_for_delete_reminder.set_vec(planner_reminder_rows(&settings));
+            queue_for_delete_reminder
+                .borrow_mut()
+                .retain(|item| item.reminder_id != id);
+            display_reminder_attention(
+                &attention_for_delete_reminder,
+                &owner_for_delete_reminder,
+                &queue_for_delete_reminder,
+            );
+            if let Some(planner) = planner_for_delete_reminder.upgrade() {
+                planner.set_selected_reminder("".into());
+                planner.set_editing_reminder("".into());
+            }
+        }
+    });
+    schedule_reminder_refresh(
+        Rc::new(Timer::default()),
+        planner_reminder_model,
+        shared_settings.clone(),
+        reminder_attention_window.as_weak(),
+        window.as_weak(),
+        reminder_attention_queue,
     );
     let stopwatch_started_at = Rc::new(Cell::new(None::<Instant>));
     if shared_settings
@@ -2354,6 +2690,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let calendar_window_for_shutdown = calendar_window.as_weak();
     let alarm_attention_for_shutdown = alarm_attention_window.as_weak();
     let timer_attention_for_shutdown = timer_attention_window.as_weak();
+    let reminder_attention_for_shutdown = reminder_attention_window.as_weak();
     window.window().on_winit_window_event(move |_, event| {
         if matches!(event, WindowEvent::CloseRequested) {
             save_state_before_exit(
@@ -2378,6 +2715,9 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             }
             if let Some(timer_attention) = timer_attention_for_shutdown.upgrade() {
                 let _ = timer_attention.hide();
+            }
+            if let Some(reminder_attention) = reminder_attention_for_shutdown.upgrade() {
+                let _ = reminder_attention.hide();
             }
             let _ = slint::quit_event_loop();
             return EventResult::PreventDefault;
@@ -3004,6 +3344,100 @@ fn planner_timer_rows(settings: &AppSettings) -> Vec<PlannerTimerData> {
         .collect()
 }
 
+fn planner_reminder_rows(settings: &AppSettings) -> Vec<PlannerReminderData> {
+    settings
+        .planner
+        .reminders
+        .iter()
+        .map(|reminder| {
+            let due = if reminder.attention_pending {
+                "Delivered".to_owned()
+            } else {
+                format_reminder_schedule(&reminder.schedule, reminder.enabled)
+            };
+            PlannerReminderData {
+                id: reminder.id.to_string().into(),
+                title: reminder.title.clone().into(),
+                due: due.into(),
+                enabled: reminder.enabled,
+                delivered: reminder.attention_pending,
+            }
+        })
+        .collect()
+}
+
+fn format_reminder_schedule(schedule: &ReminderSchedule, enabled: bool) -> String {
+    let ReminderSchedule::Absolute {
+        at_utc,
+        source_time_zone,
+    } = schedule
+    else {
+        return "Unsupported schedule".to_owned();
+    };
+    let Some(due) = DateTime::parse_from_rfc3339(at_utc).ok() else {
+        return "Invalid date".to_owned();
+    };
+    let Some(zone) = source_time_zone.parse::<Tz>().ok() else {
+        return "Invalid time zone".to_owned();
+    };
+    let local = due.with_timezone(&zone);
+    let prefix = if enabled { "" } else { "Paused · " };
+    format!(
+        "{prefix}{} · {} · {source_time_zone}",
+        local.format("%Y-%m-%d"),
+        local.format("%H:%M")
+    )
+}
+
+fn main_time_zone(settings: &AppSettings) -> String {
+    settings
+        .clocks_settings
+        .iter()
+        .find(|clock| clock.is_main)
+        .or_else(|| settings.clocks_settings.first())
+        .map(|clock| clock.time_zone.clone())
+        .unwrap_or_else(|| "UTC".to_owned())
+}
+
+fn default_reminder_datetime(settings: &AppSettings) -> (String, String) {
+    let zone = main_time_zone(settings)
+        .parse::<Tz>()
+        .unwrap_or(chrono_tz::UTC);
+    let local = (Utc::now() + chrono::Duration::minutes(10)).with_timezone(&zone);
+    (
+        local.format("%Y-%m-%d").to_string(),
+        local.format("%H:%M").to_string(),
+    )
+}
+
+fn refresh_reminder_calendar(
+    planner: &PlannerWindow,
+    model: &VecModel<ReminderCalendarDayData>,
+    anchor: NaiveDate,
+    selected: Option<NaiveDate>,
+    today: NaiveDate,
+) {
+    let first = anchor
+        .with_day(1)
+        .expect("the first day exists in every month");
+    let grid_start = first - chrono::Duration::days(first.weekday().num_days_from_monday().into());
+    let days: Vec<_> = (0..42)
+        .map(|offset| {
+            let date = grid_start + chrono::Duration::days(offset);
+            ReminderCalendarDayData {
+                label: date.day().to_string().into(),
+                date: date.format("%Y-%m-%d").to_string().into(),
+                in_month: date.month() == anchor.month() && date.year() == anchor.year(),
+                enabled: date >= today,
+                selected: selected == Some(date),
+                today: date == today,
+            }
+        })
+        .collect();
+    model.set_vec(days);
+    planner.set_reminder_calendar_title(anchor.format("%B %Y").to_string().into());
+}
+
 fn duration_parts(total_seconds: u64) -> (u16, u8, u8, u8) {
     let days = (total_seconds / 86_400).min(u64::from(u16::MAX)) as u16;
     let hours = ((total_seconds % 86_400) / 3_600) as u8;
@@ -3119,6 +3553,48 @@ struct TimerAttentionItem {
     title: String,
 }
 
+#[derive(Clone)]
+struct ReminderAttentionItem {
+    reminder_id: PlannerId,
+    title: String,
+}
+
+fn pending_reminder_attention_items(settings: &AppSettings) -> VecDeque<ReminderAttentionItem> {
+    oziclock_app::reminder_time::pending_attention(&settings.planner)
+        .into_iter()
+        .filter_map(|id| {
+            settings
+                .planner
+                .reminders
+                .iter()
+                .find(|reminder| reminder.id == id)
+                .map(|reminder| ReminderAttentionItem {
+                    reminder_id: id,
+                    title: reminder.title.clone(),
+                })
+        })
+        .collect()
+}
+
+fn display_reminder_attention(
+    window: &slint::Weak<ReminderAttentionWindow>,
+    owner: &slint::Weak<AppWindow>,
+    queue: &Rc<RefCell<VecDeque<ReminderAttentionItem>>>,
+) {
+    let Some(window) = window.upgrade() else {
+        return;
+    };
+    let Some(item) = queue.borrow().front().cloned() else {
+        let _ = window.hide();
+        return;
+    };
+    window.set_reminder_title(item.title.into());
+    if window.show().is_ok() {
+        hide_auxiliary_window_from_taskbar(window.window());
+        position_calendar_window(window.window(), owner);
+    }
+}
+
 fn pending_timer_attention_items(settings: &AppSettings) -> VecDeque<TimerAttentionItem> {
     oziclock_app::timer_time::pending_attention(&settings.planner)
         .into_iter()
@@ -3204,6 +3680,23 @@ fn schedule_alarm_attention_pulse(timer: Rc<Timer>, window: slint::Weak<AlarmAtt
                 window.set_pulse(!window.get_pulse());
             }
             schedule_alarm_attention_pulse(next_timer.clone(), window.clone());
+        },
+    );
+}
+
+fn schedule_reminder_attention_pulse(
+    timer: Rc<Timer>,
+    window: slint::Weak<ReminderAttentionWindow>,
+) {
+    let next_timer = timer.clone();
+    timer.start(
+        TimerMode::SingleShot,
+        Duration::from_millis(450),
+        move || {
+            if let Some(window) = window.upgrade() {
+                window.set_pulse(!window.get_pulse());
+            }
+            schedule_reminder_attention_pulse(next_timer.clone(), window.clone());
         },
     );
 }
@@ -3335,6 +3828,54 @@ fn schedule_planner_timer_refresh(
         }
         drop(settings);
         schedule_planner_timer_refresh(
+            next_timer.clone(),
+            next_model.clone(),
+            next_settings.clone(),
+            attention.clone(),
+            owner.clone(),
+            queue.clone(),
+        );
+    });
+}
+
+fn schedule_reminder_refresh(
+    timer: Rc<Timer>,
+    model: Rc<VecModel<PlannerReminderData>>,
+    settings: Rc<RefCell<AppSettings>>,
+    attention: slint::Weak<ReminderAttentionWindow>,
+    owner: slint::Weak<AppWindow>,
+    queue: Rc<RefCell<VecDeque<ReminderAttentionItem>>>,
+) {
+    let next_timer = timer.clone();
+    let next_model = model.clone();
+    let next_settings = settings.clone();
+    timer.start(TimerMode::SingleShot, Duration::from_secs(1), move || {
+        let mut settings = next_settings.borrow_mut();
+        let mut updated = settings.clone();
+        let delivered = oziclock_app::reminder_time::reconcile(&mut updated.planner, Utc::now());
+        if !delivered.is_empty() && oziclock_storage::save(&updated).is_ok() {
+            *settings = updated;
+            let was_empty = queue.borrow().is_empty();
+            for id in delivered {
+                if let Some(reminder) = settings
+                    .planner
+                    .reminders
+                    .iter()
+                    .find(|reminder| reminder.id == id)
+                {
+                    queue.borrow_mut().push_back(ReminderAttentionItem {
+                        reminder_id: id,
+                        title: reminder.title.clone(),
+                    });
+                }
+            }
+            if was_empty && !queue.borrow().is_empty() {
+                display_reminder_attention(&attention, &owner, &queue);
+            }
+        }
+        next_model.set_vec(planner_reminder_rows(&settings));
+        drop(settings);
+        schedule_reminder_refresh(
             next_timer.clone(),
             next_model.clone(),
             next_settings.clone(),

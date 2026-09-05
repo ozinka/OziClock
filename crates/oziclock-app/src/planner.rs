@@ -1,7 +1,22 @@
-use oziclock_domain::{Planner, PlannerId, TimerState};
+use oziclock_domain::{Planner, PlannerId, ReminderSchedule, TimerState};
 
 /// Typed Planner intents issued by presentation adapters.
 pub enum PlannerCommand {
+    SetReminderEnabled {
+        id: PlannerId,
+        enabled: bool,
+    },
+    DeleteReminder {
+        id: PlannerId,
+    },
+    DismissReminder {
+        id: PlannerId,
+    },
+    UpdateReminder {
+        id: PlannerId,
+        title: String,
+        schedule: ReminderSchedule,
+    },
     DeleteAlarm {
         id: PlannerId,
     },
@@ -70,6 +85,30 @@ pub enum PlannerCommand {
 /// Applies a Planner use case while preserving the domain state machine.
 pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -> bool {
     match command {
+        PlannerCommand::SetReminderEnabled { id, enabled } => planner
+            .reminders
+            .iter_mut()
+            .find(|reminder| reminder.id == id)
+            .is_some_and(|reminder| reminder.set_enabled(enabled)),
+        PlannerCommand::DeleteReminder { id } => {
+            let count = planner.reminders.len();
+            planner.reminders.retain(|reminder| reminder.id != id);
+            count != planner.reminders.len()
+        }
+        PlannerCommand::DismissReminder { id } => planner
+            .reminders
+            .iter_mut()
+            .find(|reminder| reminder.id == id)
+            .is_some_and(|reminder| reminder.dismiss()),
+        PlannerCommand::UpdateReminder {
+            id,
+            title,
+            schedule,
+        } => planner
+            .reminders
+            .iter_mut()
+            .find(|reminder| reminder.id == id)
+            .is_some_and(|reminder| reminder.update(title, schedule)),
         PlannerCommand::DeleteAlarm { id } => {
             let count = planner.alarms.len();
             planner.alarms.retain(|alarm| alarm.id != id);
@@ -202,7 +241,7 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oziclock_domain::{Task, TaskStatus, Timer, TimerState};
+    use oziclock_domain::{Reminder, Task, TaskStatus, Timer, TimerState};
 
     fn id(value: &str) -> PlannerId {
         PlannerId::new(value).unwrap()
@@ -330,5 +369,43 @@ mod tests {
             PlannerCommand::DeleteTimer { id: id("timer") }
         ));
         assert!(planner.timers.is_empty());
+    }
+
+    #[test]
+    fn delivered_reminder_can_only_be_rearmed_by_editing() {
+        let schedule = ReminderSchedule::Absolute {
+            at_utc: "2026-09-05T10:00:00Z".into(),
+            source_time_zone: "UTC".into(),
+        };
+        let mut reminder = Reminder {
+            id: id("reminder"),
+            title: "Stretch".into(),
+            schedule: schedule.clone(),
+            alerts: vec![],
+            enabled: true,
+            attention_pending: false,
+        };
+        assert!(reminder.deliver());
+        let mut planner = Planner {
+            reminders: vec![reminder],
+            ..Planner::default()
+        };
+        assert!(!execute_planner_command(
+            &mut planner,
+            PlannerCommand::SetReminderEnabled {
+                id: id("reminder"),
+                enabled: true,
+            }
+        ));
+        assert!(execute_planner_command(
+            &mut planner,
+            PlannerCommand::UpdateReminder {
+                id: id("reminder"),
+                title: "Walk".into(),
+                schedule,
+            }
+        ));
+        assert!(planner.reminders[0].enabled);
+        assert!(!planner.reminders[0].attention_pending);
     }
 }

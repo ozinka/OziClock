@@ -194,6 +194,20 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **SW-09:** Reset requires confirmation and clears elapsed time and every lap only after confirmation. Cancel and backdrop dismissal preserve the session.
 - **SW-10:** Stopwatch and lap formatting supports sessions beyond 24 hours using a day prefix while preserving H:M:S and hundredths for laps.
 
+## Planner Reminders
+
+- **REM-01:** Create a reminder for an absolute local date and time using a YYYY-MM-DD field and a segmented H:M editor. Entering the section proposes a time ten minutes in the future in the main clock's time zone.
+- **REM-02:** A reminder requires a non-empty trimmed title, a valid local date and time, and a future occurrence. Invalid input shows an inline error without changing persisted data.
+- **REM-03:** Saved reminders use all available panel height, scroll as needed, and show their local date, time, and source time zone. Disabled reminders are labelled Paused and delivered reminders are labelled Delivered.
+- **REM-04:** Clicking a reminder selects it without editing. Edit loads its title and original local date and time; Save changes schedules the chosen future occurrence, while Cancel preserves the stored reminder.
+- **REM-05:** A pending reminder may be switched On or Off without changing its due instant. A delivered reminder cannot be re-enabled without editing and scheduling a new future occurrence.
+- **REM-06:** Delete uses the shared trash icon and confirmation overlay, removes the reminder durably, and closes its attention card if currently queued.
+- **REM-07:** A single one-second scheduler evaluates absolute UTC deadlines. A due reminder is atomically persisted as Off with attention pending before its card is displayed, and cannot be delivered twice.
+- **REM-08:** Due reminders enter a chronological FIFO attention queue. Its compact always-on-top card uses a distinct large reminder icon and Dismiss advances to the next reminder.
+- **REM-09:** Pending reminder attention is durable and restored in chronological order after application restart. Save failure leaves the prior in-memory state and attention display unchanged.
+- **REM-10:** Editing a delivered reminder clears its delivered state, schedules the chosen future occurrence, enables it, and removes any stale attention item.
+- **REM-11:** The date remains directly editable and has an adjacent calendar icon. Activating it opens a Monday-first six-week month picker focused on the entered date (or today when invalid); past dates are disabled, today is outlined, the selected date uses the accent, adjacent-month days remain visible, and choosing a date updates the field and closes the picker.
+
 ## Cross-Platform Quality Requirements
 
 - **NFR-01:** Support current Windows, macOS, and mainstream Linux desktop releases.
