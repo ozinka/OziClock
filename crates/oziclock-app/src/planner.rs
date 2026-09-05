@@ -42,7 +42,13 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
         PlannerCommand::DeleteAlarm { id } => {
             let count = planner.alarms.len();
             planner.alarms.retain(|alarm| alarm.id != id);
-            count != planner.alarms.len()
+            let changed = count != planner.alarms.len();
+            if changed {
+                planner
+                    .alarm_receipts
+                    .retain(|receipt| receipt.alarm_id != id);
+            }
+            changed
         }
         PlannerCommand::CompleteTask { id } => planner
             .tasks

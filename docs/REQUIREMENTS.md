@@ -94,6 +94,18 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 
 ## Auxiliary Windows and Interaction
 
+- **ALM-15:** While the local alarm-attention card exists, only its accent border pulses smoothly between one and three pixels every 450ms. The surface, text and controls remain stable and fully readable; dismissing the final queued alarm hides the card.
+
+- **ALM-14:** On each transition into Alarms, when no existing alarm is being edited, initialize the new-alarm H:M from the current time in the main clock zone: round strictly upward to the next five-minute boundary when seconds are present (or retain an exact boundary), then add five minutes, wrapping midnight. Examples: 10:02:00 → 10:10, 10:05:00 → 10:10, 10:05:01 → 10:15, 23:58 → 00:05. Entering Alarms during editing preserves the alarm's stored time.
+
+- **ALM-13:** A single Slint timer evaluates alarm intervals once per second. It atomically saves reconciliation changes before exposing deliverable occurrences. Delivered alarms enter a FIFO local-attention queue shown in a compact always-on-top card adjacent to the clock strip; Dismiss advances to the next item or closes the card. Planner never opens automatically and the adapter does not explicitly request focus. Once becomes Off when reconciled. Persistence failure prevents both in-memory mutation and attention display. Native notification, sound and Snooze remain separate slices.
+
+- **ALM-12:** Planner persists alarm occurrence receipts containing alarm ID, occurrence UTC, recorded UTC and Delivered/Missed status, plus the last scheduler check instant. Reconciliation records each occurrence at most once, classifies occurrences within a five-minute grace window as deliverable and older ones as missed, and disables a reconciled Once alarm. Deleting an alarm also removes its receipts. Saving the receipt must precede notification delivery; this slice does not yet invoke a platform notification adapter.
+
+- **ALM-11:** Scheduler evaluation accepts an explicit previous and current UTC instant and returns enabled alarm occurrences in the half-open interval `(previous, current]`, sorted by occurrence time. This prevents duplicate delivery at a boundary and permits deterministic sleep/wake reconciliation. Evaluation is side-effect free; durable receipts and delivery own mutations.
+
+- **ALM-10:** The application layer calculates the next strictly future occurrence for enabled Once and Weekly alarms in their saved IANA zone. Weekly searches today through the following seven days and skips today's occurrence after its time passes. Disabled and expired Once alarms have no next occurrence. DST uses ALM-05 policies. This calculation is the scheduler input; delivery is a separate slice.
+
 - **ALM-09:** Clicking an alarm card selects it without entering edit mode and reveals Edit in the lower action slot. Clicking Edit loads the alarm into the form and changes that action to Cancel. Cancel exits editing but keeps the alarm selected so Edit remains available. Clicking the selected card again deselects it and exits editing. The accent border indicates selection, not merely editing; On/Off and Delete do not select the card.
 
 - **ALM-08:** Override ALM-07's fixed left column: its minimum is 354px and it alone absorbs additional width. Weekday hit targets are 38px wide with 2px spacing, followed immediately by the fixed Once/Weekly control. H:M and the 125px action column remain fixed-width and move right as the window expands. The edited-card accent border is one pixel.

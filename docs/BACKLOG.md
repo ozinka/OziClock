@@ -21,6 +21,12 @@ Priorities describe sequencing, not severity:
 
 | ID | Priority | Status | Area | Item | Next step |
 | --- | --- | --- | --- | --- | --- |
+| BL-037 | P2 | In Progress | Alarm attention | Pulse the local alert border | ALM-15 implemented; visually verify prominence and comfort during a triggered alarm. |
+| BL-036 | P2 | In Progress | Alarm editor | Initialize new alarms from a useful near-future time | ALM-14 implemented with main-zone and midnight tests; verify section re-entry and editing preservation. |
+| BL-035 | P1 | In Progress | Alarm delivery | Run the scheduler and show local alarm attention | ALM-13 implemented with save-before-display and FIFO Dismiss; verify a near-future Once/Weekly alarm and non-activation. Next add native notification, sound and Snooze. |
+| BL-034 | P1 | In Progress | Alarm scheduling | Persist delivery and missed occurrence receipts | ALM-12 model and deterministic reconciliation implemented; next wire atomic persistence before local/native delivery and expose status in Planner. |
+| BL-033 | P1 | In Progress | Alarm scheduling | Reconcile due alarms over a clock interval | ALM-11 deterministic due-interval evaluation implemented; next add durable occurrence receipts and missed/delivered transitions before notification adapters. |
+| BL-032 | P1 | In Progress | Alarm scheduling | Calculate the next Once or Weekly occurrence | ALM-10 implemented with deterministic zone, disabled, expiry, weekday and DST tests; connect the result to the single application scheduler. |
 | BL-031 | P2 | In Progress | Alarms | Separate alarm selection from editing | ALM-09 implemented; verify select/deselect and Edit/Cancel transitions without affecting On/Off or Delete. |
 | BL-030 | P2 | In Progress | Alarms | Make the compact editor responsive without stretching actions | ALM-08 implemented; verify minimum and expanded widths plus one-pixel edited-card highlight. |
 | BL-029 | P2 | In Progress | Alarms | Compact and clarify the alarm editor layout | ALM-07 implemented; verify resizing, right-side actions, and edited-card highlight. |

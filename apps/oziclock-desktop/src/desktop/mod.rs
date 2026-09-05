@@ -28,6 +28,7 @@ use window_drag::configure_main_window_drag;
 
 use std::{
     cell::{Cell, RefCell},
+    collections::VecDeque,
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -40,8 +41,8 @@ use oziclock_app::calendar::CalendarDate;
 use oziclock_app::planner::{PlannerCommand, execute_planner_command};
 use oziclock_app::{ClockCommand, execute_clock_command};
 use oziclock_storage::{
-    Alarm, AlarmSchedule, AppSettings, ClockSettings, PlannerId, PlannerTimer, Stopwatch,
-    StopwatchState, Task, TaskStatus, TimerState,
+    Alarm, AlarmOccurrenceStatus, AlarmSchedule, AppSettings, ClockSettings, PlannerId,
+    PlannerTimer, Stopwatch, StopwatchState, Task, TaskStatus, TimerState,
 };
 use slint::winit_030::EventResult;
 use slint::winit_030::WinitWindowAccessor;
@@ -151,8 +152,10 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     }
     let calendar_window = CalendarWindow::new()?;
     let planner_window = PlannerWindow::new()?;
+    let alarm_attention_window = AlarmAttentionWindow::new()?;
     let planner_accent = calendar_accent(&shared_settings.borrow()).brighter(0.4);
     planner_window.set_accent(planner_accent);
+    alarm_attention_window.set_accent(planner_accent);
     planner_window
         .set_corner_radius(shared_settings.borrow().corner_radius.clamp(0.0, 15.5) as f32);
     planner_window.set_task_count(open_task_count(&shared_settings.borrow()));
@@ -179,6 +182,19 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             .to_string()
             .into(),
     );
+    let planner_for_alarm_entry = planner_window.as_weak();
+    let settings_for_alarm_entry = shared_settings.clone();
+    planner_window.on_request_alarm_section_enter(move || {
+        let Some(planner) = planner_for_alarm_entry.upgrade() else {
+            return;
+        };
+        if !planner.get_editing_alarm().is_empty() {
+            return;
+        }
+        let default = default_alarm_time(calendar_local_now(&settings_for_alarm_entry.borrow()));
+        planner.set_alarm_hours_draft(default[..2].into());
+        planner.set_alarm_minutes_draft(default[3..].into());
+    });
     let planner_task_model = Rc::new(VecModel::from(planner_task_rows(&shared_settings.borrow())));
     planner_window.set_tasks(ModelRc::from(planner_task_model.clone()));
     let planner_for_drag = planner_window.as_weak();
@@ -460,6 +476,28 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             alarm_model_for_toggle_alarm.set_vec(planner_alarm_rows(&settings));
         }
     });
+    let alarm_attention_queue = Rc::new(RefCell::new(VecDeque::<AlarmAttentionItem>::new()));
+    let queue_for_dismiss = alarm_attention_queue.clone();
+    let attention_for_dismiss = alarm_attention_window.as_weak();
+    let owner_for_dismiss = window.as_weak();
+    alarm_attention_window.on_request_dismiss(move || {
+        queue_for_dismiss.borrow_mut().pop_front();
+        display_alarm_attention(
+            &attention_for_dismiss,
+            &owner_for_dismiss,
+            &queue_for_dismiss,
+        );
+    });
+    schedule_alarm_attention_pulse(Rc::new(Timer::default()), alarm_attention_window.as_weak());
+    let alarm_scheduler_timer = Rc::new(Timer::default());
+    schedule_alarm_refresh(
+        alarm_scheduler_timer,
+        planner_alarm_model.clone(),
+        shared_settings.clone(),
+        alarm_attention_window.as_weak(),
+        window.as_weak(),
+        alarm_attention_queue,
+    );
     let planner_timer_model = Rc::new(VecModel::from(planner_timer_rows(
         &shared_settings.borrow(),
     )));
@@ -1869,6 +1907,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let context_menu_for_shutdown = context_menu.as_weak();
     let about_window_for_shutdown = about_window.as_weak();
     let calendar_window_for_shutdown = calendar_window.as_weak();
+    let alarm_attention_for_shutdown = alarm_attention_window.as_weak();
     window.window().on_winit_window_event(move |_, event| {
         if matches!(event, WindowEvent::CloseRequested) {
             save_state_before_exit(
@@ -1887,6 +1926,9 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             }
             if let Some(calendar_window) = calendar_window_for_shutdown.upgrade() {
                 let _ = calendar_window.hide();
+            }
+            if let Some(alarm_attention) = alarm_attention_for_shutdown.upgrade() {
+                let _ = alarm_attention.hide();
             }
             let _ = slint::quit_event_loop();
             return EventResult::PreventDefault;
@@ -2478,6 +2520,13 @@ fn normalize_alarm_time(text: &str) -> Option<String> {
     )
 }
 
+fn default_alarm_time(now: NaiveDateTime) -> String {
+    let current_seconds = now.time().num_seconds_from_midnight();
+    let rounded_five_minutes = current_seconds.div_ceil(300) * 300;
+    let target_minutes = (rounded_five_minutes / 60 + 5) % (24 * 60);
+    format!("{:02}:{:02}", target_minutes / 60, target_minutes % 60)
+}
+
 fn parse_timer_part(text: &str, part: i32) -> Option<u16> {
     let maximum = timer_part_limit(part)?;
     let value = text.trim().parse::<u16>().ok()?;
@@ -2537,6 +2586,123 @@ fn format_timer_title(days: u16, hours: u8, minutes: u8, seconds: u8) -> String 
 
 fn format_duration(total_seconds: u64) -> String {
     format!("{:02}:{:02}", total_seconds / 60, total_seconds % 60)
+}
+
+#[derive(Clone)]
+struct AlarmAttentionItem {
+    title: String,
+    time: String,
+}
+
+fn display_alarm_attention(
+    window: &slint::Weak<AlarmAttentionWindow>,
+    owner: &slint::Weak<AppWindow>,
+    queue: &Rc<RefCell<VecDeque<AlarmAttentionItem>>>,
+) {
+    let Some(window) = window.upgrade() else {
+        return;
+    };
+    let Some(item) = queue.borrow().front().cloned() else {
+        let _ = window.hide();
+        return;
+    };
+    window.set_alarm_title(item.title.into());
+    window.set_alarm_time(item.time.into());
+    if window.show().is_ok() {
+        hide_auxiliary_window_from_taskbar(window.window());
+        position_calendar_window(window.window(), owner);
+    }
+}
+
+fn schedule_alarm_attention_pulse(timer: Rc<Timer>, window: slint::Weak<AlarmAttentionWindow>) {
+    let next_timer = timer.clone();
+    timer.start(
+        TimerMode::SingleShot,
+        Duration::from_millis(450),
+        move || {
+            if let Some(window) = window.upgrade() {
+                window.set_pulse(!window.get_pulse());
+            }
+            schedule_alarm_attention_pulse(next_timer.clone(), window.clone());
+        },
+    );
+}
+
+fn schedule_alarm_refresh(
+    timer: Rc<Timer>,
+    model: Rc<VecModel<PlannerAlarmData>>,
+    settings: Rc<RefCell<AppSettings>>,
+    attention: slint::Weak<AlarmAttentionWindow>,
+    owner: slint::Weak<AppWindow>,
+    queue: Rc<RefCell<VecDeque<AlarmAttentionItem>>>,
+) {
+    let next_timer = timer.clone();
+    let next_settings = settings.clone();
+    timer.start(TimerMode::SingleShot, Duration::from_secs(1), move || {
+        let now = Utc::now();
+        let mut settings_guard = next_settings.borrow_mut();
+        let after = settings_guard
+            .planner
+            .alarm_checked_at_utc
+            .as_deref()
+            .and_then(|value| DateTime::parse_from_rfc3339(value).ok())
+            .map(|value| value.with_timezone(&Utc))
+            .unwrap_or(now - chrono::Duration::seconds(1));
+        let titles = settings_guard
+            .planner
+            .alarms
+            .iter()
+            .map(|alarm| {
+                (
+                    alarm.id.clone(),
+                    (alarm.title.clone(), alarm_time_label(alarm)),
+                )
+            })
+            .collect::<std::collections::HashMap<_, _>>();
+        let mut updated = settings_guard.clone();
+        let receipts = oziclock_app::alarm_time::reconcile(
+            &mut updated.planner,
+            after,
+            now,
+            chrono::Duration::minutes(5),
+        );
+        if oziclock_storage::save(&updated).is_ok() {
+            *settings_guard = updated;
+            model.set_vec(planner_alarm_rows(&settings_guard));
+            let was_empty = queue.borrow().is_empty();
+            for receipt in receipts
+                .iter()
+                .filter(|receipt| receipt.status == AlarmOccurrenceStatus::Delivered)
+            {
+                if let Some((title, time)) = titles.get(&receipt.alarm_id) {
+                    queue.borrow_mut().push_back(AlarmAttentionItem {
+                        title: title.clone(),
+                        time: time.clone(),
+                    });
+                }
+            }
+            if was_empty && !queue.borrow().is_empty() {
+                display_alarm_attention(&attention, &owner, &queue);
+            }
+        }
+        drop(settings_guard);
+        schedule_alarm_refresh(
+            next_timer.clone(),
+            model.clone(),
+            next_settings.clone(),
+            attention.clone(),
+            owner.clone(),
+            queue.clone(),
+        );
+    });
+}
+
+fn alarm_time_label(alarm: &Alarm) -> String {
+    match &alarm.schedule {
+        AlarmSchedule::Once { local_time, .. } | AlarmSchedule::Weekly { local_time, .. } => {
+            format!("{local_time} · {}", alarm.time_zone)
+        }
+    }
 }
 
 fn schedule_planner_timer_refresh(
@@ -2892,6 +3058,15 @@ fn to_clock_tile(
 #[cfg(test)]
 mod timer_editor_tests {
     use super::*;
+
+    #[test]
+    fn alarm_default_rounds_up_to_five_minutes_then_adds_five() {
+        let at = |value| NaiveDateTime::parse_from_str(value, "%Y-%m-%d %H:%M:%S").unwrap();
+        assert_eq!(default_alarm_time(at("2026-09-05 10:02:00")), "10:10");
+        assert_eq!(default_alarm_time(at("2026-09-05 10:05:00")), "10:10");
+        assert_eq!(default_alarm_time(at("2026-09-05 10:05:01")), "10:15");
+        assert_eq!(default_alarm_time(at("2026-09-05 23:58:00")), "00:05");
+    }
 
     #[test]
     fn accent_tracks_color_edits_and_main_clock_selection() {

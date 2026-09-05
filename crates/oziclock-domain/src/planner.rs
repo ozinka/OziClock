@@ -143,6 +143,22 @@ pub struct Alarm {
     pub enabled: bool,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+pub enum AlarmOccurrenceStatus {
+    Delivered,
+    Missed,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+pub struct AlarmReceipt {
+    pub alarm_id: PlannerId,
+    pub occurrence_utc: String,
+    pub status: AlarmOccurrenceStatus,
+    pub recorded_at_utc: String,
+}
+
 impl Alarm {
     pub fn has_valid_schedule(&self) -> bool {
         match &self.schedule {
@@ -276,6 +292,10 @@ pub struct Planner {
     pub tasks: Vec<Task>,
     pub reminders: Vec<Reminder>,
     pub alarms: Vec<Alarm>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub alarm_receipts: Vec<AlarmReceipt>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub alarm_checked_at_utc: Option<String>,
     pub timers: Vec<Timer>,
     pub stopwatch: Option<Stopwatch>,
 }

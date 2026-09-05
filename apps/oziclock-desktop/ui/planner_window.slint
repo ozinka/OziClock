@@ -64,6 +64,7 @@ export component PlannerWindow inherits Window {
     private property <string> menu-title: "";
     callback request-edit-alarm(string);
     callback request-delete-alarm(string);
+    callback request-alarm-section-enter();
     private property <int> timer-selected-part: 2;
     in-out property <string> alarm-hours-draft: "07";
     in-out property <string> alarm-minutes-draft: "00";
@@ -91,7 +92,7 @@ export component PlannerWindow inherits Window {
                 Rectangle { height: 12px; }
                 for label[index] in ["Plan", "Alarms", "Timers", "Stopwatch", "Reminders", "Tasks"]: Rectangle { height: 34px; border-radius: 6px; background: index == root.selected-section ? root.accent : transparent;
                     Text { x: 10px; width: parent.width - 20px; height: parent.height; text: label; vertical-alignment: center; color: index == root.selected-section ? #082725 : #b8c7c4; font-family: "Carlito"; font-size: 14px; }
-                    TouchArea { clicked => { root.selected-section = index; } }
+                    TouchArea { clicked => { if index == 1 && root.selected-section != 1 { root.request-alarm-section-enter(); } root.selected-section = index; } }
                 }
                 Rectangle { vertical-stretch: 1; } Text { text: "Local-first"; color: #60716f; font-size: 11px; }
         }}
