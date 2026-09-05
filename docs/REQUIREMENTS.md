@@ -168,6 +168,19 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **TMR-08:** A timer may repeat. On expiry it raises one persistent attention card and immediately starts its next full interval. Dismiss acknowledges the card without stopping the new interval; Restart acknowledges it and starts the full interval again. An unacknowledged card is not duplicated by later repeat cycles.
 - **TMR-09:** The saved-timer list uses all available panel height and scrolls only when its cards exceed that height. Row actions remain inside the content width and do not overlap the scrollbar.
 
+## Planner Tasks
+
+- **TSK-01:** Create an open task from Plan or Tasks using a required trimmed title. Empty titles show inline validation in Tasks and do not change persisted data.
+- **TSK-02:** The Tasks panel uses all available height and scrolls only when the active status list exceeds it. Empty Open and Completed lists have distinct messages.
+- **TSK-03:** Clicking an open task selects or deselects it using the same darker-card treatment as alarms and timers, without immediately entering edit mode.
+- **TSK-04:** Edit loads the selected open task title into the shared input. Save changes persists the trimmed title; Cancel and leaving Tasks discard the draft without changing the task.
+- **TSK-05:** Completing an open task removes it from Open and makes it available under Completed without deleting it.
+- **TSK-06:** Open and Completed are explicit status views with live counts. Switching views clears stale selection and editing state.
+- **TSK-07:** Reopen moves a completed task back to Open and preserves its title and metadata.
+- **TSK-08:** Archive removes a completed task from ordinary task views while retaining it in local Planner storage.
+- **TSK-09:** Open and completed tasks expose Delete through the shared trash icon and require confirmation before permanent removal.
+- **TSK-10:** Create, rename, complete, reopen, archive, and delete save the new Planner state before replacing the in-memory state and visible models. A save failure preserves the prior task collection.
+
 ## Cross-Platform Quality Requirements
 
 - **NFR-01:** Support current Windows, macOS, and mainstream Linux desktop releases.

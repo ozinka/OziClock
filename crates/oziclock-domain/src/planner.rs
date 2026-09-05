@@ -95,6 +95,23 @@ impl Task {
         self.status = TaskStatus::Archived;
         true
     }
+
+    pub fn reopen(&mut self) -> bool {
+        if self.status != TaskStatus::Completed {
+            return false;
+        }
+        self.status = TaskStatus::Open;
+        true
+    }
+
+    pub fn rename(&mut self, title: String) -> bool {
+        let title = title.trim();
+        if title.is_empty() {
+            return false;
+        }
+        self.title = title.to_owned();
+        true
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

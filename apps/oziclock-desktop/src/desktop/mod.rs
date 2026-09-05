@@ -161,6 +161,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     planner_window
         .set_corner_radius(shared_settings.borrow().corner_radius.clamp(0.0, 15.5) as f32);
     planner_window.set_task_count(open_task_count(&shared_settings.borrow()));
+    planner_window.set_completed_task_count(completed_task_count(&shared_settings.borrow()));
     planner_window
         .set_timer_days_draft(shared_settings.borrow().timer_draft_days.to_string().into());
     planner_window.set_timer_hours_draft(
@@ -198,7 +199,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         planner.set_alarm_minutes_draft(default[3..].into());
     });
     let planner_task_model = Rc::new(VecModel::from(planner_task_rows(&shared_settings.borrow())));
+    let planner_completed_task_model = Rc::new(VecModel::from(planner_completed_task_rows(
+        &shared_settings.borrow(),
+    )));
     planner_window.set_tasks(ModelRc::from(planner_task_model.clone()));
+    planner_window.set_completed_tasks(ModelRc::from(planner_completed_task_model.clone()));
     let planner_for_drag = planner_window.as_weak();
     planner_window.on_request_window_drag(move || {
         if let Some(planner) = planner_for_drag.upgrade() {
@@ -216,52 +221,169 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let planner_for_add_task = planner_window.as_weak();
     let settings_for_add_task = shared_settings.clone();
     let task_model_for_add_task = planner_task_model.clone();
+    let completed_model_for_add_task = planner_completed_task_model.clone();
     planner_window.on_request_add_task(move |title| {
+        let Some(planner) = planner_for_add_task.upgrade() else {
+            return;
+        };
+        planner.set_task_error("".into());
         let title = title.trim();
         if title.is_empty() {
+            planner.set_task_error("Enter a task name.".into());
             return;
         }
         let mut settings = settings_for_add_task.borrow_mut();
-        let id = PlannerId::new(format!(
-            "task-{}",
-            Utc::now().timestamp_nanos_opt().unwrap_or_default()
-        ))
-        .expect("generated task id is valid");
-        settings.planner.tasks.push(Task {
-            id,
-            title: title.into(),
-            status: TaskStatus::Open,
-            due_utc: None,
-            scheduled_start_utc: None,
-            scheduled_end_utc: None,
-            color: None,
-            tags: vec![],
-            notes: None,
-            alerts: vec![],
-        });
-        task_model_for_add_task.set_vec(planner_task_rows(&settings));
-        let _ = oziclock_storage::save(&settings);
-        if let Some(planner) = planner_for_add_task.upgrade() {
-            planner.set_task_count(open_task_count(&settings));
-            planner.set_task_draft("".into());
+        let mut updated = settings.clone();
+        let editing = if planner.get_selected_section() == 5 {
+            planner.get_editing_task()
+        } else {
+            "".into()
+        };
+        let changed = if editing.is_empty() {
+            let id = PlannerId::new(format!(
+                "task-{}",
+                Utc::now().timestamp_nanos_opt().unwrap_or_default()
+            ))
+            .expect("generated task id is valid");
+            updated.planner.tasks.push(Task {
+                id,
+                title: title.into(),
+                status: TaskStatus::Open,
+                due_utc: None,
+                scheduled_start_utc: None,
+                scheduled_end_utc: None,
+                color: None,
+                tags: vec![],
+                notes: None,
+                alerts: vec![],
+            });
+            true
+        } else {
+            let Some(id) = PlannerId::new(editing.to_string()) else {
+                return;
+            };
+            execute_planner_command(
+                &mut updated.planner,
+                PlannerCommand::RenameTask {
+                    id,
+                    title: title.into(),
+                },
+            )
+        };
+        if !changed {
+            return;
         }
+        if let Err(error) = oziclock_storage::save(&updated) {
+            planner.set_task_error(format!("Save failed: {error}").into());
+            return;
+        }
+        *settings = updated;
+        refresh_task_models(
+            &planner,
+            &settings,
+            &task_model_for_add_task,
+            &completed_model_for_add_task,
+        );
+        planner.set_task_draft("".into());
+        planner.set_editing_task("".into());
+        planner.set_selected_task("".into());
     });
     let planner_for_complete_task = planner_window.as_weak();
     let settings_for_complete_task = shared_settings.clone();
     let task_model_for_complete_task = planner_task_model.clone();
+    let completed_model_for_complete_task = planner_completed_task_model.clone();
     planner_window.on_request_complete_task(move |task_id| {
         let Some(id) = PlannerId::new(task_id.to_string()) else {
             return;
         };
         let mut settings = settings_for_complete_task.borrow_mut();
-        if !execute_planner_command(&mut settings.planner, PlannerCommand::CompleteTask { id }) {
+        let mut updated = settings.clone();
+        if !execute_planner_command(&mut updated.planner, PlannerCommand::CompleteTask { id })
+            || oziclock_storage::save(&updated).is_err()
+        {
             return;
         }
-        task_model_for_complete_task.set_vec(planner_task_rows(&settings));
-        let _ = oziclock_storage::save(&settings);
+        *settings = updated;
         if let Some(planner) = planner_for_complete_task.upgrade() {
-            planner.set_task_count(open_task_count(&settings));
+            refresh_task_models(
+                &planner,
+                &settings,
+                &task_model_for_complete_task,
+                &completed_model_for_complete_task,
+            );
+            planner.set_selected_task("".into());
+            planner.set_editing_task("".into());
         }
+    });
+    let settings_for_edit_task = shared_settings.clone();
+    let planner_for_edit_task = planner_window.as_weak();
+    planner_window.on_request_edit_task(move |task_id| {
+        let settings = settings_for_edit_task.borrow();
+        let Some(task) = settings.planner.tasks.iter().find(|task| {
+            task.id.to_string() == task_id.as_str() && task.status == TaskStatus::Open
+        }) else {
+            return;
+        };
+        let Some(planner) = planner_for_edit_task.upgrade() else {
+            return;
+        };
+        planner.set_editing_task(task_id);
+        planner.set_task_draft(task.title.clone().into());
+        planner.set_task_error("".into());
+    });
+    let settings_for_reopen_task = shared_settings.clone();
+    let planner_for_reopen_task = planner_window.as_weak();
+    let open_model_for_reopen_task = planner_task_model.clone();
+    let completed_model_for_reopen_task = planner_completed_task_model.clone();
+    planner_window.on_request_reopen_task(move |task_id| {
+        apply_task_command(
+            &settings_for_reopen_task,
+            &planner_for_reopen_task,
+            &open_model_for_reopen_task,
+            &completed_model_for_reopen_task,
+            PlannerCommand::ReopenTask {
+                id: match PlannerId::new(task_id.to_string()) {
+                    Some(id) => id,
+                    None => return,
+                },
+            },
+        );
+    });
+    let settings_for_archive_task = shared_settings.clone();
+    let planner_for_archive_task = planner_window.as_weak();
+    let open_model_for_archive_task = planner_task_model.clone();
+    let completed_model_for_archive_task = planner_completed_task_model.clone();
+    planner_window.on_request_archive_task(move |task_id| {
+        apply_task_command(
+            &settings_for_archive_task,
+            &planner_for_archive_task,
+            &open_model_for_archive_task,
+            &completed_model_for_archive_task,
+            PlannerCommand::ArchiveTask {
+                id: match PlannerId::new(task_id.to_string()) {
+                    Some(id) => id,
+                    None => return,
+                },
+            },
+        );
+    });
+    let settings_for_delete_task = shared_settings.clone();
+    let planner_for_delete_task = planner_window.as_weak();
+    let open_model_for_delete_task = planner_task_model.clone();
+    let completed_model_for_delete_task = planner_completed_task_model.clone();
+    planner_window.on_request_delete_task(move |task_id| {
+        apply_task_command(
+            &settings_for_delete_task,
+            &planner_for_delete_task,
+            &open_model_for_delete_task,
+            &completed_model_for_delete_task,
+            PlannerCommand::DeleteTask {
+                id: match PlannerId::new(task_id.to_string()) {
+                    Some(id) => id,
+                    None => return,
+                },
+            },
+        );
     });
     let planner_alarm_model = Rc::new(VecModel::from(planner_alarm_rows(
         &shared_settings.borrow(),
@@ -2671,6 +2793,15 @@ fn open_task_count(settings: &AppSettings) -> i32 {
         .count() as i32
 }
 
+fn completed_task_count(settings: &AppSettings) -> i32 {
+    settings
+        .planner
+        .tasks
+        .iter()
+        .filter(|task| task.status == TaskStatus::Completed)
+        .count() as i32
+}
+
 fn planner_task_rows(settings: &AppSettings) -> Vec<PlannerTaskData> {
     settings
         .planner
@@ -2682,6 +2813,55 @@ fn planner_task_rows(settings: &AppSettings) -> Vec<PlannerTaskData> {
             title: task.title.clone().into(),
         })
         .collect()
+}
+
+fn planner_completed_task_rows(settings: &AppSettings) -> Vec<PlannerTaskData> {
+    settings
+        .planner
+        .tasks
+        .iter()
+        .filter(|task| task.status == TaskStatus::Completed)
+        .map(|task| PlannerTaskData {
+            id: task.id.to_string().into(),
+            title: task.title.clone().into(),
+        })
+        .collect()
+}
+
+fn refresh_task_models(
+    planner: &PlannerWindow,
+    settings: &AppSettings,
+    open_model: &Rc<VecModel<PlannerTaskData>>,
+    completed_model: &Rc<VecModel<PlannerTaskData>>,
+) {
+    open_model.set_vec(planner_task_rows(settings));
+    completed_model.set_vec(planner_completed_task_rows(settings));
+    planner.set_task_count(open_task_count(settings));
+    planner.set_completed_task_count(completed_task_count(settings));
+}
+
+fn apply_task_command(
+    settings: &Rc<RefCell<AppSettings>>,
+    planner: &slint::Weak<PlannerWindow>,
+    open_model: &Rc<VecModel<PlannerTaskData>>,
+    completed_model: &Rc<VecModel<PlannerTaskData>>,
+    command: PlannerCommand,
+) {
+    let mut settings = settings.borrow_mut();
+    let mut updated = settings.clone();
+    if !execute_planner_command(&mut updated.planner, command)
+        || oziclock_storage::save(&updated).is_err()
+    {
+        return;
+    }
+    *settings = updated;
+    if let Some(planner) = planner.upgrade() {
+        refresh_task_models(&planner, &settings, open_model, completed_model);
+        planner.set_selected_task("".into());
+        planner.set_editing_task("".into());
+        planner.set_task_draft("".into());
+        planner.set_task_error("".into());
+    }
 }
 
 fn planner_alarm_rows(settings: &AppSettings) -> Vec<PlannerAlarmData> {

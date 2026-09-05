@@ -11,6 +11,16 @@ pub enum PlannerCommand {
     ArchiveTask {
         id: PlannerId,
     },
+    ReopenTask {
+        id: PlannerId,
+    },
+    DeleteTask {
+        id: PlannerId,
+    },
+    RenameTask {
+        id: PlannerId,
+        title: String,
+    },
     SetAlarmEnabled {
         id: PlannerId,
         enabled: bool,
@@ -80,6 +90,21 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
             .iter_mut()
             .find(|task| task.id == id)
             .is_some_and(|task| task.archive()),
+        PlannerCommand::ReopenTask { id } => planner
+            .tasks
+            .iter_mut()
+            .find(|task| task.id == id)
+            .is_some_and(|task| task.reopen()),
+        PlannerCommand::DeleteTask { id } => {
+            let count = planner.tasks.len();
+            planner.tasks.retain(|task| task.id != id);
+            count != planner.tasks.len()
+        }
+        PlannerCommand::RenameTask { id, title } => planner
+            .tasks
+            .iter_mut()
+            .find(|task| task.id == id)
+            .is_some_and(|task| task.rename(title)),
         PlannerCommand::SetAlarmEnabled { id, enabled } => planner
             .alarms
             .iter_mut()
@@ -222,6 +247,23 @@ mod tests {
             PlannerCommand::CompleteTask { id: id("task") }
         ));
         assert_eq!(planner.tasks[0].status, TaskStatus::Completed);
+        assert!(execute_planner_command(
+            &mut planner,
+            PlannerCommand::RenameTask {
+                id: id("task"),
+                title: "Send final invoice".into(),
+            }
+        ));
+        assert!(execute_planner_command(
+            &mut planner,
+            PlannerCommand::ReopenTask { id: id("task") }
+        ));
+        assert_eq!(planner.tasks[0].status, TaskStatus::Open);
+        assert!(execute_planner_command(
+            &mut planner,
+            PlannerCommand::DeleteTask { id: id("task") }
+        ));
+        assert!(planner.tasks.is_empty());
     }
 
     fn timer() -> Timer {
