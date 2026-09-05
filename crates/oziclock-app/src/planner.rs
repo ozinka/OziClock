@@ -384,8 +384,9 @@ mod tests {
             alerts: vec![],
             enabled: true,
             attention_pending: false,
+            attention_due_utc: None,
         };
-        assert!(reminder.deliver());
+        assert!(reminder.deliver("2026-09-05T10:00:00Z".into()));
         let mut planner = Planner {
             reminders: vec![reminder],
             ..Planner::default()

@@ -43,8 +43,8 @@ use oziclock_app::planner::{PlannerCommand, execute_planner_command};
 use oziclock_app::{ClockCommand, execute_clock_command};
 use oziclock_storage::{
     Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AppSettings, ClockSettings,
-    PlannerId, PlannerTimer, Reminder, ReminderSchedule, Stopwatch, StopwatchState, Task,
-    TaskStatus, TimerState,
+    PlannerId, PlannerTimer, Reminder, ReminderRecurrence, ReminderSchedule, Stopwatch,
+    StopwatchState, Task, TaskStatus, TimerState,
 };
 use slint::winit_030::EventResult;
 use slint::winit_030::WinitWindowAccessor;
@@ -1174,91 +1174,150 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let queue_for_add_reminder = reminder_attention_queue.clone();
     let attention_for_add_reminder = reminder_attention_window.as_weak();
     let owner_for_add_reminder = window.as_weak();
-    planner_window.on_request_add_reminder(move |title, date, hours, minutes| {
-        let Some(planner) = planner_for_add_reminder.upgrade() else {
-            return;
-        };
-        planner.set_reminder_error("".into());
-        let title = title.trim();
-        if title.is_empty() {
-            planner.set_reminder_error("Enter a reminder name.".into());
-            return;
-        }
-        let Some(time) = normalize_alarm_time(&format!("{hours}:{minutes}")) else {
-            planner.set_reminder_error("Enter a valid time.".into());
-            return;
-        };
-        let mut settings = settings_for_add_reminder.borrow_mut();
-        let mut updated = settings.clone();
-        let zone = main_time_zone(&updated);
-        let Some(due) = oziclock_app::reminder_time::resolve_local(&date, &time, &zone) else {
-            planner.set_reminder_error("Enter a valid date.".into());
-            return;
-        };
-        if due <= Utc::now() {
-            planner.set_reminder_error("Choose a future date and time.".into());
-            return;
-        }
-        let schedule = ReminderSchedule::Absolute {
-            at_utc: due.to_rfc3339(),
-            source_time_zone: zone,
-        };
-        let editing = planner.get_editing_reminder();
-        let editing_id = PlannerId::new(editing.to_string());
-        let changed = if editing.is_empty() {
-            updated.planner.reminders.push(Reminder {
-                id: PlannerId::new(format!(
-                    "reminder-{}",
-                    Utc::now().timestamp_nanos_opt().unwrap_or_default()
-                ))
-                .expect("generated reminder id is valid"),
-                title: title.to_owned(),
-                schedule,
-                alerts: vec![],
-                enabled: true,
-                attention_pending: false,
-            });
-            true
-        } else {
-            let Some(id) = editing_id.clone() else {
+    planner_window.on_request_add_reminder(
+        move |title, date, hours, minutes, recurrence, mon, tue, wed, thu, fri, sat, sun| {
+            let Some(planner) = planner_for_add_reminder.upgrade() else {
                 return;
             };
-            execute_planner_command(
-                &mut updated.planner,
-                PlannerCommand::UpdateReminder {
-                    id,
+            planner.set_reminder_error("".into());
+            let title = title.trim();
+            if title.is_empty() {
+                planner.set_reminder_error("Enter a reminder name.".into());
+                return;
+            }
+            let Some(time) = normalize_alarm_time(&format!("{hours}:{minutes}")) else {
+                planner.set_reminder_error("Enter a valid time.".into());
+                return;
+            };
+            let mut settings = settings_for_add_reminder.borrow_mut();
+            let mut updated = settings.clone();
+            let zone = main_time_zone(&updated);
+            let Some(due) = oziclock_app::reminder_time::resolve_local(&date, &time, &zone) else {
+                planner.set_reminder_error("Enter a valid date.".into());
+                return;
+            };
+            let schedule = match recurrence.as_str() {
+                "Once" => ReminderSchedule::Absolute {
+                    at_utc: due.to_rfc3339(),
+                    source_time_zone: zone,
+                },
+                "Daily" => oziclock_app::reminder_time::recurring_schedule(
+                    ReminderRecurrence::Daily,
+                    &date,
+                    &time,
+                    &zone,
+                )
+                .expect("validated reminder date and time resolve"),
+                "Weekly" => {
+                    let weekdays = [mon, tue, wed, thu, fri, sat, sun]
+                        .into_iter()
+                        .enumerate()
+                        .filter_map(|(day, selected)| selected.then_some(day as u8))
+                        .collect::<Vec<_>>();
+                    if weekdays.is_empty() {
+                        planner.set_reminder_error("Select at least one weekday.".into());
+                        return;
+                    }
+                    oziclock_app::reminder_time::recurring_schedule(
+                        ReminderRecurrence::Weekly { weekdays },
+                        &date,
+                        &time,
+                        &zone,
+                    )
+                    .expect("validated reminder date and time resolve")
+                }
+                "Monthly" => oziclock_app::reminder_time::recurring_schedule(
+                    ReminderRecurrence::Monthly {
+                        day: due
+                            .with_timezone(&zone.parse::<Tz>().expect("main zone is valid"))
+                            .day() as u8,
+                    },
+                    &date,
+                    &time,
+                    &zone,
+                )
+                .expect("validated reminder date and time resolve"),
+                "Yearly" => {
+                    let local = due.with_timezone(&zone.parse::<Tz>().expect("main zone is valid"));
+                    oziclock_app::reminder_time::recurring_schedule(
+                        ReminderRecurrence::Yearly {
+                            month: local.month() as u8,
+                            day: local.day() as u8,
+                        },
+                        &date,
+                        &time,
+                        &zone,
+                    )
+                    .expect("validated reminder date and time resolve")
+                }
+                _ => {
+                    planner.set_reminder_error("Choose a recurrence.".into());
+                    return;
+                }
+            };
+            if oziclock_app::reminder_time::due_utc(&schedule).is_none_or(|due| due <= Utc::now()) {
+                planner.set_reminder_error("Choose a future date and time.".into());
+                return;
+            }
+            let editing = planner.get_editing_reminder();
+            let editing_id = PlannerId::new(editing.to_string());
+            let changed = if editing.is_empty() {
+                updated.planner.reminders.push(Reminder {
+                    id: PlannerId::new(format!(
+                        "reminder-{}",
+                        Utc::now().timestamp_nanos_opt().unwrap_or_default()
+                    ))
+                    .expect("generated reminder id is valid"),
                     title: title.to_owned(),
                     schedule,
-                },
-            )
-        };
-        if !changed {
-            return;
-        }
-        if let Err(error) = oziclock_storage::save(&updated) {
-            planner.set_reminder_error(format!("Save failed: {error}").into());
-            return;
-        }
-        *settings = updated;
-        model_for_add_reminder.set_vec(planner_reminder_rows(&settings));
-        if let Some(id) = editing_id {
-            queue_for_add_reminder
-                .borrow_mut()
-                .retain(|item| item.reminder_id != id);
-            display_reminder_attention(
-                &attention_for_add_reminder,
-                &owner_for_add_reminder,
-                &queue_for_add_reminder,
-            );
-        }
-        planner.set_editing_reminder("".into());
-        planner.set_selected_reminder("".into());
-        planner.set_reminder_title_draft("Reminder".into());
-        let (date, time) = default_reminder_datetime(&settings);
-        planner.set_reminder_date_draft(date.into());
-        planner.set_reminder_hours_draft(time[..2].into());
-        planner.set_reminder_minutes_draft(time[3..].into());
-    });
+                    alerts: vec![],
+                    enabled: true,
+                    attention_pending: false,
+                    attention_due_utc: None,
+                });
+                true
+            } else {
+                let Some(id) = editing_id.clone() else {
+                    return;
+                };
+                execute_planner_command(
+                    &mut updated.planner,
+                    PlannerCommand::UpdateReminder {
+                        id,
+                        title: title.to_owned(),
+                        schedule,
+                    },
+                )
+            };
+            if !changed {
+                return;
+            }
+            if let Err(error) = oziclock_storage::save(&updated) {
+                planner.set_reminder_error(format!("Save failed: {error}").into());
+                return;
+            }
+            *settings = updated;
+            model_for_add_reminder.set_vec(planner_reminder_rows(&settings));
+            if let Some(id) = editing_id {
+                queue_for_add_reminder
+                    .borrow_mut()
+                    .retain(|item| item.reminder_id != id);
+                display_reminder_attention(
+                    &attention_for_add_reminder,
+                    &owner_for_add_reminder,
+                    &queue_for_add_reminder,
+                );
+            }
+            planner.set_editing_reminder("".into());
+            planner.set_selected_reminder("".into());
+            planner.set_reminder_title_draft("Reminder".into());
+            planner.set_reminder_recurrence("Once".into());
+            let (date, time) = default_reminder_datetime(&settings);
+            planner.set_reminder_date_draft(date.into());
+            planner.set_reminder_hours_draft(time[..2].into());
+            planner.set_reminder_minutes_draft(time[3..].into());
+        },
+    );
     let settings_for_edit_reminder = shared_settings.clone();
     let planner_for_edit_reminder = planner_window.as_weak();
     planner_window.on_request_edit_reminder(move |reminder_id| {
@@ -1271,12 +1330,17 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         else {
             return;
         };
-        let ReminderSchedule::Absolute {
-            at_utc,
-            source_time_zone,
-        } = &reminder.schedule
-        else {
-            return;
+        let (at_utc, source_time_zone) = match &reminder.schedule {
+            ReminderSchedule::Absolute {
+                at_utc,
+                source_time_zone,
+            } => (at_utc, source_time_zone),
+            ReminderSchedule::Recurring {
+                next_at_utc,
+                source_time_zone,
+                ..
+            } => (next_at_utc, source_time_zone),
+            ReminderSchedule::ImportantDate { .. } => return,
         };
         let Some(due) = DateTime::parse_from_rfc3339(at_utc).ok() else {
             return;
@@ -1293,6 +1357,28 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         planner.set_reminder_date_draft(local.format("%Y-%m-%d").to_string().into());
         planner.set_reminder_hours_draft(local.format("%H").to_string().into());
         planner.set_reminder_minutes_draft(local.format("%M").to_string().into());
+        match &reminder.schedule {
+            ReminderSchedule::Absolute { .. } => planner.set_reminder_recurrence("Once".into()),
+            ReminderSchedule::Recurring { recurrence, .. } => {
+                let mode = match recurrence {
+                    ReminderRecurrence::Daily => "Daily",
+                    ReminderRecurrence::Weekly { .. } => "Weekly",
+                    ReminderRecurrence::Monthly { .. } => "Monthly",
+                    ReminderRecurrence::Yearly { .. } => "Yearly",
+                };
+                planner.set_reminder_recurrence(mode.into());
+                if let ReminderRecurrence::Weekly { weekdays } = recurrence {
+                    planner.set_reminder_mon(weekdays.contains(&0));
+                    planner.set_reminder_tue(weekdays.contains(&1));
+                    planner.set_reminder_wed(weekdays.contains(&2));
+                    planner.set_reminder_thu(weekdays.contains(&3));
+                    planner.set_reminder_fri(weekdays.contains(&4));
+                    planner.set_reminder_sat(weekdays.contains(&5));
+                    planner.set_reminder_sun(weekdays.contains(&6));
+                }
+            }
+            ReminderSchedule::ImportantDate { .. } => {}
+        }
         planner.set_reminder_error("".into());
     });
     let settings_for_toggle_reminder = shared_settings.clone();
@@ -3367,12 +3453,34 @@ fn planner_reminder_rows(settings: &AppSettings) -> Vec<PlannerReminderData> {
 }
 
 fn format_reminder_schedule(schedule: &ReminderSchedule, enabled: bool) -> String {
-    let ReminderSchedule::Absolute {
-        at_utc,
-        source_time_zone,
-    } = schedule
-    else {
-        return "Unsupported schedule".to_owned();
+    let (at_utc, source_time_zone, recurrence) = match schedule {
+        ReminderSchedule::Absolute {
+            at_utc,
+            source_time_zone,
+        } => (at_utc, source_time_zone, "Once".to_owned()),
+        ReminderSchedule::Recurring {
+            recurrence,
+            next_at_utc,
+            source_time_zone,
+            ..
+        } => {
+            let label = match recurrence {
+                ReminderRecurrence::Daily => "Daily".to_owned(),
+                ReminderRecurrence::Weekly { weekdays } => format!(
+                    "Weekly ({})",
+                    weekdays
+                        .iter()
+                        .map(|day| ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                            [usize::from(*day)])
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+                ReminderRecurrence::Monthly { .. } => "Monthly".to_owned(),
+                ReminderRecurrence::Yearly { .. } => "Yearly".to_owned(),
+            };
+            (next_at_utc, source_time_zone, label)
+        }
+        ReminderSchedule::ImportantDate { .. } => return "Important date".to_owned(),
     };
     let Some(due) = DateTime::parse_from_rfc3339(at_utc).ok() else {
         return "Invalid date".to_owned();
@@ -3383,7 +3491,7 @@ fn format_reminder_schedule(schedule: &ReminderSchedule, enabled: bool) -> Strin
     let local = due.with_timezone(&zone);
     let prefix = if enabled { "" } else { "Paused · " };
     format!(
-        "{prefix}{} · {} · {source_time_zone}",
+        "{prefix}{recurrence} · {} · {} · {source_time_zone}",
         local.format("%Y-%m-%d"),
         local.format("%H:%M")
     )

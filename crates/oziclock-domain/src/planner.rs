@@ -125,6 +125,21 @@ pub enum ReminderSchedule {
         month: u8,
         day: u8,
     },
+    Recurring {
+        recurrence: ReminderRecurrence,
+        local_time: String,
+        source_time_zone: String,
+        next_at_utc: String,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+pub enum ReminderRecurrence {
+    Daily,
+    Weekly { weekdays: Vec<u8> },
+    Monthly { day: u8 },
+    Yearly { month: u8, day: u8 },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -137,6 +152,8 @@ pub struct Reminder {
     pub enabled: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub attention_pending: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub attention_due_utc: Option<String>,
 }
 
 impl Reminder {
@@ -148,12 +165,15 @@ impl Reminder {
         true
     }
 
-    pub fn deliver(&mut self) -> bool {
+    pub fn deliver(&mut self, occurrence_utc: String) -> bool {
         if !self.enabled || self.attention_pending {
             return false;
         }
-        self.enabled = false;
+        if matches!(self.schedule, ReminderSchedule::Absolute { .. }) {
+            self.enabled = false;
+        }
         self.attention_pending = true;
+        self.attention_due_utc = Some(occurrence_utc);
         true
     }
 
@@ -162,6 +182,7 @@ impl Reminder {
             return false;
         }
         self.attention_pending = false;
+        self.attention_due_utc = None;
         true
     }
 
@@ -174,6 +195,7 @@ impl Reminder {
         self.schedule = schedule;
         self.enabled = true;
         self.attention_pending = false;
+        self.attention_due_utc = None;
         true
     }
 }

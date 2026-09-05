@@ -207,6 +207,10 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **REM-09:** Pending reminder attention is durable and restored in chronological order after application restart. Save failure leaves the prior in-memory state and attention display unchanged.
 - **REM-10:** Editing a delivered reminder clears its delivered state, schedules the chosen future occurrence, enables it, and removes any stale attention item.
 - **REM-11:** The date remains directly editable and has an adjacent calendar icon. Activating it opens a Monday-first six-week month picker focused on the entered date (or today when invalid); past dates are disabled, today is outlined, the selected date uses the accent, adjacent-month days remain visible, and choosing a date updates the field and closes the picker.
+- **REM-12:** A reminder recurrence menu offers Once, Daily, Weekly, Monthly, and Yearly. Weekly exposes a multi-select weekday row and requires at least one selected day; the entered date is the earliest eligible occurrence.
+- **REM-13:** After a recurring reminder is delivered, it remains enabled and its next UTC occurrence is persisted before attention is shown. Occurrences that pass while its attention card remains pending are coalesced rather than queued repeatedly.
+- **REM-14:** Monthly recurrence preserves the selected day number and uses the month's final day when that number is absent. Yearly February 29 occurrences use February 28 in non-leap years and return to February 29 in leap years.
+- **REM-15:** Every recurrence resolves wall time in its saved IANA time zone. DST gaps advance to the first valid minute and overlaps choose the earlier occurrence, matching one-time reminder behavior.
 
 ## Cross-Platform Quality Requirements
 
