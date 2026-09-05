@@ -61,8 +61,10 @@ pub enum PlannerCommand {
     },
     ResetStopwatch,
     RecordStopwatchLap {
-        elapsed_seconds: u64,
+        elapsed_milliseconds: u64,
     },
+    UndoStopwatchLap,
+    ClearStopwatchLaps,
 }
 
 /// Applies a Planner use case while preserving the domain state machine.
@@ -180,10 +182,20 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
             stopwatch.reset();
             true
         }),
-        PlannerCommand::RecordStopwatchLap { elapsed_seconds } => planner
+        PlannerCommand::RecordStopwatchLap {
+            elapsed_milliseconds,
+        } => planner
             .stopwatch
             .as_mut()
-            .is_some_and(|stopwatch| stopwatch.record_lap(elapsed_seconds)),
+            .is_some_and(|stopwatch| stopwatch.record_lap(elapsed_milliseconds)),
+        PlannerCommand::UndoStopwatchLap => planner
+            .stopwatch
+            .as_mut()
+            .is_some_and(|stopwatch| stopwatch.undo_lap()),
+        PlannerCommand::ClearStopwatchLaps => planner
+            .stopwatch
+            .as_mut()
+            .is_some_and(|stopwatch| stopwatch.clear_laps()),
     }
 }
 

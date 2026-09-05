@@ -26,6 +26,14 @@ export struct PlannerAlarmData {
     enabled: bool,
 }
 
+export struct StopwatchLapData {
+    number: int,
+    total: string,
+    split: string,
+    fastest: bool,
+    slowest: bool,
+}
+
 component TimeSegmentField inherits Rectangle {
     in property <length> text-offset: 0px;
     in property <string> label;
@@ -60,6 +68,9 @@ component TimeSegmentField inherits Rectangle {
 }
 
 export component PlannerWindow inherits Window {
+    in property <[StopwatchLapData]> stopwatch-laps;
+    in property <bool> stopwatch-has-data: false;
+    private property <bool> confirm-stopwatch-reset: false;
     in property <[PlannerTaskData]> completed-tasks;
     in property <int> completed-task-count: 0;
     in-out property <bool> show-completed-tasks: false;
@@ -91,8 +102,8 @@ export component PlannerWindow inherits Window {
     callback request-edit-timer-part(int, string);
     title: "OziClock Planner"; no-frame: true;
     preferred-width: 900px; preferred-height: 780px; min-width: 900px; min-height: 780px; background: transparent;
-    in property <color> accent: #77d7cb; in property <float> corner-radius: 12; in-out property <int> selected-view: 0; in-out property <int> selected-section: 0; in property <int> task-count: 0; in property <[PlannerTaskData]> tasks; in property <[PlannerTimerData]> timers; in property <[PlannerAlarmData]> alarms; in property <string> stopwatch-time: "00:00:00"; in property <string> stopwatch-milliseconds: ".00"; in property <bool> stopwatch-running: false; in property <[string]> stopwatch-laps; in-out property <string> task-draft: ""; in-out property <string> timer-days-draft: "0"; in-out property <string> timer-hours-draft: "0"; in-out property <string> timer-minutes-draft: "5"; in-out property <string> timer-seconds-draft: "0"; in-out property <string> alarm-title-draft: "Alarm"; private property <string> alarm-time-draft: root.alarm-hours-draft + ":" + root.alarm-minutes-draft; in-out property <bool> alarm-weekly: false; in-out property <bool> alarm-mon: true; in-out property <bool> alarm-tue: true; in-out property <bool> alarm-wed: true; in-out property <bool> alarm-thu: true; in-out property <bool> alarm-fri: true; in-out property <bool> alarm-sat: false; in-out property <bool> alarm-sun: false;
-    callback request-close(); callback request-window-drag(); callback request-add-task(string); callback request-complete-task(string); callback request-reopen-task(string); callback request-archive-task(string); callback request-edit-task(string); callback request-delete-task(string); callback request-add-timer(string, string, string, string, string, bool); callback request-adjust-timer-part(int, int); callback request-toggle-timer(string); callback request-reset-timer(string); callback request-edit-timer(string); callback request-delete-timer(string); callback request-add-alarm(string, string, bool, bool, bool, bool, bool, bool, bool, bool); callback request-toggle-alarm(string, bool); callback request-toggle-stopwatch(); callback request-reset-stopwatch(); callback request-stopwatch-lap();
+    in property <color> accent: #77d7cb; in property <float> corner-radius: 12; in-out property <int> selected-view: 0; in-out property <int> selected-section: 0; in property <int> task-count: 0; in property <[PlannerTaskData]> tasks; in property <[PlannerTimerData]> timers; in property <[PlannerAlarmData]> alarms; in property <string> stopwatch-time: "00:00:00"; in property <string> stopwatch-milliseconds: ".00"; in property <bool> stopwatch-running: false; in-out property <string> task-draft: ""; in-out property <string> timer-days-draft: "0"; in-out property <string> timer-hours-draft: "0"; in-out property <string> timer-minutes-draft: "5"; in-out property <string> timer-seconds-draft: "0"; in-out property <string> alarm-title-draft: "Alarm"; private property <string> alarm-time-draft: root.alarm-hours-draft + ":" + root.alarm-minutes-draft; in-out property <bool> alarm-weekly: false; in-out property <bool> alarm-mon: true; in-out property <bool> alarm-tue: true; in-out property <bool> alarm-wed: true; in-out property <bool> alarm-thu: true; in-out property <bool> alarm-fri: true; in-out property <bool> alarm-sat: false; in-out property <bool> alarm-sun: false;
+    callback request-close(); callback request-window-drag(); callback request-add-task(string); callback request-complete-task(string); callback request-reopen-task(string); callback request-archive-task(string); callback request-edit-task(string); callback request-delete-task(string); callback request-add-timer(string, string, string, string, string, bool); callback request-adjust-timer-part(int, int); callback request-toggle-timer(string); callback request-reset-timer(string); callback request-edit-timer(string); callback request-delete-timer(string); callback request-add-alarm(string, string, bool, bool, bool, bool, bool, bool, bool, bool); callback request-toggle-alarm(string, bool); callback request-toggle-stopwatch(); callback request-reset-stopwatch(); callback request-stopwatch-lap(); callback request-undo-stopwatch-lap(); callback request-clear-stopwatch-laps();
     Rectangle { width: parent.width; height: parent.height; border-radius: root.corner-radius * 1px; background: #171d1f; border-width: 1px; border-color: #344144; clip: true;
         // Background hit target stays behind all interactive children.
         // Leave the outer edge available for native window resizing.
@@ -192,12 +203,20 @@ export component PlannerWindow inherits Window {
                 if root.selected-section == 3 : Rectangle { vertical-stretch: 1; border-radius: 8px; background: #1b2325; border-width: 1px; border-color: #344144;
                     Text { x: (parent.width - 362px) / 2; y: 42px; width: 270px; height: 88px; text: root.stopwatch-time; color: root.accent; font-size: 58px; font-weight: 700; horizontal-alignment: right; vertical-alignment: bottom; }
                     Text { x: (parent.width - 362px) / 2 + 275px; y: 34px; width: 87px; height: 88px; text: root.stopwatch-milliseconds; color: root.accent; font-size: 29px; font-weight: 700; vertical-alignment: bottom; }
-                    HorizontalLayout { x: 0px; y: 154px; width: parent.width; height: 36px; spacing: 8px; padding-left: (parent.width - 226px) / 2; padding-right: (parent.width - 226px) / 2;
+                    HorizontalLayout { x: 0px; y: 154px; width: parent.width; height: 36px; spacing: 8px; padding-left: (parent.width - 354px) / 2; padding-right: (parent.width - 354px) / 2;
                         Rectangle { width: 92px; border-radius: 6px; background: root.accent; Text { width: parent.width; height: parent.height; text: root.stopwatch-running ? "Pause" : "Start"; horizontal-alignment: center; vertical-alignment: center; color: #082725; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-toggle-stopwatch(); } } }
-                        Rectangle { width: 58px; border-radius: 6px; background: #344144; Text { width: parent.width; height: parent.height; text: "Lap"; horizontal-alignment: center; vertical-alignment: center; color: #dce8e5; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-stopwatch-lap(); } } }
-                        Rectangle { width: 60px; border-radius: 6px; background: #344144; Text { width: parent.width; height: parent.height; text: "Reset"; horizontal-alignment: center; vertical-alignment: center; color: #dce8e5; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-reset-stopwatch(); } } }
+                        Rectangle { width: 58px; border-radius: 6px; background: root.stopwatch-running ? #344144 : #252d2f; Text { width: parent.width; height: parent.height; text: "Lap"; horizontal-alignment: center; vertical-alignment: center; color: root.stopwatch-running ? #dce8e5 : #60716f; font-size: 12px; font-weight: 700; } TouchArea { enabled: root.stopwatch-running; clicked => { root.request-stopwatch-lap(); } } }
+                        Rectangle { width: 58px; border-radius: 6px; background: root.stopwatch-laps.length > 0 ? #344144 : #252d2f; Text { width: parent.width; height: parent.height; text: "Undo"; horizontal-alignment: center; vertical-alignment: center; color: root.stopwatch-laps.length > 0 ? #dce8e5 : #60716f; font-size: 12px; } TouchArea { enabled: root.stopwatch-laps.length > 0; clicked => { root.request-undo-stopwatch-lap(); } } }
+                        Rectangle { width: 62px; border-radius: 6px; background: root.stopwatch-laps.length > 0 ? #344144 : #252d2f; Text { width: parent.width; height: parent.height; text: "Clear"; horizontal-alignment: center; vertical-alignment: center; color: root.stopwatch-laps.length > 0 ? #dce8e5 : #60716f; font-size: 12px; } TouchArea { enabled: root.stopwatch-laps.length > 0; clicked => { root.request-clear-stopwatch-laps(); } } }
+                        Rectangle { width: 60px; border-radius: 6px; background: root.stopwatch-has-data ? #344144 : #252d2f; Text { width: parent.width; height: parent.height; text: "Reset"; horizontal-alignment: center; vertical-alignment: center; color: root.stopwatch-has-data ? #dce8e5 : #60716f; font-size: 12px; font-weight: 700; } TouchArea { enabled: root.stopwatch-has-data; clicked => { root.confirm-stopwatch-reset = true; } } }
                     }
-                    ScrollView { x: 14px; y: 214px; width: parent.width - 28px; height: parent.height - 228px; viewport-width: self.width; viewport-height: root.stopwatch-laps.length * 32px; horizontal-scrollbar-policy: ScrollBarPolicy.always-off; vertical-scrollbar-policy: ScrollBarPolicy.as-needed; for lap[index] in root.stopwatch-laps: Text { y: index * 32px; width: parent.width - 12px; height: 28px; text: "Lap " + (index + 1) + "     " + lap; color: #b5c4c1; font-size: 13px; vertical-alignment: center; } }
+                    Text { x: 14px; y: 206px; width: parent.width - 42px; height: 24px; text: "Lap                         Split                         Total"; color: #718280; font-size: 11px; vertical-alignment: center; }
+                    ScrollView { x: 14px; y: 232px; width: parent.width - 28px; height: parent.height - 246px; viewport-width: self.width; viewport-height: root.stopwatch-laps.length * 36px; horizontal-scrollbar-policy: ScrollBarPolicy.always-off; vertical-scrollbar-policy: ScrollBarPolicy.as-needed; for lap[index] in root.stopwatch-laps: Rectangle { y: index * 36px; width: parent.width - 14px; height: 30px; border-radius: 5px; background: lap.fastest ? #223b37 : lap.slowest ? #3a292b : #20292b;
+                            Text { x: 10px; width: 60px; height: parent.height; text: "#" + lap.number; color: #aab9b7; font-size: 13px; vertical-alignment: center; }
+                            Text { x: 80px; width: 120px; height: parent.height; text: lap.split; color: lap.fastest ? root.accent : lap.slowest ? #d96d74 : #d7e2df; font-size: 13px; font-weight: lap.fastest || lap.slowest ? 700 : 400; vertical-alignment: center; }
+                            Text { x: 220px; width: parent.width - 230px; height: parent.height; text: lap.total; color: #aab9b7; font-size: 13px; vertical-alignment: center; }
+                        } }
+                    Text { x: 14px; y: 238px; visible: root.stopwatch-laps.length == 0; text: "Record a lap while the stopwatch is running."; color: #718280; font-size: 13px; }
                 }
                 if root.selected-section == 0 : Rectangle { height: 92px; border-radius: 8px; background: #1b2325; border-width: 1px; border-color: #344144; clip: true; VerticalLayout { padding: 8px; spacing: 3px; Text { text: "Unscheduled tasks"; color: #e0eae8; font-size: 12px; font-weight: 700; } for task[index] in root.tasks: Text { visible: index < 3; text: "• " + task.title; color: #b5c4c1; font-size: 12px; } Text { visible: root.tasks.length == 0; text: "No open tasks"; color: #718280; font-size: 12px; } } }
                 if root.selected-section == 0 : HorizontalLayout { height: 34px; spacing: 8px;
@@ -315,6 +334,18 @@ export component PlannerWindow inherits Window {
                 Text { text: "Delete " + root.task-menu-title + "?"; color: #e1eae8; font-size: 16px; overflow: elide; }
                 Rectangle { height: 32px; background: #344144; Text { text: "Cancel"; color: #e1eae8; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; } TouchArea { clicked => { root.menu-task = ""; } } }
                 Rectangle { height: 32px; Text { text: "Delete"; color: #d96d74; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; } TouchArea { clicked => { root.request-delete-task(root.menu-task); root.menu-task = ""; } } }
+            }
+        }
+    }
+    if root.confirm-stopwatch-reset : Rectangle {
+        width: parent.width; height: parent.height; background: #00000088;
+        TouchArea { clicked => { root.confirm-stopwatch-reset = false; } }
+        Rectangle { width: 320px; height: 180px; background: #20292b; border-radius: 8px;
+            TouchArea {}
+            VerticalLayout { padding: 18px; spacing: 10px;
+                Text { text: "Reset stopwatch and all laps?"; color: #e1eae8; font-size: 16px; }
+                Rectangle { height: 32px; background: #344144; Text { text: "Cancel"; color: #e1eae8; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; } TouchArea { clicked => { root.confirm-stopwatch-reset = false; } } }
+                Rectangle { height: 32px; Text { text: "Reset"; color: #d96d74; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; } TouchArea { clicked => { root.request-reset-stopwatch(); root.confirm-stopwatch-reset = false; } } }
             }
         }
     }

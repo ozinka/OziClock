@@ -322,6 +322,8 @@ pub struct Stopwatch {
     #[cfg_attr(feature = "serde", serde(default))]
     pub elapsed_milliseconds: u16,
     pub laps_seconds: Vec<u64>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub laps_milliseconds: Vec<u64>,
 }
 
 impl Stopwatch {
@@ -354,13 +356,38 @@ impl Stopwatch {
         self.elapsed_seconds = 0;
         self.elapsed_milliseconds = 0;
         self.laps_seconds.clear();
+        self.laps_milliseconds.clear();
     }
 
-    pub fn record_lap(&mut self, elapsed_seconds: u64) -> bool {
+    pub fn record_lap(&mut self, elapsed_milliseconds: u64) -> bool {
         if self.state != StopwatchState::Running {
             return false;
         }
-        self.laps_seconds.push(elapsed_seconds);
+        if self.laps_milliseconds.is_empty() && !self.laps_seconds.is_empty() {
+            self.laps_milliseconds = self
+                .laps_seconds
+                .iter()
+                .map(|seconds| seconds.saturating_mul(1_000))
+                .collect();
+            self.laps_seconds.clear();
+        }
+        self.laps_milliseconds.push(elapsed_milliseconds);
+        true
+    }
+
+    pub fn undo_lap(&mut self) -> bool {
+        if self.laps_milliseconds.pop().is_some() {
+            return true;
+        }
+        self.laps_seconds.pop().is_some()
+    }
+
+    pub fn clear_laps(&mut self) -> bool {
+        if self.laps_seconds.is_empty() && self.laps_milliseconds.is_empty() {
+            return false;
+        }
+        self.laps_seconds.clear();
+        self.laps_milliseconds.clear();
         true
     }
 }
@@ -437,10 +464,19 @@ mod tests {
             elapsed_seconds: 0,
             elapsed_milliseconds: 0,
             laps_seconds: vec![],
+            laps_milliseconds: vec![],
         };
 
         assert!(stopwatch.pause(12_345));
         assert_eq!(stopwatch.elapsed_seconds, 12);
         assert_eq!(stopwatch.elapsed_milliseconds, 345);
+        assert!(stopwatch.start());
+        assert!(stopwatch.record_lap(12_789));
+        assert_eq!(stopwatch.laps_milliseconds, vec![12_789]);
+        assert!(stopwatch.undo_lap());
+        assert!(stopwatch.laps_milliseconds.is_empty());
+        assert!(stopwatch.record_lap(13_000));
+        assert!(stopwatch.clear_laps());
+        assert!(stopwatch.laps_milliseconds.is_empty());
     }
 }

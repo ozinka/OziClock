@@ -181,6 +181,19 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **TSK-09:** Open and completed tasks expose Delete through the shared trash icon and require confirmation before permanent removal.
 - **TSK-10:** Create, rename, complete, reopen, archive, and delete save the new Planner state before replacing the in-memory state and visible models. A save failure preserves the prior task collection.
 
+## Planner Stopwatch
+
+- **SW-01:** Lap capture persists the cumulative elapsed time to millisecond precision and displays hundredths. Existing whole-second lap data remains readable and migrates when the next lap is recorded.
+- **SW-02:** Each lap row shows both its cumulative Total and its Split since the preceding lap; the first split starts at zero.
+- **SW-03:** Lap rows retain stable sequence numbers and show the newest lap first so the latest result stays visible without scrolling.
+- **SW-04:** With at least two unequal splits, every fastest split is emphasized with the Planner accent and a subtle positive background.
+- **SW-05:** With at least two unequal splits, every slowest split is emphasized in red with a subtle warning background. Equal splits remain neutral rather than being both fastest and slowest.
+- **SW-06:** Undo removes only the latest recorded lap without changing elapsed time or the running/paused state, and is disabled when no laps exist.
+- **SW-07:** Clear removes all lap history without resetting elapsed time or changing the running/paused state, and is disabled when no laps exist.
+- **SW-08:** Lap is enabled only while the stopwatch is running. Reset is enabled only when elapsed time or lap history exists; disabled actions use visibly muted styling.
+- **SW-09:** Reset requires confirmation and clears elapsed time and every lap only after confirmation. Cancel and backdrop dismissal preserve the session.
+- **SW-10:** Stopwatch and lap formatting supports sessions beyond 24 hours using a day prefix while preserving H:M:S and hundredths for laps.
+
 ## Cross-Platform Quality Requirements
 
 - **NFR-01:** Support current Windows, macOS, and mainstream Linux desktop releases.

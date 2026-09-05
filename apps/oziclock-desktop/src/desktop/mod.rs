@@ -1055,6 +1055,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 elapsed_seconds: 0,
                 elapsed_milliseconds: 0,
                 laps_seconds: vec![],
+                laps_milliseconds: vec![],
             });
         }
         let elapsed_milliseconds =
@@ -1105,10 +1106,13 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let laps_for_stopwatch_lap = stopwatch_lap_model.clone();
     planner_window.on_request_stopwatch_lap(move || {
         let mut settings = settings_for_stopwatch_lap.borrow_mut();
-        let elapsed_seconds = stopwatch_elapsed_seconds(&settings, started_for_stopwatch_lap.get());
+        let elapsed_milliseconds =
+            stopwatch_elapsed_milliseconds(&settings, started_for_stopwatch_lap.get()) as u64;
         if execute_planner_command(
             &mut settings.planner,
-            PlannerCommand::RecordStopwatchLap { elapsed_seconds },
+            PlannerCommand::RecordStopwatchLap {
+                elapsed_milliseconds,
+            },
         ) {
             let _ = oziclock_storage::save(&settings);
             if let Some(planner) = stopwatch_for_lap.upgrade() {
@@ -1117,6 +1121,48 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                     &settings,
                     started_for_stopwatch_lap.get(),
                     &laps_for_stopwatch_lap,
+                );
+            }
+        }
+    });
+    let stopwatch_for_undo = planner_window.as_weak();
+    let settings_for_stopwatch_undo = shared_settings.clone();
+    let started_for_stopwatch_undo = stopwatch_started_at.clone();
+    let laps_for_stopwatch_undo = stopwatch_lap_model.clone();
+    planner_window.on_request_undo_stopwatch_lap(move || {
+        let mut settings = settings_for_stopwatch_undo.borrow_mut();
+        let mut updated = settings.clone();
+        if execute_planner_command(&mut updated.planner, PlannerCommand::UndoStopwatchLap)
+            && oziclock_storage::save(&updated).is_ok()
+        {
+            *settings = updated;
+            if let Some(planner) = stopwatch_for_undo.upgrade() {
+                refresh_stopwatch_ui(
+                    &planner,
+                    &settings,
+                    started_for_stopwatch_undo.get(),
+                    &laps_for_stopwatch_undo,
+                );
+            }
+        }
+    });
+    let stopwatch_for_clear = planner_window.as_weak();
+    let settings_for_stopwatch_clear = shared_settings.clone();
+    let started_for_stopwatch_clear = stopwatch_started_at.clone();
+    let laps_for_stopwatch_clear = stopwatch_lap_model.clone();
+    planner_window.on_request_clear_stopwatch_laps(move || {
+        let mut settings = settings_for_stopwatch_clear.borrow_mut();
+        let mut updated = settings.clone();
+        if execute_planner_command(&mut updated.planner, PlannerCommand::ClearStopwatchLaps)
+            && oziclock_storage::save(&updated).is_ok()
+        {
+            *settings = updated;
+            if let Some(planner) = stopwatch_for_clear.upgrade() {
+                refresh_stopwatch_ui(
+                    &planner,
+                    &settings,
+                    started_for_stopwatch_clear.get(),
+                    &laps_for_stopwatch_clear,
                 );
             }
         }
@@ -3299,19 +3345,6 @@ fn schedule_planner_timer_refresh(
     });
 }
 
-fn stopwatch_elapsed_seconds(settings: &AppSettings, started_at: Option<Instant>) -> u64 {
-    let elapsed_seconds = settings
-        .planner
-        .stopwatch
-        .as_ref()
-        .map_or(0, |stopwatch| stopwatch.elapsed_seconds);
-    elapsed_seconds.saturating_add(
-        started_at
-            .map(|started_at| started_at.elapsed().as_secs())
-            .unwrap_or(0),
-    )
-}
-
 fn stopwatch_elapsed_milliseconds(settings: &AppSettings, started_at: Option<Instant>) -> u128 {
     settings.planner.stopwatch.as_ref().map_or(0, |stopwatch| {
         u128::from(stopwatch.elapsed_seconds) * 1_000 + u128::from(stopwatch.elapsed_milliseconds)
@@ -3322,35 +3355,86 @@ fn stopwatch_elapsed_milliseconds(settings: &AppSettings, started_at: Option<Ins
 
 fn format_stopwatch(milliseconds: u128) -> (String, String) {
     let total_seconds = milliseconds / 1_000;
-    let hours = total_seconds / 3_600;
+    let days = total_seconds / 86_400;
+    let hours = total_seconds % 86_400 / 3_600;
     let minutes = (total_seconds % 3_600) / 60;
     let seconds = total_seconds % 60;
     (
-        format!("{hours:02}:{minutes:02}:{seconds:02}"),
+        if days > 0 {
+            format!("{days}d {hours:02}:{minutes:02}:{seconds:02}")
+        } else {
+            format!("{hours:02}:{minutes:02}:{seconds:02}")
+        },
         format!(".{:02}", (milliseconds % 1_000) / 10),
     )
 }
 
-fn stopwatch_lap_rows(settings: &AppSettings) -> Vec<slint::SharedString> {
-    settings
-        .planner
-        .stopwatch
-        .as_ref()
-        .map(|stopwatch| {
-            stopwatch
-                .laps_seconds
-                .iter()
-                .map(|seconds| format_duration(*seconds).into())
-                .collect()
+fn format_lap(milliseconds: u64) -> String {
+    let total_seconds = milliseconds / 1_000;
+    let days = total_seconds / 86_400;
+    let hours = total_seconds % 86_400 / 3_600;
+    let minutes = total_seconds % 3_600 / 60;
+    let seconds = total_seconds % 60;
+    let centiseconds = milliseconds % 1_000 / 10;
+    if days > 0 {
+        format!("{days}d {hours:02}:{minutes:02}:{seconds:02}.{centiseconds:02}")
+    } else {
+        format!("{hours:02}:{minutes:02}:{seconds:02}.{centiseconds:02}")
+    }
+}
+
+fn stopwatch_lap_rows(settings: &AppSettings) -> Vec<StopwatchLapData> {
+    let Some(stopwatch) = settings.planner.stopwatch.as_ref() else {
+        return Vec::new();
+    };
+    stopwatch_lap_rows_from(stopwatch)
+}
+
+fn stopwatch_lap_rows_from(stopwatch: &Stopwatch) -> Vec<StopwatchLapData> {
+    let totals = if stopwatch.laps_milliseconds.is_empty() {
+        stopwatch
+            .laps_seconds
+            .iter()
+            .map(|seconds| seconds.saturating_mul(1_000))
+            .collect::<Vec<_>>()
+    } else {
+        stopwatch.laps_milliseconds.clone()
+    };
+    let splits = totals
+        .iter()
+        .scan(0_u64, |previous, total| {
+            let split = total.saturating_sub(*previous);
+            *previous = *total;
+            Some(split)
         })
-        .unwrap_or_default()
+        .collect::<Vec<_>>();
+    let fastest = (splits.len() > 1)
+        .then(|| splits.iter().copied().min())
+        .flatten();
+    let slowest = (splits.len() > 1)
+        .then(|| splits.iter().copied().max())
+        .flatten();
+    let distinguish_extremes = fastest != slowest;
+    totals
+        .iter()
+        .zip(splits.iter())
+        .enumerate()
+        .rev()
+        .map(|(index, (total, split))| StopwatchLapData {
+            number: (index + 1) as i32,
+            total: format_lap(*total).into(),
+            split: format_lap(*split).into(),
+            fastest: distinguish_extremes && Some(*split) == fastest,
+            slowest: distinguish_extremes && Some(*split) == slowest,
+        })
+        .collect()
 }
 
 fn refresh_stopwatch_ui(
     planner: &PlannerWindow,
     settings: &AppSettings,
     started_at: Option<Instant>,
-    lap_model: &VecModel<slint::SharedString>,
+    lap_model: &VecModel<StopwatchLapData>,
 ) {
     let (time, milliseconds) =
         format_stopwatch(stopwatch_elapsed_milliseconds(settings, started_at));
@@ -3363,6 +3447,10 @@ fn refresh_stopwatch_ui(
             .as_ref()
             .is_some_and(|stopwatch| stopwatch.state == StopwatchState::Running),
     );
+    planner.set_stopwatch_has_data(
+        stopwatch_elapsed_milliseconds(settings, started_at) > 0
+            || !stopwatch_lap_rows(settings).is_empty(),
+    );
     lap_model.set_vec(stopwatch_lap_rows(settings));
 }
 
@@ -3371,7 +3459,7 @@ fn schedule_stopwatch_refresh(
     planner: slint::Weak<PlannerWindow>,
     settings: Rc<RefCell<AppSettings>>,
     started_at: Rc<Cell<Option<Instant>>>,
-    lap_model: Rc<VecModel<slint::SharedString>>,
+    lap_model: Rc<VecModel<StopwatchLapData>>,
 ) {
     let next_timer = timer.clone();
     let next_planner = planner.clone();
@@ -3726,5 +3814,29 @@ mod timer_editor_tests {
         assert_eq!(format_timer_duration(300), "05:00");
         assert_eq!(format_timer_duration(3_661), "01:01:01");
         assert_eq!(format_timer_duration(90_061), "1d 01:01:01");
+    }
+
+    #[test]
+    fn stopwatch_laps_keep_centiseconds_splits_and_extremes() {
+        let stopwatch = Stopwatch {
+            state: StopwatchState::Paused,
+            elapsed_seconds: 10,
+            elapsed_milliseconds: 0,
+            laps_seconds: vec![],
+            laps_milliseconds: vec![1_250, 3_750, 5_000],
+        };
+        let rows = stopwatch_lap_rows_from(&stopwatch);
+        assert_eq!(rows[0].number, 3);
+        assert_eq!(rows[0].split.as_str(), "00:00:01.25");
+        assert!(rows[0].fastest);
+        assert_eq!(rows[1].split.as_str(), "00:00:02.50");
+        assert!(rows[1].slowest);
+        assert_eq!(rows[2].total.as_str(), "00:00:01.25");
+    }
+
+    #[test]
+    fn stopwatch_format_supports_sessions_longer_than_a_day() {
+        assert_eq!(format_stopwatch(90_061_230).0, "1d 01:01:01");
+        assert_eq!(format_lap(90_061_230), "1d 01:01:01.23");
     }
 }
