@@ -4,6 +4,7 @@ export component AlarmAttentionWindow inherits Window {
     in property <string> alarm-time: "";
     in-out property <bool> pulse: false;
     callback request-dismiss();
+    callback request-snooze();
     title: "OziClock Alarm";
     no-frame: true;
     always-on-top: true;
@@ -14,7 +15,11 @@ export component AlarmAttentionWindow inherits Window {
         animate border-width { duration: 450ms; easing: ease-in-out; }
         Text { x: 18px; y: 15px; width: parent.width - 36px; height: 25px; text: root.alarm-title; color: #e1eae8; font-size: 18px; font-weight: 700; overflow: elide; }
         Text { x: 18px; y: 44px; width: parent.width - 36px; height: 22px; text: root.alarm-time; color: root.accent; font-size: 16px; }
-        Rectangle { x: 18px; y: 78px; width: parent.width - 36px; height: 34px; background: root.accent; border-radius: 6px;
+        Rectangle { x: 18px; y: 78px; width: (parent.width - 44px) / 2; height: 34px; background: #344144; border-radius: 6px;
+            Text { y: 2px; width: parent.width; height: parent.height; text: "Snooze 5 min"; color: #dce8e5; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+            TouchArea { clicked => { root.request-snooze(); } }
+        }
+        Rectangle { x: 26px + (parent.width - 44px) / 2; y: 78px; width: (parent.width - 44px) / 2; height: 34px; background: root.accent; border-radius: 6px;
             Text { y: 2px; width: parent.width; height: parent.height; text: "Dismiss"; color: #082725; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
             TouchArea { clicked => { root.request-dismiss(); } }
         }

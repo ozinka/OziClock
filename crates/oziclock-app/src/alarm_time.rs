@@ -1,7 +1,69 @@
 //! Wall-clock alarm resolution, independent of the system clock.
 use chrono::{DateTime, Duration, LocalResult, NaiveDate, NaiveTime, TimeZone, Utc};
 use chrono_tz::Tz;
-use oziclock_domain::{Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, Planner};
+use oziclock_domain::{
+    Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AlarmSnooze, Planner, PlannerId,
+};
+
+pub fn snooze(planner: &mut Planner, alarm_id: &PlannerId, now: DateTime<Utc>) -> bool {
+    if !planner.alarms.iter().any(|alarm| &alarm.id == alarm_id) {
+        return false;
+    }
+    let due_utc = (now + Duration::minutes(5)).to_rfc3339();
+    if let Some(existing) = planner
+        .alarm_snoozes
+        .iter_mut()
+        .find(|snooze| &snooze.alarm_id == alarm_id)
+    {
+        existing.due_utc = due_utc;
+    } else {
+        planner.alarm_snoozes.push(AlarmSnooze {
+            alarm_id: alarm_id.clone(),
+            due_utc,
+        });
+    }
+    true
+}
+
+pub fn reconcile_snoozes(
+    planner: &mut Planner,
+    now: DateTime<Utc>,
+    delivery_grace: Duration,
+) -> Vec<AlarmReceipt> {
+    let mut retained = vec![];
+    let mut added = vec![];
+    for snooze in std::mem::take(&mut planner.alarm_snoozes) {
+        let Some(due) = DateTime::parse_from_rfc3339(&snooze.due_utc)
+            .ok()
+            .map(|value| value.with_timezone(&Utc))
+        else {
+            continue;
+        };
+        if due > now {
+            retained.push(snooze);
+            continue;
+        }
+        let receipt = AlarmReceipt {
+            alarm_id: snooze.alarm_id,
+            occurrence_utc: due.to_rfc3339(),
+            status: if now - due <= delivery_grace {
+                AlarmOccurrenceStatus::Delivered
+            } else {
+                AlarmOccurrenceStatus::Missed
+            },
+            recorded_at_utc: now.to_rfc3339(),
+        };
+        if !planner.alarm_receipts.iter().any(|existing| {
+            existing.alarm_id == receipt.alarm_id
+                && existing.occurrence_utc == receipt.occurrence_utc
+        }) {
+            planner.alarm_receipts.push(receipt.clone());
+            added.push(receipt);
+        }
+    }
+    planner.alarm_snoozes = retained;
+    added
+}
 
 /// Re-enabling a Once alarm schedules a fresh occurrence in its saved zone.
 pub fn set_enabled(alarm: &mut Alarm, enabled: bool, now: DateTime<Utc>) -> bool {
@@ -96,6 +158,39 @@ pub fn next_occurrence(alarm: &Alarm, now: DateTime<Utc>) -> Option<DateTime<Utc
             weekdays,
         } => next_weekly(local_time, weekdays, &alarm.time_zone, now),
     }
+}
+
+/// Editing a handled Once alarm schedules a new active occurrence, while a
+/// manually disabled alarm remains disabled.
+pub fn enabled_after_edit(alarm: &Alarm, receipts: &[AlarmReceipt]) -> bool {
+    if alarm.enabled {
+        return true;
+    }
+    let AlarmSchedule::Once {
+        local_date,
+        local_time,
+    } = &alarm.schedule
+    else {
+        return false;
+    };
+    let Some(occurrence) = NaiveDate::parse_from_str(local_date, "%Y-%m-%d")
+        .ok()
+        .zip(NaiveTime::parse_from_str(local_time, "%H:%M").ok())
+        .and_then(|(date, time)| {
+            alarm
+                .time_zone
+                .parse::<Tz>()
+                .ok()
+                .and_then(|zone| resolve(date, time, zone))
+        })
+    else {
+        return false;
+    };
+    receipts.iter().any(|receipt| {
+        receipt.alarm_id == alarm.id
+            && DateTime::parse_from_rfc3339(&receipt.occurrence_utc)
+                .is_ok_and(|recorded| recorded.with_timezone(&Utc) == occurrence)
+    })
 }
 
 /// Return enabled alarm occurrences in `(after, through]` without mutating storage.
@@ -343,6 +438,59 @@ mod tests {
     }
 
     #[test]
+    fn snooze_replaces_deadline_and_reconciles_once() {
+        let id = oziclock_domain::PlannerId::new("a").unwrap();
+        let mut planner = Planner::default();
+        planner.alarms.push(Alarm {
+            id: id.clone(),
+            title: "Alarm".into(),
+            enabled: false,
+            time_zone: "UTC".into(),
+            schedule: AlarmSchedule::Once {
+                local_date: "2026-09-05".into(),
+                local_time: "09:00".into(),
+            },
+        });
+        let first = utc("2026-09-05T09:00:00Z");
+        assert!(snooze(&mut planner, &id, first));
+        assert!(snooze(&mut planner, &id, first + Duration::minutes(1)));
+        assert_eq!(planner.alarm_snoozes.len(), 1);
+        assert!(
+            reconcile_snoozes(
+                &mut planner,
+                first + Duration::minutes(5),
+                Duration::minutes(5)
+            )
+            .is_empty()
+        );
+        let due = reconcile_snoozes(
+            &mut planner,
+            first + Duration::minutes(6),
+            Duration::minutes(5),
+        );
+        assert_eq!(due.len(), 1);
+        assert_eq!(due[0].status, AlarmOccurrenceStatus::Delivered);
+        assert!(planner.alarm_snoozes.is_empty());
+        assert!(
+            reconcile_snoozes(
+                &mut planner,
+                first + Duration::minutes(7),
+                Duration::minutes(5)
+            )
+            .is_empty()
+        );
+    }
+
+    #[test]
+    fn snooze_rejects_missing_alarm() {
+        assert!(!snooze(
+            &mut Planner::default(),
+            &oziclock_domain::PlannerId::new("missing").unwrap(),
+            utc("2026-09-05T09:00:00Z")
+        ));
+    }
+
+    #[test]
     fn rearming_once_updates_date_but_disabling_does_not() {
         let mut alarm = Alarm {
             id: oziclock_domain::PlannerId::new("a").unwrap(),
@@ -367,5 +515,36 @@ mod tests {
             }
         );
         assert!(alarm.enabled);
+    }
+
+    #[test]
+    fn editing_only_reenables_a_once_alarm_that_was_handled() {
+        let id = oziclock_domain::PlannerId::new("a").unwrap();
+        let once = Alarm {
+            id: id.clone(),
+            title: "Alarm".into(),
+            enabled: false,
+            time_zone: "Europe/Kyiv".into(),
+            schedule: AlarmSchedule::Once {
+                local_date: "2026-09-05".into(),
+                local_time: "12:00".into(),
+            },
+        };
+        let receipt = AlarmReceipt {
+            alarm_id: id,
+            occurrence_utc: "2026-09-05T09:00:00Z".into(),
+            status: AlarmOccurrenceStatus::Delivered,
+            recorded_at_utc: "2026-09-05T09:00:01Z".into(),
+        };
+
+        assert!(!enabled_after_edit(&once, &[]));
+        assert!(enabled_after_edit(&once, std::slice::from_ref(&receipt)));
+
+        let mut weekly = once;
+        weekly.schedule = AlarmSchedule::Weekly {
+            local_time: "12:00".into(),
+            weekdays: vec![5],
+        };
+        assert!(!enabled_after_edit(&weekly, &[receipt]));
     }
 }

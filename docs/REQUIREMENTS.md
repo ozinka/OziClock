@@ -94,6 +94,12 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 
 ## Auxiliary Windows and Interaction
 
+- **ALM-18:** Alarm occurrence history is retained for 30 days based on each receipt's recorded UTC time. The exact 30-day boundary remains available; older valid receipts are pruned before scheduler persistence. A malformed timestamp is retained rather than silently deleting data.
+
+- **ALM-17:** Each saved alarm card shows the latest persisted occurrence result: Delivered in the Planner accent or Missed in red. The latest result is selected by recorded UTC time and remains visible across restart. Alarms without receipts show no status. This is history feedback and does not replace On/Off.
+
+- **ALM-16:** The local alarm card offers Snooze 5 min and Dismiss. Snooze stores one replacement UTC deadline per alarm without changing its Once/Weekly rule; repeated snooze replaces that deadline. Snoozes survive restart, use the same five-minute delivery grace and receipt de-duplication, and may apply after Once has become Off. Snooze is committed before the attention card advances. Deleting an alarm deletes its pending snooze.
+
 - **ALM-15:** While the local alarm-attention card exists, only its accent border pulses smoothly between one and three pixels every 450ms. The surface, text and controls remain stable and fully readable; dismissing the final queued alarm hides the card.
 
 - **ALM-14:** On each transition into Alarms, when no existing alarm is being edited, initialize the new-alarm H:M from the current time in the main clock zone: round strictly upward to the next five-minute boundary when seconds are present (or retain an exact boundary), then add five minutes, wrapping midnight. Examples: 10:02:00 → 10:10, 10:05:00 → 10:10, 10:05:01 → 10:15, 23:58 → 00:05. Entering Alarms during editing preserves the alarm's stored time.
@@ -112,7 +118,7 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 
 - **ALM-07:** The alarm editor uses a fixed 403px left column so Once/Weekly follows Sun directly. The H:M editor remains in the middle. Add alarm/Save changes occupies the top of the flexible right column, with Cancel directly below only while editing. The edited saved-alarm card is identified by a two-pixel accent border.
 
-- **ALM-06:** Alarm cards open editing in the existing footer with Save changes and Cancel editing. Saving preserves identity, enabled state and saved zone, and recalculates Once's next date. A trailing shared trash icon (identical to Settings clock deletion) opens deletion confirmation directly; editing is available only through the card, without a duplicate menu action. Cancel does not change stored data. Re-enabling a disabled Once recalculates its next date in its saved zone. Completed/missed statuses are deferred until delivery exists. Save failures must not remove or overwrite in-memory alarms.
+- **ALM-06:** Alarm cards open editing in the existing footer with Save changes and Cancel editing. Saving preserves identity and saved zone and recalculates Once's next date. An enabled alarm remains enabled. A disabled Once whose current occurrence has a matching Delivered/Missed receipt is re-enabled when edited, creating a new future occurrence; a manually disabled alarm without that receipt and every disabled Weekly alarm remain disabled. A trailing shared trash icon (identical to Settings clock deletion) opens deletion confirmation directly; editing is available only through the card, without a duplicate menu action. Cancel does not change stored data. Re-enabling a disabled Once recalculates its next date in its saved zone. Save failures must not remove or overwrite in-memory alarms.
 
 - **ALM-05:** Creating a Once alarm without a date picker selects the next strictly future occurrence of the entered H:M in the main clock's IANA zone. A passed or equal time rolls to tomorrow, including month/year boundaries. DST gaps resolve to the first valid minute after the gap; overlaps use the earlier instant only. Store the requested local date/time and zone. This slice computes the occurrence but does not deliver notifications or sound.
 

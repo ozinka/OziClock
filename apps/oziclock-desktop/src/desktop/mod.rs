@@ -41,8 +41,8 @@ use oziclock_app::calendar::CalendarDate;
 use oziclock_app::planner::{PlannerCommand, execute_planner_command};
 use oziclock_app::{ClockCommand, execute_clock_command};
 use oziclock_storage::{
-    Alarm, AlarmOccurrenceStatus, AlarmSchedule, AppSettings, ClockSettings, PlannerId,
-    PlannerTimer, Stopwatch, StopwatchState, Task, TaskStatus, TimerState,
+    Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AppSettings, ClockSettings,
+    PlannerId, PlannerTimer, Stopwatch, StopwatchState, Task, TaskStatus, TimerState,
 };
 use slint::winit_030::EventResult;
 use slint::winit_030::WinitWindowAccessor;
@@ -433,7 +433,12 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 title: title.to_owned(),
                 schedule,
                 time_zone,
-                enabled: existing.as_ref().is_none_or(|a| a.enabled),
+                enabled: existing.as_ref().is_none_or(|alarm| {
+                    oziclock_app::alarm_time::enabled_after_edit(
+                        alarm,
+                        &settings.planner.alarm_receipts,
+                    )
+                }),
             };
             let mut updated = settings.clone();
             if let Some(item) = updated.planner.alarms.iter_mut().find(|a| a.id == alarm.id) {
@@ -487,6 +492,24 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             &owner_for_dismiss,
             &queue_for_dismiss,
         );
+    });
+    let queue_for_snooze = alarm_attention_queue.clone();
+    let settings_for_snooze = shared_settings.clone();
+    let attention_for_snooze = alarm_attention_window.as_weak();
+    let owner_for_snooze = window.as_weak();
+    alarm_attention_window.on_request_snooze(move || {
+        let Some(item) = queue_for_snooze.borrow().front().cloned() else {
+            return;
+        };
+        let mut settings = settings_for_snooze.borrow_mut();
+        let mut updated = settings.clone();
+        if oziclock_app::alarm_time::snooze(&mut updated.planner, &item.alarm_id, Utc::now())
+            && oziclock_storage::save(&updated).is_ok()
+        {
+            *settings = updated;
+            queue_for_snooze.borrow_mut().pop_front();
+            display_alarm_attention(&attention_for_snooze, &owner_for_snooze, &queue_for_snooze);
+        }
     });
     schedule_alarm_attention_pulse(Rc::new(Timer::default()), alarm_attention_window.as_weak());
     let alarm_scheduler_timer = Rc::new(Timer::default());
@@ -2434,12 +2457,24 @@ fn planner_alarm_rows(settings: &AppSettings) -> Vec<PlannerAlarmData> {
                 title: alarm.title.clone().into(),
                 schedule: schedule.into(),
                 time: time.into(),
+                status: alarm_status(&settings.planner.alarm_receipts, &alarm.id).into(),
                 weekly,
                 weekdays: ModelRc::from(weekdays.as_slice()),
                 enabled: alarm.enabled,
             }
         })
         .collect()
+}
+
+fn alarm_status(receipts: &[AlarmReceipt], alarm_id: &PlannerId) -> &'static str {
+    receipts
+        .iter()
+        .filter(|receipt| &receipt.alarm_id == alarm_id)
+        .max_by(|left, right| left.recorded_at_utc.cmp(&right.recorded_at_utc))
+        .map_or("", |receipt| match receipt.status {
+            AlarmOccurrenceStatus::Delivered => "Delivered",
+            AlarmOccurrenceStatus::Missed => "Missed",
+        })
 }
 
 fn alarm_schedule_label(schedule: &AlarmSchedule) -> String {
@@ -2590,6 +2625,7 @@ fn format_duration(total_seconds: u64) -> String {
 
 #[derive(Clone)]
 struct AlarmAttentionItem {
+    alarm_id: PlannerId,
     title: String,
     time: String,
 }
@@ -2660,12 +2696,18 @@ fn schedule_alarm_refresh(
             })
             .collect::<std::collections::HashMap<_, _>>();
         let mut updated = settings_guard.clone();
-        let receipts = oziclock_app::alarm_time::reconcile(
+        let mut receipts = oziclock_app::alarm_time::reconcile(
             &mut updated.planner,
             after,
             now,
             chrono::Duration::minutes(5),
         );
+        receipts.extend(oziclock_app::alarm_time::reconcile_snoozes(
+            &mut updated.planner,
+            now,
+            chrono::Duration::minutes(5),
+        ));
+        oziclock_storage::prune_alarm_receipts(&mut updated, now);
         if oziclock_storage::save(&updated).is_ok() {
             *settings_guard = updated;
             model.set_vec(planner_alarm_rows(&settings_guard));
@@ -2676,6 +2718,7 @@ fn schedule_alarm_refresh(
             {
                 if let Some((title, time)) = titles.get(&receipt.alarm_id) {
                     queue.borrow_mut().push_back(AlarmAttentionItem {
+                        alarm_id: receipt.alarm_id.clone(),
                         title: title.clone(),
                         time: time.clone(),
                     });
@@ -3066,6 +3109,40 @@ mod timer_editor_tests {
         assert_eq!(default_alarm_time(at("2026-09-05 10:05:00")), "10:10");
         assert_eq!(default_alarm_time(at("2026-09-05 10:05:01")), "10:15");
         assert_eq!(default_alarm_time(at("2026-09-05 23:58:00")), "00:05");
+    }
+
+    #[test]
+    fn alarm_status_uses_latest_receipt_for_that_alarm() {
+        let alarm_id = PlannerId::new("alarm").unwrap();
+        let other_id = PlannerId::new("other").unwrap();
+        let receipt = |id: PlannerId, recorded: &str, status: AlarmOccurrenceStatus| AlarmReceipt {
+            alarm_id: id,
+            occurrence_utc: recorded.into(),
+            status,
+            recorded_at_utc: recorded.into(),
+        };
+        let receipts = vec![
+            receipt(
+                alarm_id.clone(),
+                "2026-09-05T09:00:00+00:00",
+                AlarmOccurrenceStatus::Missed,
+            ),
+            receipt(
+                other_id,
+                "2026-09-05T11:00:00+00:00",
+                AlarmOccurrenceStatus::Missed,
+            ),
+            receipt(
+                alarm_id.clone(),
+                "2026-09-05T10:00:00+00:00",
+                AlarmOccurrenceStatus::Delivered,
+            ),
+        ];
+        assert_eq!(alarm_status(&receipts, &alarm_id), "Delivered");
+        assert_eq!(
+            alarm_status(&receipts, &PlannerId::new("none").unwrap()),
+            ""
+        );
     }
 
     #[test]

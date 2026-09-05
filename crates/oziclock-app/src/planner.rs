@@ -47,6 +47,7 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
                 planner
                     .alarm_receipts
                     .retain(|receipt| receipt.alarm_id != id);
+                planner.alarm_snoozes.retain(|snooze| snooze.alarm_id != id);
             }
             changed
         }

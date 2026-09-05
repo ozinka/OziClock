@@ -1,11 +1,13 @@
 //! Versioned JSON settings and local file locations for OziClock.
 
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::{env, fs, io, path::PathBuf};
 
 pub use oziclock_domain::{
-    Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, Clock as ClockSettings, Planner,
-    PlannerId, Stopwatch, StopwatchState, Task, TaskStatus, Timer as PlannerTimer, TimerState,
+    Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AlarmSnooze, Clock as ClockSettings,
+    Planner, PlannerId, Stopwatch, StopwatchState, Task, TaskStatus, Timer as PlannerTimer,
+    TimerState,
 };
 
 const DEFAULT_SETTINGS: &str = include_str!("../assets/default_settings.json");
@@ -203,6 +205,16 @@ pub fn save(settings: &AppSettings) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Removes alarm history recorded before the inclusive retention boundary.
+pub fn prune_alarm_receipts(settings: &mut AppSettings, now: DateTime<Utc>) {
+    let oldest_retained = now - Duration::days(30);
+    settings.planner.alarm_receipts.retain(|receipt| {
+        DateTime::parse_from_rfc3339(&receipt.recorded_at_utc)
+            .map(|recorded| recorded.with_timezone(&Utc) >= oldest_retained)
+            .unwrap_or(true)
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -246,6 +258,36 @@ mod tests {
                 restored.timer_draft_seconds
             ),
             (1, 2, 3, 4)
+        );
+    }
+
+    #[test]
+    fn alarm_receipts_are_retained_for_thirty_days() {
+        let mut settings: AppSettings = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
+        let alarm_id = PlannerId::new("alarm").unwrap();
+        let receipt = |recorded_at_utc: &str| AlarmReceipt {
+            alarm_id: alarm_id.clone(),
+            occurrence_utc: recorded_at_utc.into(),
+            status: AlarmOccurrenceStatus::Delivered,
+            recorded_at_utc: recorded_at_utc.into(),
+        };
+        settings.planner.alarm_receipts = vec![
+            receipt("2026-08-05T11:59:59Z"),
+            receipt("2026-08-05T12:00:00Z"),
+            receipt("2026-09-04T12:00:00Z"),
+            receipt("invalid"),
+        ];
+
+        prune_alarm_receipts(&mut settings, "2026-09-04T12:00:00Z".parse().unwrap());
+
+        assert_eq!(settings.planner.alarm_receipts.len(), 3);
+        assert_eq!(
+            settings.planner.alarm_receipts[0].recorded_at_utc,
+            "2026-08-05T12:00:00Z"
+        );
+        assert_eq!(
+            settings.planner.alarm_receipts[2].recorded_at_utc,
+            "invalid"
         );
     }
 

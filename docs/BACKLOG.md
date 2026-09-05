@@ -21,6 +21,11 @@ Priorities describe sequencing, not severity:
 
 | ID | Priority | Status | Area | Item | Next step |
 | --- | --- | --- | --- | --- | --- |
+| BL-042 | P2 | Candidate | Alarm delivery | Add native operating-system notifications | Define and test a platform adapter with permission handling, non-crashing fallback, title/time content and notification actions. On macOS use `UNUserNotificationCenter`; the deprecated AppleScript-dependent backend crashed inside the Slint event loop and must not be used. Keep the local attention card as the active delivery surface until this slice is promoted. Sound remains separate. |
+| BL-041 | P2 | In Progress | Alarm history | Retain occurrence receipts for 30 days | ALM-18 implemented in the storage adapter and scheduler persistence path; verify recent status persistence after restart. |
+| BL-040 | P1 | In Progress | Alarm history | Expose the latest delivery result in saved alarms | ALM-17 implemented; verify Delivered/Missed placement and persistence for Once and Weekly. |
+| BL-039 | P2 | Candidate | Alarm delivery | Add configurable Snooze durations | Define a global default, optional per-alarm override, quick choices such as 5/10/15 minutes and Custom on the attention card, validation limits, and whether the last quick choice is remembered. Keep the current five-minute Snooze until this slice is promoted. |
+| BL-038 | P1 | In Progress | Alarm delivery | Add persisted five-minute Snooze | ALM-16 implemented with replacement, restart, receipt and deletion semantics; verify Snooze card recurrence after five minutes. |
 | BL-037 | P2 | In Progress | Alarm attention | Pulse the local alert border | ALM-15 implemented; visually verify prominence and comfort during a triggered alarm. |
 | BL-036 | P2 | In Progress | Alarm editor | Initialize new alarms from a useful near-future time | ALM-14 implemented with main-zone and midnight tests; verify section re-entry and editing preservation. |
 | BL-035 | P1 | In Progress | Alarm delivery | Run the scheduler and show local alarm attention | ALM-13 implemented with save-before-display and FIFO Dismiss; verify a near-future Once/Weekly alarm and non-activation. Next add native notification, sound and Snooze. |
@@ -30,7 +35,7 @@ Priorities describe sequencing, not severity:
 | BL-031 | P2 | In Progress | Alarms | Separate alarm selection from editing | ALM-09 implemented; verify select/deselect and Edit/Cancel transitions without affecting On/Off or Delete. |
 | BL-030 | P2 | In Progress | Alarms | Make the compact editor responsive without stretching actions | ALM-08 implemented; verify minimum and expanded widths plus one-pixel edited-card highlight. |
 | BL-029 | P2 | In Progress | Alarms | Compact and clarify the alarm editor layout | ALM-07 implemented; verify resizing, right-side actions, and edited-card highlight. |
-| BL-028 | P1 | In Progress | Alarms | Edit, confirm deletion and rearm Once | ALM-06 implemented; verify trash icon, cancel, persistence and rearm. Delivery statuses remain deferred to BL-007. |
+| BL-028 | P1 | In Progress | Alarms | Edit, confirm deletion and rearm Once | ALM-06 re-enables an edited handled Once by matching its occurrence receipt, while preserving manual Off for unhandled Once and Weekly alarms; verify edit-after-delivery recurrence, trash, cancel and persistence. |
 | BL-027 | P1 | In Progress | Alarm scheduling | Select the next future Once occurrence | ALM-05: application-layer wall-time resolution and creation integration; verify today/tomorrow behavior. Delivery, receipts, snooze and sound remain in BL-007. |
 | BL-026 | P2 | In Progress | Alarms | Refine typography and optical alignment | ALM-04 implemented; verify larger dates/times, bold selected days, neutral Once, and action/input alignment. |
 | BL-025 | P2 | In Progress | Alarms | Align saved cards and clarify schedule/time styling | ALM-03 implemented, including text-only 14px weekday selectors and a 40% brighter accent; visual verification pending. |

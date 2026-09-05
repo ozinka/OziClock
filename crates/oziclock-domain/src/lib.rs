@@ -5,9 +5,9 @@ mod planner;
 
 pub use clock::{Clock, ClockCollection};
 pub use planner::{
-    Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AlertRule, Event, EventTime,
-    Planner, PlannerId, Reminder, ReminderSchedule, Stopwatch, StopwatchState, Task, TaskStatus,
-    Timer, TimerState,
+    Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AlarmSnooze, AlertRule, Event,
+    EventTime, Planner, PlannerId, Reminder, ReminderSchedule, Stopwatch, StopwatchState, Task,
+    TaskStatus, Timer, TimerState,
 };
 
 /// Product name shared by all front ends.
