@@ -26,6 +26,25 @@ pub enum PlannerCommand {
     FinishTimer {
         id: PlannerId,
     },
+    DismissTimer {
+        id: PlannerId,
+    },
+    RestartTimer {
+        id: PlannerId,
+        started_at_utc: String,
+    },
+    ResetTimer {
+        id: PlannerId,
+    },
+    DeleteTimer {
+        id: PlannerId,
+    },
+    UpdateTimer {
+        id: PlannerId,
+        title: String,
+        duration_seconds: u64,
+        repeat: bool,
+    },
     StartStopwatch,
     PauseStopwatch {
         elapsed_milliseconds: u64,
@@ -92,6 +111,36 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
             timer.finish();
             true
         }
+        PlannerCommand::DismissTimer { id } => planner
+            .timers
+            .iter_mut()
+            .find(|timer| timer.id == id)
+            .is_some_and(|timer| timer.dismiss()),
+        PlannerCommand::RestartTimer { id, started_at_utc } => planner
+            .timers
+            .iter_mut()
+            .find(|timer| timer.id == id)
+            .is_some_and(|timer| timer.restart(started_at_utc)),
+        PlannerCommand::ResetTimer { id } => planner
+            .timers
+            .iter_mut()
+            .find(|timer| timer.id == id)
+            .is_some_and(|timer| timer.reset()),
+        PlannerCommand::DeleteTimer { id } => {
+            let count = planner.timers.len();
+            planner.timers.retain(|timer| timer.id != id);
+            count != planner.timers.len()
+        }
+        PlannerCommand::UpdateTimer {
+            id,
+            title,
+            duration_seconds,
+            repeat,
+        } => planner
+            .timers
+            .iter_mut()
+            .find(|timer| timer.id == id)
+            .is_some_and(|timer| timer.update(title, duration_seconds, repeat)),
         PlannerCommand::StartStopwatch => planner
             .stopwatch
             .as_mut()
@@ -116,7 +165,7 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oziclock_domain::{Task, TaskStatus};
+    use oziclock_domain::{Task, TaskStatus, Timer, TimerState};
 
     fn id(value: &str) -> PlannerId {
         PlannerId::new(value).unwrap()
@@ -173,5 +222,59 @@ mod tests {
             PlannerCommand::CompleteTask { id: id("task") }
         ));
         assert_eq!(planner.tasks[0].status, TaskStatus::Completed);
+    }
+
+    fn timer() -> Timer {
+        Timer {
+            id: id("timer"),
+            title: "Focus".into(),
+            duration_seconds: 300,
+            remaining_seconds: 120,
+            state: TimerState::Paused,
+            repeat: false,
+            started_at_utc: None,
+            attention_pending: true,
+        }
+    }
+
+    #[test]
+    fn timer_can_be_updated_reset_restarted_and_deleted() {
+        let mut planner = Planner {
+            timers: vec![timer()],
+            ..Planner::default()
+        };
+        assert!(execute_planner_command(
+            &mut planner,
+            PlannerCommand::UpdateTimer {
+                id: id("timer"),
+                title: "Tea".into(),
+                duration_seconds: 600,
+                repeat: true,
+            }
+        ));
+        assert_eq!(planner.timers[0].title, "Tea");
+        assert_eq!(planner.timers[0].state, TimerState::Idle);
+        assert!(planner.timers[0].repeat);
+
+        assert!(execute_planner_command(
+            &mut planner,
+            PlannerCommand::RestartTimer {
+                id: id("timer"),
+                started_at_utc: "2026-09-05T10:00:00Z".into(),
+            }
+        ));
+        assert_eq!(planner.timers[0].state, TimerState::Running);
+        assert!(execute_planner_command(
+            &mut planner,
+            PlannerCommand::ResetTimer { id: id("timer") }
+        ));
+        assert_eq!(planner.timers[0].state, TimerState::Idle);
+        assert_eq!(planner.timers[0].remaining_seconds, 600);
+
+        assert!(execute_planner_command(
+            &mut planner,
+            PlannerCommand::DeleteTimer { id: id("timer") }
+        ));
+        assert!(planner.timers.is_empty());
     }
 }

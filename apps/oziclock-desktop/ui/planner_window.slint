@@ -11,6 +11,8 @@ export struct PlannerTimerData {
     title: string,
     remaining: string,
     running: bool,
+    finished: bool,
+    repeat: bool,
 }
 
 export struct PlannerAlarmData {
@@ -58,6 +60,13 @@ component TimeSegmentField inherits Rectangle {
 }
 
 export component PlannerWindow inherits Window {
+    in-out property <string> editing-timer: "";
+    in-out property <string> selected-timer: "";
+    in-out property <string> timer-title-draft: "Timer";
+    in-out property <bool> timer-repeat: false;
+    in-out property <string> timer-error: "";
+    private property <string> menu-timer: "";
+    private property <string> timer-menu-title: "";
     in-out property <string> editing-alarm: "";
     in-out property <string> selected-alarm: "";
     in-out property <string> alarm-error: "";
@@ -75,7 +84,7 @@ export component PlannerWindow inherits Window {
     title: "OziClock Planner"; no-frame: true;
     preferred-width: 900px; preferred-height: 780px; min-width: 900px; min-height: 780px; background: transparent;
     in property <color> accent: #77d7cb; in property <float> corner-radius: 12; in-out property <int> selected-view: 0; in-out property <int> selected-section: 0; in property <int> task-count: 0; in property <[PlannerTaskData]> tasks; in property <[PlannerTimerData]> timers; in property <[PlannerAlarmData]> alarms; in property <string> stopwatch-time: "00:00:00"; in property <string> stopwatch-milliseconds: ".00"; in property <bool> stopwatch-running: false; in property <[string]> stopwatch-laps; in-out property <string> task-draft: ""; in-out property <string> timer-days-draft: "0"; in-out property <string> timer-hours-draft: "0"; in-out property <string> timer-minutes-draft: "5"; in-out property <string> timer-seconds-draft: "0"; in-out property <string> alarm-title-draft: "Alarm"; private property <string> alarm-time-draft: root.alarm-hours-draft + ":" + root.alarm-minutes-draft; in-out property <bool> alarm-weekly: false; in-out property <bool> alarm-mon: true; in-out property <bool> alarm-tue: true; in-out property <bool> alarm-wed: true; in-out property <bool> alarm-thu: true; in-out property <bool> alarm-fri: true; in-out property <bool> alarm-sat: false; in-out property <bool> alarm-sun: false;
-    callback request-close(); callback request-window-drag(); callback request-add-task(string); callback request-complete-task(string); callback request-add-timer(string, string, string, string); callback request-adjust-timer-part(int, int); callback request-toggle-timer(string); callback request-add-alarm(string, string, bool, bool, bool, bool, bool, bool, bool, bool); callback request-toggle-alarm(string, bool); callback request-toggle-stopwatch(); callback request-reset-stopwatch(); callback request-stopwatch-lap();
+    callback request-close(); callback request-window-drag(); callback request-add-task(string); callback request-complete-task(string); callback request-add-timer(string, string, string, string, string, bool); callback request-adjust-timer-part(int, int); callback request-toggle-timer(string); callback request-reset-timer(string); callback request-edit-timer(string); callback request-delete-timer(string); callback request-add-alarm(string, string, bool, bool, bool, bool, bool, bool, bool, bool); callback request-toggle-alarm(string, bool); callback request-toggle-stopwatch(); callback request-reset-stopwatch(); callback request-stopwatch-lap();
     Rectangle { width: parent.width; height: parent.height; border-radius: root.corner-radius * 1px; background: #171d1f; border-width: 1px; border-color: #344144; clip: true;
         // Background hit target stays behind all interactive children.
         // Leave the outer edge available for native window resizing.
@@ -130,7 +139,7 @@ export component PlannerWindow inherits Window {
                 if root.selected-section == 1 : Rectangle { vertical-stretch: 1; border-radius: 8px; background: #1b2325; border-width: 1px; border-color: #344144;
                     Text { x: 14px; y: 14px; text: "Saved alarms"; color: #e0eae8; font-size: 13px; font-weight: 700; }
                     ScrollView { x: 14px; y: 40px; width: parent.width - 28px; height: parent.height - 54px; viewport-width: self.width; viewport-height: root.alarms.length * 50px; horizontal-scrollbar-policy: ScrollBarPolicy.always-off; vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
-                        for alarm[index] in root.alarms: Rectangle { x: 0px; y: index * 50px; width: parent.width - 14px; height: 43px; border-radius: 6px; background: #20292b; border-width: root.selected-alarm == alarm.id ? 1px : 0px; border-color: root.accent;
+                        for alarm[index] in root.alarms: Rectangle { x: 0px; y: index * 50px; width: parent.width - 14px; height: 43px; border-radius: 6px; background: root.selected-alarm == alarm.id ? #293638 : #20292b; border-width: root.editing-alarm == alarm.id ? 1px : 0px; border-color: root.accent;
                             TouchArea { width: parent.width - 116px; height: parent.height; clicked => { if root.selected-alarm == alarm.id { root.selected-alarm = ""; root.editing-alarm = ""; root.alarm-error = ""; root.alarm-title-draft = "Alarm"; } else { root.selected-alarm = alarm.id; root.editing-alarm = ""; root.alarm-error = ""; } } }
                             Text { x: 10px; y: 5px; width: parent.width - 300px; height: 17px; text: alarm.title; color: #d7e2df; font-size: 13px; font-weight: 700; overflow: elide; }
                             Text { x: 10px; y: 22px; width: 46px; height: 16px; text: alarm.weekly ? "Weekly ·" : "Once ·"; color: alarm.weekly ? root.accent : #829492; font-size: 11px; }
@@ -145,16 +154,19 @@ export component PlannerWindow inherits Window {
                     Text { x: 14px; y: 40px; visible: root.alarms.length == 0; text: "Create your first alarm below."; color: #718280; font-size: 13px; }
                 }
                 if root.selected-section == 2 : Rectangle { vertical-stretch: 1; border-radius: 8px; background: #1b2325; border-width: 1px; border-color: #344144;
-                    VerticalLayout { padding: 14px; spacing: 7px;
-                        Text { text: "Saved timers"; color: #e0eae8; font-size: 13px; font-weight: 700; }
-                        for timer in root.timers: Rectangle { height: 44px; border-radius: 6px; background: #20292b;
-                            Text { x: 10px; width: parent.width - 158px; height: parent.height; text: timer.title; color: #d7e2df; font-size: 13px; vertical-alignment: center; }
-                            Text { x: parent.width - 140px; width: 58px; height: parent.height; text: timer.remaining; color: timer.running ? root.accent : #aab9b7; font-size: 13px; font-weight: 700; horizontal-alignment: right; vertical-alignment: center; }
-                            Rectangle { x: parent.width - 72px; y: 8px; width: 62px; height: 27px; border-radius: 5px; background: timer.running ? #344144 : root.accent; Text { width: parent.width; height: parent.height; text: timer.running ? "Pause" : "Start"; horizontal-alignment: center; vertical-alignment: center; color: timer.running ? #dce8e5 : #082725; font-size: 11px; font-weight: 700; } TouchArea { clicked => { root.request-toggle-timer(timer.id); } } }
+                    Text { x: 14px; y: 12px; text: "Saved timers"; color: #e0eae8; font-size: 13px; font-weight: 700; }
+                    ScrollView { x: 14px; y: 38px; width: parent.width - 28px; height: parent.height - 52px; viewport-width: self.width; viewport-height: root.timers.length * 51px; horizontal-scrollbar-policy: ScrollBarPolicy.always-off; vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
+                        for timer[index] in root.timers: Rectangle { y: index * 51px; width: parent.width - 14px; height: 44px; border-radius: 6px; background: root.selected-timer == timer.id ? #293638 : #20292b; border-width: root.editing-timer == timer.id ? 1px : 0px; border-color: root.accent;
+                            TouchArea { x: 0px; width: parent.width - 190px; clicked => { root.selected-timer = root.selected-timer == timer.id ? "" : timer.id; } }
+                            Text { x: 10px; y: timer.repeat ? 3px : 0px; width: parent.width - 282px; height: timer.repeat ? 23px : parent.height; text: timer.title; color: #d7e2df; font-size: 13px; vertical-alignment: center; overflow: elide; }
+                            Text { x: 10px; y: 23px; visible: timer.repeat; text: "Repeat"; color: root.accent; font-size: 11px; }
+                            Text { x: parent.width - 272px; width: 82px; height: parent.height; text: timer.remaining; color: timer.running ? root.accent : #aab9b7; font-size: 13px; font-weight: 700; horizontal-alignment: right; vertical-alignment: center; }
+                            Rectangle { x: parent.width - 180px; y: 8px; width: 48px; height: 27px; border-radius: 5px; background: #344144; Text { width: parent.width; height: parent.height; text: "Reset"; horizontal-alignment: center; vertical-alignment: center; color: #dce8e5; font-size: 11px; } TouchArea { clicked => { root.request-reset-timer(timer.id); } } }
+                            Rectangle { x: parent.width - 126px; y: 8px; width: 76px; height: 27px; border-radius: 5px; background: timer.running ? #344144 : root.accent; Text { width: parent.width; height: parent.height; text: timer.running ? "Pause" : timer.finished ? "Restart" : "Start"; horizontal-alignment: center; vertical-alignment: center; color: timer.running ? #dce8e5 : #082725; font-size: 11px; font-weight: 700; } TouchArea { clicked => { root.request-toggle-timer(timer.id); } } }
+                            Rectangle { x: parent.width - 42px; y: 7px; width: 30px; height: 30px; DeleteIcon { x: 8px; y: 6px; } TouchArea { clicked => { root.menu-timer = timer.id; root.timer-menu-title = timer.title; } } }
                         }
-                        Text { visible: root.timers.length == 0; text: "Create a focus timer below."; color: #718280; font-size: 13px; }
-                        Rectangle { vertical-stretch: 1; }
                     }
+                    Text { x: 14px; y: 40px; visible: root.timers.length == 0; text: "Create a focus timer below."; color: #718280; font-size: 13px; }
                 }
                 if root.selected-section == 3 : Rectangle { vertical-stretch: 1; border-radius: 8px; background: #1b2325; border-width: 1px; border-color: #344144;
                     Text { x: (parent.width - 362px) / 2; y: 42px; width: 270px; height: 88px; text: root.stopwatch-time; color: root.accent; font-size: 58px; font-weight: 700; horizontal-alignment: right; vertical-alignment: bottom; }
@@ -172,7 +184,15 @@ export component PlannerWindow inherits Window {
                     Rectangle { width: 76px; border-radius: 6px; background: root.accent; Text { width: parent.width; height: parent.height; text: "Add task"; horizontal-alignment: center; vertical-alignment: center; color: #082725; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-add-task(root.task-draft); } } }
                     Text { width: 52px; text: root.task-count + " tasks"; color: #829492; font-size: 11px; vertical-alignment: center; }
                 }
-                if root.selected-section == 2 : HorizontalLayout { height: 70px; spacing: 18px;
+                if root.selected-section == 2 : HorizontalLayout { height: 70px + (root.timer-error == "" ? 0px : 22px); spacing: 12px;
+                    Rectangle { min-width: 160px; horizontal-stretch: 1;
+                        LineEdit { x: 0px; y: 0px; width: parent.width; height: 34px; text <=> root.timer-title-draft; placeholder-text: "Timer title"; }
+                        Rectangle { x: 0px; y: 40px; width: 78px; height: 30px; border-radius: 6px; background: root.timer-repeat ? root.accent : #344144;
+                            Text { width: parent.width; height: parent.height; text: "Repeat"; horizontal-alignment: center; vertical-alignment: center; color: root.timer-repeat ? #082725 : #dce8e5; font-size: 11px; font-weight: 700; }
+                            TouchArea { clicked => { root.timer-repeat = !root.timer-repeat; } }
+                        }
+                        Text { x: 88px; y: 40px; height: 30px; visible: root.timer-error != ""; text: root.timer-error; color: #d96d74; font-size: 12px; vertical-alignment: center; }
+                    }
                     Rectangle { width: 324px; height: 70px; border-radius: 8px; border-width: 1px; border-color: #344144; background: #20292b;
                         HorizontalLayout { padding: 8px; spacing: 3px;
                             TimeSegmentField { label: "D"; value <=> root.timer-days-draft; selected: root.timer-selected-part == 0; selected-field => { root.timer-selected-part = 0; } edited(value) => { root.request-edit-timer-part(0, value); } request-adjust(delta) => { root.request-adjust-timer-part(0, delta); } }
@@ -191,10 +211,10 @@ export component PlannerWindow inherits Window {
                             }
                         }
                     }
-                    Rectangle { width: 104px;
-                        Rectangle { x: 0px; y: (parent.height - self.height) / 2; width: parent.width; height: 36px; border-radius: 6px; background: root.accent; Text { width: parent.width; height: parent.height; text: "New timer"; horizontal-alignment: center; vertical-alignment: center; color: #082725; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-add-timer(root.timer-days-draft, root.timer-hours-draft, root.timer-minutes-draft, root.timer-seconds-draft); } } }
+                    Rectangle { width: 125px;
+                        Rectangle { x: 0px; y: 0px; width: parent.width; height: 34px; border-radius: 6px; background: root.accent; Text { width: parent.width; height: parent.height; text: root.editing-timer == "" ? "Add timer" : "Save changes"; horizontal-alignment: center; vertical-alignment: center; color: #082725; font-size: 12px; font-weight: 700; } TouchArea { clicked => { root.request-add-timer(root.timer-title-draft, root.timer-days-draft, root.timer-hours-draft, root.timer-minutes-draft, root.timer-seconds-draft, root.timer-repeat); } } }
+                        if root.selected-timer != "" : Rectangle { x: 0px; y: 40px; width: parent.width; height: 30px; border-radius: 6px; background: #344144; Text { width: parent.width; height: parent.height; text: root.editing-timer == "" ? "Edit" : "Cancel"; horizontal-alignment: center; vertical-alignment: center; color: #dce8e5; font-size: 12px; } TouchArea { clicked => { if root.editing-timer == "" { root.request-edit-timer(root.selected-timer); } else { root.editing-timer = ""; root.timer-error = ""; root.timer-title-draft = "Timer"; root.timer-repeat = false; } } } }
                     }
-                    Rectangle { horizontal-stretch: 1; }
                 }
                 if root.selected-section == 1 : VerticalLayout { height: 70px + (root.alarm-error == "" ? 0px : 22px); spacing: 7px;
                     HorizontalLayout { height: 70px; spacing: 12px;
@@ -240,6 +260,18 @@ export component PlannerWindow inherits Window {
                 Text { text: "Delete " + root.menu-title + "?"; color: #e1eae8; font-size: 16px; overflow: elide; }
                 Rectangle { height: 32px; background: #344144; Text { text: "Cancel"; color: #e1eae8; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; } TouchArea { clicked => { root.menu-alarm = ""; } } }
                 Rectangle { height: 32px; Text { text: "Delete"; color: #d96d74; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; } TouchArea { clicked => { root.request-delete-alarm(root.menu-alarm); root.menu-alarm = ""; } } }
+            }
+        }
+    }
+    if root.menu-timer != "" : Rectangle {
+        width: parent.width; height: parent.height; background: #00000088;
+        TouchArea { clicked => { root.menu-timer = ""; } }
+        Rectangle { width: 320px; height: 180px; background: #20292b; border-radius: 8px;
+            TouchArea {}
+            VerticalLayout { padding: 18px; spacing: 10px;
+                Text { text: "Delete " + root.timer-menu-title + "?"; color: #e1eae8; font-size: 16px; overflow: elide; }
+                Rectangle { height: 32px; background: #344144; Text { text: "Cancel"; color: #e1eae8; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; } TouchArea { clicked => { root.menu-timer = ""; } } }
+                Rectangle { height: 32px; Text { text: "Delete"; color: #d96d74; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; } TouchArea { clicked => { root.request-delete-timer(root.menu-timer); root.menu-timer = ""; } } }
             }
         }
     }

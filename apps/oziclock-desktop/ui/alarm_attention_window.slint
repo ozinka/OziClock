@@ -1,3 +1,5 @@
+import { AlarmAttentionIcon } from "attention_icons.slint";
+
 export component AlarmAttentionWindow inherits Window {
     in property <color> accent: #77d7cb;
     in property <string> alarm-title: "Alarm";
@@ -13,8 +15,9 @@ export component AlarmAttentionWindow inherits Window {
     background: transparent;
     Rectangle { width: parent.width; height: parent.height; background: #182022; border-color: root.accent; border-width: root.pulse ? 3px : 1px; border-radius: 10px;
         animate border-width { duration: 450ms; easing: ease-in-out; }
-        Text { x: 18px; y: 15px; width: parent.width - 36px; height: 25px; text: root.alarm-title; color: #e1eae8; font-size: 18px; font-weight: 700; overflow: elide; }
-        Text { x: 18px; y: 44px; width: parent.width - 36px; height: 22px; text: root.alarm-time; color: root.accent; font-size: 16px; }
+        AlarmAttentionIcon { x: 18px; y: 14px; accent: root.accent; }
+        Text { x: 80px; y: 15px; width: parent.width - 98px; height: 25px; text: root.alarm-title; color: #e1eae8; font-size: 18px; font-weight: 700; overflow: elide; }
+        Text { x: 80px; y: 44px; width: parent.width - 98px; height: 22px; text: root.alarm-time; color: root.accent; font-size: 16px; overflow: elide; }
         Rectangle { x: 18px; y: 78px; width: (parent.width - 44px) / 2; height: 34px; background: #344144; border-radius: 6px;
             Text { y: 2px; width: parent.width; height: parent.height; text: "Snooze 5 min"; color: #dce8e5; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
             TouchArea { clicked => { root.request-snooze(); } }

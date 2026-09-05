@@ -21,6 +21,13 @@ Priorities describe sequencing, not severity:
 
 | ID | Priority | Status | Area | Item | Next step |
 | --- | --- | --- | --- | --- | --- |
+| BL-045 | P3 | Candidate | Project funding | Add a store-publication donation option to README | Choose a trusted donation platform and add a concise README section explaining that contributions can help cover publishing OziClock in application stores. State intended use transparently without promising a release date or store acceptance. |
+| BL-049 | P2 | In Progress | Timers | Add repeat countdowns | TMR-08 implemented with immediate next-cycle restart and one durable attention item; verify Dismiss and Restart while the next interval is running. |
+| BL-050 | P2 | In Progress | Timers | Scale the saved-timer list | TMR-09 implemented with available-height scrolling and reserved scrollbar space; visual verification pending. |
+| BL-048 | P2 | In Progress | Timers | Edit named countdown timers | TMR-06 implemented with independent selection, edit/cancel, title validation and duration reset; visual verification pending. |
+| BL-047 | P2 | In Progress | Timers | Reset and safely delete timers | TMR-07 implemented with per-row Reset and confirmed trash deletion; visual and persistence verification pending. |
+| BL-046 | P1 | In Progress | Timer attention | Persist Finished cards with Restart and Dismiss | TMR-05 implemented with a dedicated local timer-attention queue restored from durable state; verify restart, multiple completions and both actions. |
+| BL-044 | P1 | In Progress | Timers | Recover running countdowns after restart | TMR-04 implemented with deterministic application-layer remaining-time calculation and expiry reconciliation; verify restart while running and restart after the deadline. |
 | BL-043 | P1 | In Progress | Alarm attention | Restore unacknowledged alarm cards after restart | ALM-19 persists acknowledgement for Dismiss/Snooze and rebuilds the FIFO attention queue from Delivered receipts; verify restart before dismissal and queue advancement. |
 | BL-042 | P2 | Candidate | Alarm delivery | Add native operating-system notifications | Define and test a platform adapter with permission handling, non-crashing fallback, title/time content and notification actions. On macOS use `UNUserNotificationCenter`; the deprecated AppleScript-dependent backend crashed inside the Slint event loop and must not be used. Keep the local attention card as the active delivery surface until this slice is promoted. Sound remains separate. |
 | BL-041 | P2 | In Progress | Alarm history | Retain occurrence receipts for 30 days | ALM-18 implemented in the storage adapter and scheduler persistence path; verify recent status persistence after restart. |

@@ -202,6 +202,8 @@ pub struct Timer {
     pub state: TimerState,
     pub repeat: bool,
     pub started_at_utc: Option<String>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub attention_pending: bool,
 }
 
 impl Timer {
@@ -214,6 +216,7 @@ impl Timer {
         }
         self.state = TimerState::Running;
         self.started_at_utc = Some(started_at_utc);
+        self.attention_pending = false;
         true
     }
 
@@ -231,6 +234,57 @@ impl Timer {
         self.state = TimerState::Finished;
         self.remaining_seconds = 0;
         self.started_at_utc = None;
+        self.attention_pending = true;
+    }
+
+    pub fn dismiss(&mut self) -> bool {
+        if self.state != TimerState::Finished {
+            if !self.attention_pending {
+                return false;
+            }
+            self.attention_pending = false;
+            return true;
+        }
+        self.state = TimerState::Idle;
+        self.attention_pending = false;
+        true
+    }
+
+    pub fn restart(&mut self, started_at_utc: String) -> bool {
+        if self.duration_seconds == 0 {
+            return false;
+        }
+        self.remaining_seconds = self.duration_seconds;
+        self.state = TimerState::Running;
+        self.started_at_utc = Some(started_at_utc);
+        self.attention_pending = false;
+        true
+    }
+
+    pub fn reset(&mut self) -> bool {
+        let changed = self.state != TimerState::Idle
+            || self.remaining_seconds != self.duration_seconds
+            || self.started_at_utc.is_some()
+            || self.attention_pending;
+        self.remaining_seconds = self.duration_seconds;
+        self.state = TimerState::Idle;
+        self.started_at_utc = None;
+        self.attention_pending = false;
+        changed
+    }
+
+    pub fn update(&mut self, title: String, duration_seconds: u64, repeat: bool) -> bool {
+        if title.trim().is_empty() || duration_seconds == 0 {
+            return false;
+        }
+        self.title = title;
+        self.duration_seconds = duration_seconds;
+        self.remaining_seconds = duration_seconds;
+        self.repeat = repeat;
+        self.state = TimerState::Idle;
+        self.started_at_utc = None;
+        self.attention_pending = false;
+        true
     }
 }
 
@@ -329,6 +383,7 @@ mod tests {
             state: TimerState::Idle,
             repeat: false,
             started_at_utc: None,
+            attention_pending: false,
         };
         assert!(timer.start("2026-09-03T10:00:00Z".into()));
         assert!(timer.pause(25));
@@ -337,6 +392,10 @@ mod tests {
         timer.finish();
         assert_eq!(timer.state, TimerState::Finished);
         assert_eq!(timer.remaining_seconds, 0);
+        assert!(timer.dismiss());
+        assert_eq!(timer.state, TimerState::Idle);
+        assert!(timer.start("2026-09-03T10:02:00Z".into()));
+        assert_eq!(timer.remaining_seconds, 60);
     }
 
     #[test]

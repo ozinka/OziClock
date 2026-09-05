@@ -1,0 +1,27 @@
+import { TimerAttentionIcon } from "attention_icons.slint";
+
+export component TimerAttentionWindow inherits Window {
+    in property <color> accent: #77d7cb;
+    in property <string> timer-title: "Timer";
+    callback request-dismiss();
+    callback request-restart();
+    title: "OziClock Timer";
+    no-frame: true;
+    always-on-top: true;
+    preferred-width: 360px; min-width: 360px; max-width: 360px;
+    preferred-height: 126px; min-height: 126px; max-height: 126px;
+    background: transparent;
+    Rectangle { width: parent.width; height: parent.height; background: #182022; border-color: root.accent; border-width: 1px; border-radius: 10px;
+        TimerAttentionIcon { x: 18px; y: 14px; accent: root.accent; }
+        Text { x: 80px; y: 15px; width: parent.width - 98px; height: 25px; text: root.timer-title; color: #e1eae8; font-size: 18px; font-weight: 700; overflow: elide; }
+        Text { x: 80px; y: 44px; width: parent.width - 98px; height: 22px; text: "Timer finished"; color: root.accent; font-size: 16px; }
+        Rectangle { x: 18px; y: 78px; width: (parent.width - 44px) / 2; height: 34px; background: #344144; border-radius: 6px;
+            Text { y: 2px; width: parent.width; height: parent.height; text: "Dismiss"; color: #dce8e5; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+            TouchArea { clicked => { root.request-dismiss(); } }
+        }
+        Rectangle { x: 26px + (parent.width - 44px) / 2; y: 78px; width: (parent.width - 44px) / 2; height: 34px; background: root.accent; border-radius: 6px;
+            Text { y: 2px; width: parent.width; height: parent.height; text: "Restart"; color: #082725; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+            TouchArea { clicked => { root.request-restart(); } }
+        }
+    }
+}
