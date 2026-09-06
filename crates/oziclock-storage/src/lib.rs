@@ -6,8 +6,9 @@ use std::{env, fs, io, path::PathBuf};
 
 pub use oziclock_domain::{
     Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AlarmSnooze, Clock as ClockSettings,
-    Event, EventTime, Planner, PlannerId, Reminder, ReminderRecurrence, ReminderSchedule,
-    Stopwatch, StopwatchState, Task, TaskStatus, Timer as PlannerTimer, TimerState,
+    Event, EventRecurrence, EventTime, Planner, PlannerId, Reminder, ReminderRecurrence,
+    ReminderSchedule, Stopwatch, StopwatchState, Task, TaskStatus, Timer as PlannerTimer,
+    TimerState,
 };
 
 const DEFAULT_SETTINGS: &str = include_str!("../assets/default_settings.json");

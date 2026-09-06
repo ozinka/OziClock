@@ -43,8 +43,8 @@ use oziclock_app::planner::{PlannerCommand, execute_planner_command};
 use oziclock_app::{ClockCommand, execute_clock_command};
 use oziclock_storage::{
     Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AppSettings, ClockSettings, Event,
-    EventTime, PlannerId, PlannerTimer, Reminder, ReminderRecurrence, ReminderSchedule, Stopwatch,
-    StopwatchState, Task, TaskStatus, TimerState,
+    EventRecurrence, EventTime, PlannerId, PlannerTimer, Reminder, ReminderRecurrence,
+    ReminderSchedule, Stopwatch, StopwatchState, Task, TaskStatus, TimerState,
 };
 use slint::winit_030::EventResult;
 use slint::winit_030::WinitWindowAccessor;
@@ -394,6 +394,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         planner
             .set_event_end_draft(format!("{:02}:{:02}", end_minutes / 60, end_minutes % 60).into());
         planner.set_event_all_day(false);
+        planner.set_event_recurrence("Does not repeat".into());
         planner.set_event_error("".into());
     });
     let planner_for_adjust_event_time = planner_window.as_weak();
@@ -454,6 +455,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             .unwrap_or(chrono_tz::UTC);
         planner.set_editing_event(event_id);
         planner.set_event_title_draft(event.title.clone().into());
+        planner.set_event_recurrence(event_recurrence_label(event.recurrence).into());
         planner.set_event_error("".into());
         match &event.time {
             EventTime::Timed {
@@ -489,108 +491,118 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let event_model_for_save_event = plan_event_model.clone();
     let all_day_model_for_save_event = plan_all_day_event_model.clone();
     let start_for_save_event = plan_week_start.clone();
-    planner_window.on_request_save_event(move |title, date, end_date, start, end, all_day| {
-        let Some(planner) = planner_for_save_event.upgrade() else {
-            return;
-        };
-        planner.set_event_error("".into());
-        let title = title.trim();
-        if title.is_empty() {
-            planner.set_event_error("Enter an event title.".into());
-            return;
-        }
-        if NaiveDate::parse_from_str(&date, "%Y-%m-%d").is_err() {
-            planner.set_event_error("Enter a valid date.".into());
-            return;
-        }
-        let mut settings = settings_for_save_event.borrow_mut();
-        let zone = main_time_zone(&settings);
-        let time = if all_day {
-            let Ok(start_date) = NaiveDate::parse_from_str(&date, "%Y-%m-%d") else {
-                planner.set_event_error("Enter a valid start date.".into());
+    planner_window.on_request_save_event(
+        move |title, date, end_date, start, end, all_day, recurrence| {
+            let Some(planner) = planner_for_save_event.upgrade() else {
                 return;
             };
-            let Ok(parsed_end_date) = NaiveDate::parse_from_str(&end_date, "%Y-%m-%d") else {
-                planner.set_event_error("Enter a valid end date.".into());
+            planner.set_event_error("".into());
+            let title = title.trim();
+            if title.is_empty() {
+                planner.set_event_error("Enter an event title.".into());
+                return;
+            }
+            if NaiveDate::parse_from_str(&date, "%Y-%m-%d").is_err() {
+                planner.set_event_error("Enter a valid date.".into());
+                return;
+            }
+            let mut settings = settings_for_save_event.borrow_mut();
+            let zone = main_time_zone(&settings);
+            let time = if all_day {
+                let Ok(start_date) = NaiveDate::parse_from_str(&date, "%Y-%m-%d") else {
+                    planner.set_event_error("Enter a valid start date.".into());
+                    return;
+                };
+                let Ok(parsed_end_date) = NaiveDate::parse_from_str(&end_date, "%Y-%m-%d") else {
+                    planner.set_event_error("Enter a valid end date.".into());
+                    return;
+                };
+                if parsed_end_date < start_date {
+                    planner.set_event_error("End date must not be before start date.".into());
+                    return;
+                }
+                EventTime::AllDay {
+                    start_date: date.to_string(),
+                    end_date: end_date.to_string(),
+                }
+            } else {
+                let Some(start_utc) =
+                    oziclock_app::reminder_time::resolve_local(&date, &start, &zone)
+                else {
+                    planner.set_event_error("Enter a valid start time.".into());
+                    return;
+                };
+                let Some(end_utc) = oziclock_app::reminder_time::resolve_local(&date, &end, &zone)
+                else {
+                    planner.set_event_error("Enter a valid end time.".into());
+                    return;
+                };
+                if end_utc <= start_utc {
+                    planner.set_event_error("End time must be later than start time.".into());
+                    return;
+                }
+                EventTime::Timed {
+                    start_utc: start_utc.to_rfc3339(),
+                    end_utc: end_utc.to_rfc3339(),
+                    source_time_zone: zone,
+                }
+            };
+            let mut updated = settings.clone();
+            let Some(recurrence) = parse_event_recurrence(&recurrence) else {
+                planner.set_event_error("Select a valid repeat option.".into());
                 return;
             };
-            if parsed_end_date < start_date {
-                planner.set_event_error("End date must not be before start date.".into());
-                return;
-            }
-            EventTime::AllDay {
-                start_date: date.to_string(),
-                end_date: end_date.to_string(),
-            }
-        } else {
-            let Some(start_utc) = oziclock_app::reminder_time::resolve_local(&date, &start, &zone)
-            else {
-                planner.set_event_error("Enter a valid start time.".into());
-                return;
-            };
-            let Some(end_utc) = oziclock_app::reminder_time::resolve_local(&date, &end, &zone)
-            else {
-                planner.set_event_error("Enter a valid end time.".into());
-                return;
-            };
-            if end_utc <= start_utc {
-                planner.set_event_error("End time must be later than start time.".into());
-                return;
-            }
-            EventTime::Timed {
-                start_utc: start_utc.to_rfc3339(),
-                end_utc: end_utc.to_rfc3339(),
-                source_time_zone: zone,
-            }
-        };
-        let mut updated = settings.clone();
-        let editing = planner.get_editing_event();
-        let changed = if let Some(id) = PlannerId::new(editing.to_string()) {
-            execute_planner_command(
-                &mut updated.planner,
-                PlannerCommand::UpdateEvent {
-                    id,
-                    title: title.to_owned(),
-                    time,
-                },
-            )
-        } else {
-            execute_planner_command(
-                &mut updated.planner,
-                PlannerCommand::AddEvent {
-                    event: Event {
-                        id: PlannerId::new(format!(
-                            "event-{}",
-                            Utc::now().timestamp_nanos_opt().unwrap_or_default()
-                        ))
-                        .expect("generated event id is valid"),
+            let editing = planner.get_editing_event();
+            let changed = if let Some(id) = PlannerId::new(editing.to_string()) {
+                execute_planner_command(
+                    &mut updated.planner,
+                    PlannerCommand::UpdateEvent {
+                        id,
                         title: title.to_owned(),
                         time,
-                        location: None,
-                        notes: None,
-                        link: None,
-                        color: None,
-                        alerts: vec![],
+                        recurrence,
                     },
-                },
-            )
-        };
-        if !changed {
-            planner.set_event_error("Event could not be saved.".into());
-            return;
-        }
-        if let Err(error) = oziclock_storage::save(&updated) {
-            planner.set_event_error(format!("Save failed: {error}").into());
-            return;
-        }
-        *settings = updated;
-        let (events, all_day_events) = plan_event_rows(&settings, *start_for_save_event.borrow());
-        event_model_for_save_event.set_vec(events);
-        all_day_model_for_save_event.set_vec(all_day_events);
-        planner.set_selected_plan_event("".into());
-        planner.set_editing_event("".into());
-        planner.set_editor_modal(-1);
-    });
+                )
+            } else {
+                execute_planner_command(
+                    &mut updated.planner,
+                    PlannerCommand::AddEvent {
+                        event: Event {
+                            id: PlannerId::new(format!(
+                                "event-{}",
+                                Utc::now().timestamp_nanos_opt().unwrap_or_default()
+                            ))
+                            .expect("generated event id is valid"),
+                            title: title.to_owned(),
+                            time,
+                            location: None,
+                            notes: None,
+                            link: None,
+                            color: None,
+                            alerts: vec![],
+                            recurrence,
+                        },
+                    },
+                )
+            };
+            if !changed {
+                planner.set_event_error("Event could not be saved.".into());
+                return;
+            }
+            if let Err(error) = oziclock_storage::save(&updated) {
+                planner.set_event_error(format!("Save failed: {error}").into());
+                return;
+            }
+            *settings = updated;
+            let (events, all_day_events) =
+                plan_event_rows(&settings, *start_for_save_event.borrow());
+            event_model_for_save_event.set_vec(events);
+            all_day_model_for_save_event.set_vec(all_day_events);
+            planner.set_selected_plan_event("".into());
+            planner.set_editing_event("".into());
+            planner.set_editor_modal(-1);
+        },
+    );
     let planner_for_delete_event = planner_window.as_weak();
     let settings_for_delete_event = shared_settings.clone();
     let event_model_for_delete_event = plan_event_model.clone();
@@ -4178,7 +4190,9 @@ fn plan_event_rows(
     for event in &settings.planner.events {
         match &event.time {
             EventTime::Timed {
-                start_utc, end_utc, ..
+                start_utc,
+                end_utc,
+                source_time_zone,
             } => {
                 let (Ok(start), Ok(end)) = (
                     DateTime::parse_from_rfc3339(start_utc),
@@ -4186,36 +4200,52 @@ fn plan_event_rows(
                 ) else {
                     continue;
                 };
-                let start = start.with_timezone(&zone);
-                let end = end.with_timezone(&zone);
-                let date = start.date_naive();
-                let day_index = date.signed_duration_since(week_start).num_days();
-                if !(0..7).contains(&day_index) {
-                    continue;
+                let source_zone = source_time_zone.parse::<Tz>().unwrap_or(chrono_tz::UTC);
+                let source_start = start.with_timezone(&source_zone);
+                let duration = end.with_timezone(&Utc) - start.with_timezone(&Utc);
+                for occurrence_date in event_occurrence_dates(
+                    source_start.date_naive(),
+                    event.recurrence,
+                    week_start - chrono::Duration::days(2),
+                    week_end + chrono::Duration::days(2),
+                ) {
+                    let Some(occurrence_start) = oziclock_app::reminder_time::resolve_local(
+                        &occurrence_date.format("%Y-%m-%d").to_string(),
+                        &source_start.format("%H:%M").to_string(),
+                        source_time_zone,
+                    ) else {
+                        continue;
+                    };
+                    let start = occurrence_start.with_timezone(&zone);
+                    let end = (occurrence_start + duration).with_timezone(&zone);
+                    let date = start.date_naive();
+                    let day_index = date.signed_duration_since(week_start).num_days();
+                    if !(0..7).contains(&day_index) {
+                        continue;
+                    }
+                    let start_minute = i32::try_from(start.time().num_seconds_from_midnight() / 60)
+                        .unwrap_or_default();
+                    let end_minute = if end.date_naive() == date {
+                        i32::try_from(end.time().num_seconds_from_midnight() / 60).unwrap_or(1_440)
+                    } else {
+                        1_440
+                    };
+                    let visible_end = end_minute.min(1_440);
+                    if visible_end <= start_minute {
+                        continue;
+                    }
+                    timed.push(PlanEventMarkerData {
+                        id: event.id.to_string().into(),
+                        title: event.title.clone().into(),
+                        date: date.format("%Y-%m-%d").to_string().into(),
+                        time: start.format("%H:%M").to_string().into(),
+                        day_index: day_index as i32,
+                        minute_offset: start_minute,
+                        duration_minutes: visible_end - start_minute,
+                        lane_index: 0,
+                        lane_count: 1,
+                    });
                 }
-                let start_minute = i32::try_from(start.time().num_seconds_from_midnight() / 60)
-                    .unwrap_or_default();
-                let end_minute = if end.date_naive() == date {
-                    i32::try_from(end.time().num_seconds_from_midnight() / 60).unwrap_or(1_440)
-                } else {
-                    1_440
-                };
-                let visible_start = start_minute.max(0);
-                let visible_end = end_minute.min(1_440);
-                if visible_end <= visible_start {
-                    continue;
-                }
-                timed.push(PlanEventMarkerData {
-                    id: event.id.to_string().into(),
-                    title: event.title.clone().into(),
-                    date: date.format("%Y-%m-%d").to_string().into(),
-                    time: start.format("%H:%M").to_string().into(),
-                    day_index: day_index as i32,
-                    minute_offset: visible_start,
-                    duration_minutes: visible_end - visible_start,
-                    lane_index: 0,
-                    lane_count: 1,
-                });
             }
             EventTime::AllDay {
                 start_date,
@@ -4227,19 +4257,25 @@ fn plan_event_rows(
                 ) else {
                     continue;
                 };
-                let first = start.max(week_start);
-                let last = end.min(week_end);
-                if first > last {
-                    continue;
-                }
-                for offset in 0..=last.signed_duration_since(first).num_days() {
-                    let date = first + chrono::Duration::days(offset);
-                    all_day.push(PlanAllDayEventData {
-                        id: event.id.to_string().into(),
-                        title: event.title.clone().into(),
-                        date: date.format("%Y-%m-%d").to_string().into(),
-                        day_index: date.signed_duration_since(week_start).num_days() as i32,
-                    });
+                let duration_days = end.signed_duration_since(start).num_days();
+                for occurrence_start in event_occurrence_dates(
+                    start,
+                    event.recurrence,
+                    week_start - chrono::Duration::days(duration_days),
+                    week_end,
+                ) {
+                    let occurrence_end = occurrence_start + chrono::Duration::days(duration_days);
+                    let first = occurrence_start.max(week_start);
+                    let last = occurrence_end.min(week_end);
+                    for offset in 0..=last.signed_duration_since(first).num_days() {
+                        let date = first + chrono::Duration::days(offset);
+                        all_day.push(PlanAllDayEventData {
+                            id: event.id.to_string().into(),
+                            title: event.title.clone().into(),
+                            date: date.format("%Y-%m-%d").to_string().into(),
+                            day_index: date.signed_duration_since(week_start).num_days() as i32,
+                        });
+                    }
                 }
             }
         }
@@ -4247,6 +4283,31 @@ fn plan_event_rows(
     arrange_plan_event_lanes(&mut timed);
     all_day.sort_by_key(|event| event.day_index);
     (timed, all_day)
+}
+
+fn event_occurrence_dates(
+    origin: NaiveDate,
+    recurrence: EventRecurrence,
+    range_start: NaiveDate,
+    range_end: NaiveDate,
+) -> Vec<NaiveDate> {
+    if recurrence == EventRecurrence::None {
+        return (origin >= range_start && origin <= range_end)
+            .then_some(origin)
+            .into_iter()
+            .collect();
+    }
+    let first = range_start.max(origin);
+    (0..=range_end.signed_duration_since(first).num_days())
+        .map(|offset| first + chrono::Duration::days(offset))
+        .filter(|date| match recurrence {
+            EventRecurrence::None => false,
+            EventRecurrence::Daily => true,
+            EventRecurrence::Weekly => date.weekday() == origin.weekday(),
+            EventRecurrence::Monthly => date.day() == origin.day(),
+            EventRecurrence::Yearly => date.month() == origin.month() && date.day() == origin.day(),
+        })
+        .collect()
 }
 
 fn arrange_plan_event_lanes(rows: &mut [PlanEventMarkerData]) {
@@ -4372,6 +4433,27 @@ fn mask_clock_time(text: &str) -> String {
         }
     }
     result
+}
+
+fn parse_event_recurrence(value: &str) -> Option<EventRecurrence> {
+    match value {
+        "Does not repeat" => Some(EventRecurrence::None),
+        "Daily" => Some(EventRecurrence::Daily),
+        "Weekly" => Some(EventRecurrence::Weekly),
+        "Monthly" => Some(EventRecurrence::Monthly),
+        "Yearly" => Some(EventRecurrence::Yearly),
+        _ => None,
+    }
+}
+
+fn event_recurrence_label(recurrence: EventRecurrence) -> &'static str {
+    match recurrence {
+        EventRecurrence::None => "Does not repeat",
+        EventRecurrence::Daily => "Daily",
+        EventRecurrence::Weekly => "Weekly",
+        EventRecurrence::Monthly => "Monthly",
+        EventRecurrence::Yearly => "Yearly",
+    }
 }
 
 fn adjust_timer_part(text: &str, part: i32, direction: i32) -> Option<u16> {
@@ -5250,6 +5332,29 @@ mod timer_editor_tests {
         assert_eq!((rows[0].lane_index, rows[0].lane_count), (0, 2));
         assert_eq!((rows[1].lane_index, rows[1].lane_count), (1, 2));
         assert_eq!((rows[2].lane_index, rows[2].lane_count), (0, 1));
+    }
+
+    #[test]
+    fn event_recurrence_expands_only_matching_dates_after_the_origin() {
+        let origin = NaiveDate::from_ymd_opt(2026, 9, 7).unwrap();
+        let range_end = NaiveDate::from_ymd_opt(2026, 9, 20).unwrap();
+        assert_eq!(
+            event_occurrence_dates(origin, EventRecurrence::Weekly, origin, range_end),
+            vec![origin, NaiveDate::from_ymd_opt(2026, 9, 14).unwrap()]
+        );
+        assert_eq!(
+            event_occurrence_dates(
+                origin,
+                EventRecurrence::Daily,
+                origin - chrono::Duration::days(3),
+                origin + chrono::Duration::days(2),
+            ),
+            vec![
+                origin,
+                NaiveDate::from_ymd_opt(2026, 9, 8).unwrap(),
+                NaiveDate::from_ymd_opt(2026, 9, 9).unwrap(),
+            ]
+        );
     }
 
     #[test]

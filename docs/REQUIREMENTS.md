@@ -234,6 +234,7 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **EVT-05:** Selecting an existing timed or all-day Event exposes Edit in the context panel, and double-clicking its block opens the same editor directly. Saving updates the existing event without changing its identity, persists before updating Plan, and closes the modal only after persistence succeeds.
 - **EVT-06:** Edit Event exposes Delete as a secondary destructive action. Deletion requires confirmation, persists before removing the Event from Plan, clears its selection, and leaves the editor open with an error if persistence fails.
 - **EVT-07:** Timed Events whose ranges overlap on the same day receive deterministic parallel lanes for the connected overlap group. Non-overlapping Events use the full day width. The editor reuses the Planner mini-calendar for start and all-day end dates and provides large 15-minute up/down controls for start and end times while retaining direct text entry.
+- **EVT-08:** An Event may use Does not repeat, Daily, Weekly, Monthly, or Yearly recurrence. The stored Event remains one series record with its original start and duration; Week view derives matching occurrences on or after the series start, preserving the source wall time across daylight-saving changes. Older stored Events without recurrence load as Does not repeat. Monthly and yearly series occur only when the original day exists in that month or year. Custom rules and per-occurrence exceptions remain reserved for a later slice.
 
 ## Cross-Platform Quality Requirements
 

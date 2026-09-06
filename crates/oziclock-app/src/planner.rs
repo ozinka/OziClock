@@ -1,4 +1,6 @@
-use oziclock_domain::{Event, EventTime, Planner, PlannerId, ReminderSchedule, TimerState};
+use oziclock_domain::{
+    Event, EventRecurrence, EventTime, Planner, PlannerId, ReminderSchedule, TimerState,
+};
 
 fn valid_event_time(time: &EventTime) -> bool {
     match time {
@@ -39,6 +41,7 @@ pub enum PlannerCommand {
         id: PlannerId,
         title: String,
         time: EventTime,
+        recurrence: EventRecurrence,
     },
     DeleteEvent {
         id: PlannerId,
@@ -141,7 +144,12 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
             planner.events.push(event);
             true
         }
-        PlannerCommand::UpdateEvent { id, title, time } => {
+        PlannerCommand::UpdateEvent {
+            id,
+            title,
+            time,
+            recurrence,
+        } => {
             if !valid_event_time(&time) {
                 return false;
             }
@@ -149,7 +157,7 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
                 .events
                 .iter_mut()
                 .find(|event| event.id == id)
-                .is_some_and(|event| event.update(title, time))
+                .is_some_and(|event| event.update(title, time, recurrence))
         }
         PlannerCommand::DeleteEvent { id } => {
             let count = planner.events.len();
@@ -313,7 +321,9 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oziclock_domain::{Event, EventTime, Reminder, Task, TaskStatus, Timer, TimerState};
+    use oziclock_domain::{
+        Event, EventRecurrence, EventTime, Reminder, Task, TaskStatus, Timer, TimerState,
+    };
 
     fn id(value: &str) -> PlannerId {
         PlannerId::new(value).unwrap()
@@ -333,6 +343,7 @@ mod tests {
             link: None,
             color: None,
             alerts: vec![],
+            recurrence: EventRecurrence::None,
         }
     }
 
@@ -360,9 +371,11 @@ mod tests {
                     start_date: "2026-09-08".into(),
                     end_date: "2026-09-08".into(),
                 },
+                recurrence: EventRecurrence::Monthly,
             }
         ));
         assert_eq!(planner.events[0].title, "Review");
+        assert_eq!(planner.events[0].recurrence, EventRecurrence::Monthly);
         assert!(!execute_planner_command(
             &mut planner,
             PlannerCommand::UpdateEvent {
@@ -373,6 +386,7 @@ mod tests {
                     end_utc: "2026-09-08T11:00:00Z".into(),
                     source_time_zone: "UTC".into(),
                 },
+                recurrence: EventRecurrence::None,
             }
         ));
         assert!(!execute_planner_command(
@@ -384,6 +398,7 @@ mod tests {
                     start_date: "2026-09-08".into(),
                     end_date: "2026-09-08".into(),
                 },
+                recurrence: EventRecurrence::None,
             }
         ));
         assert!(execute_planner_command(
