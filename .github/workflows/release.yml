@@ -77,9 +77,10 @@ jobs:
           cp apps/oziclock-desktop/macos/Info.plist "$app_name/Contents/Info.plist"
           cp apps/oziclock-desktop/macos/OziClock.icns "$app_name/Contents/Resources/OziClock.icns"
           cp ui/fonts/OFL.txt "$app_name/Contents/Resources/Carlito-OFL.txt"
-          version="${GITHUB_REF_NAME#v}"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$app_name/Contents/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $version" "$app_name/Contents/Info.plist"
+          release_version="${GITHUB_REF_NAME#v}"
+          short_version="${release_version%%-*}"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $short_version" "$app_name/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" "$app_name/Contents/Info.plist"
           codesign --force --deep --sign - "$app_name"
           codesign --verify --deep --strict --verbose=2 "$app_name"
           tar -czf ${{ matrix.archive }} "$app_name"
@@ -103,20 +104,24 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: false
+          name: OziClock ${{ github.ref_name }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
           body: |
             ## OziClock ${{ github.ref_name }}
 
-            A native Rust and Slint release of OziClock.
+            This is a beta build for testing the new local-first Planner before the next stable release.
 
             ### Highlights
 
-            - On macOS, the clock and its system shadow now fade together using native window opacity, eliminating the dark outline left behind at low opacity.
-            - Smooth 300 ms hover fading and one-pixel clock separators are preserved; duplicate outline layers have been removed.
-            - The calendar has a flat header, neutral title, and subtle header and footer separators.
-            - Switching calendar views repositions the panel for its new height near the clock.
-            - A fixed, compact color picker fits the minimum Settings window width for both clock and outline colors.
+            - Local alarms with Once and Weekly schedules, missed/delivered status, Snooze and durable attention cards.
+            - Named countdown timers with pause, restart, reset, repeat and recovery after restart.
+            - Stopwatch with hundredths, laps, split analysis, undo and clear controls.
+            - Tasks and dated or recurring reminders with modal editors and local attention cards.
+            - Weekly Plan view with reminder markers and quick creation from a time cell.
             - Cross-platform release archives for Windows x64, Linux x64, and macOS Apple Silicon.
+
+            Please report beta issues with the operating system, exact steps, and a screenshot when possible.
 
             ### Packaging
 
