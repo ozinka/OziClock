@@ -212,6 +212,13 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **REM-14:** Monthly recurrence preserves the selected day number and uses the month's final day when that number is absent. Yearly February 29 occurrences use February 28 in non-leap years and return to February 29 in leap years.
 - **REM-15:** Every recurrence resolves wall time in its saved IANA time zone. DST gaps advance to the first valid minute and overlaps choose the earlier occurrence, matching one-time reminder behavior.
 
+## Planner Schedule View
+
+- **PLN-01:** Week view derives its Monday-to-Sunday dates from the main clock's local date. Previous and next move exactly seven days; activating the range label returns to the current week.
+- **PLN-02:** Enabled reminders whose next occurrence falls between 09:00 and 18:00 in the main clock's time zone appear as accent markers at the corresponding day and time.
+- **PLN-03:** Clicking an empty hourly cell opens the existing Reminders editor with that local date and hour prefilled as a one-time reminder. The Plan view does not duplicate reminder validation or persistence.
+- **PLN-04:** Alarm, timer, reminder, and task lists keep creation forms out of the page layout. Add opens a dimmed in-window modal, Edit appears only for the selected active item, and double-click opens the same modal directly. Saving closes the modal; Cancel, the close icon, or backdrop dismissal preserves stored data and returns the selected item to its non-editing state.
+
 ## Cross-Platform Quality Requirements
 
 - **NFR-01:** Support current Windows, macOS, and mainstream Linux desktop releases.

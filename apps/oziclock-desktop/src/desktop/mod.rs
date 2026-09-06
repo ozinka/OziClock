@@ -285,6 +285,64 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             planner.set_reminder_error("".into());
         }
     });
+    let plan_day_model = Rc::new(VecModel::from(Vec::<PlanWeekDayData>::new()));
+    let plan_reminder_model = Rc::new(VecModel::from(Vec::<PlanReminderMarkerData>::new()));
+    planner_window.set_plan_week_days(ModelRc::from(plan_day_model.clone()));
+    planner_window.set_plan_reminders(ModelRc::from(plan_reminder_model.clone()));
+    let plan_week_start = Rc::new(RefCell::new(current_week_start(&shared_settings.borrow())));
+    refresh_plan_week(
+        &planner_window,
+        &plan_day_model,
+        &plan_reminder_model,
+        &shared_settings.borrow(),
+        *plan_week_start.borrow(),
+    );
+    let planner_for_plan_week = planner_window.as_weak();
+    let settings_for_plan_week = shared_settings.clone();
+    let days_for_plan_week = plan_day_model.clone();
+    let reminders_for_plan_week = plan_reminder_model.clone();
+    let start_for_plan_week = plan_week_start.clone();
+    planner_window.on_request_plan_week(move |direction| {
+        let Some(planner) = planner_for_plan_week.upgrade() else {
+            return;
+        };
+        let start = if direction == 0 {
+            current_week_start(&settings_for_plan_week.borrow())
+        } else {
+            *start_for_plan_week.borrow()
+                + chrono::Duration::days(i64::from(direction.signum()) * 7)
+        };
+        *start_for_plan_week.borrow_mut() = start;
+        refresh_plan_week(
+            &planner,
+            &days_for_plan_week,
+            &reminders_for_plan_week,
+            &settings_for_plan_week.borrow(),
+            start,
+        );
+    });
+    let planner_for_plan_reminder = planner_window.as_weak();
+    planner_window.on_request_plan_reminder(move |date, hour| {
+        if let Some(planner) = planner_for_plan_reminder.upgrade() {
+            planner.set_selected_reminder("".into());
+            planner.set_editing_reminder("".into());
+            planner.set_reminder_title_draft("Reminder".into());
+            planner.set_reminder_date_draft(date);
+            planner.set_reminder_hours_draft(format!("{hour:02}").into());
+            planner.set_reminder_minutes_draft("00".into());
+            planner.set_reminder_recurrence("Once".into());
+            planner.set_reminder_error("".into());
+            planner.set_editor_modal(4);
+        }
+    });
+    schedule_plan_refresh(
+        Rc::new(Timer::default()),
+        planner_window.as_weak(),
+        plan_day_model.clone(),
+        plan_reminder_model.clone(),
+        shared_settings.clone(),
+        plan_week_start.clone(),
+    );
     let planner_task_model = Rc::new(VecModel::from(planner_task_rows(&shared_settings.borrow())));
     let planner_completed_task_model = Rc::new(VecModel::from(planner_completed_task_rows(
         &shared_settings.borrow(),
@@ -374,6 +432,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         planner.set_task_draft("".into());
         planner.set_editing_task("".into());
         planner.set_selected_task("".into());
+        planner.set_editor_modal(-1);
     });
     let planner_for_complete_task = planner_window.as_weak();
     let settings_for_complete_task = shared_settings.clone();
@@ -664,6 +723,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             *settings = updated;
             ui.set_editing_alarm("".into());
             ui.set_selected_alarm("".into());
+            ui.set_editor_modal(-1);
             alarm_model_for_add_alarm.set_vec(planner_alarm_rows(&settings));
             if let Some(planner) = planner_for_add_alarm.upgrade() {
                 planner.set_alarm_title_draft("Alarm".into());
@@ -959,6 +1019,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         planner.set_selected_timer("".into());
         planner.set_timer_title_draft("Timer".into());
         planner.set_timer_repeat(false);
+        planner.set_editor_modal(-1);
     });
     let settings_for_edit_timer_item = shared_settings.clone();
     let planner_for_edit_timer_item = planner_window.as_weak();
@@ -1171,6 +1232,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let planner_for_add_reminder = planner_window.as_weak();
     let settings_for_add_reminder = shared_settings.clone();
     let model_for_add_reminder = planner_reminder_model.clone();
+    let plan_model_for_add_reminder = plan_reminder_model.clone();
+    let plan_start_for_add_reminder = plan_week_start.clone();
     let queue_for_add_reminder = reminder_attention_queue.clone();
     let attention_for_add_reminder = reminder_attention_window.as_weak();
     let owner_for_add_reminder = window.as_weak();
@@ -1298,6 +1361,10 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             }
             *settings = updated;
             model_for_add_reminder.set_vec(planner_reminder_rows(&settings));
+            plan_model_for_add_reminder.set_vec(plan_reminder_rows(
+                &settings,
+                *plan_start_for_add_reminder.borrow(),
+            ));
             if let Some(id) = editing_id {
                 queue_for_add_reminder
                     .borrow_mut()
@@ -1316,6 +1383,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             planner.set_reminder_date_draft(date.into());
             planner.set_reminder_hours_draft(time[..2].into());
             planner.set_reminder_minutes_draft(time[3..].into());
+            planner.set_editor_modal(-1);
         },
     );
     let settings_for_edit_reminder = shared_settings.clone();
@@ -1383,6 +1451,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     });
     let settings_for_toggle_reminder = shared_settings.clone();
     let model_for_toggle_reminder = planner_reminder_model.clone();
+    let plan_model_for_toggle_reminder = plan_reminder_model.clone();
+    let plan_start_for_toggle_reminder = plan_week_start.clone();
     planner_window.on_request_toggle_reminder(move |reminder_id, enabled| {
         let Some(id) = PlannerId::new(reminder_id.to_string()) else {
             return;
@@ -1396,10 +1466,16 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         {
             *settings = updated;
             model_for_toggle_reminder.set_vec(planner_reminder_rows(&settings));
+            plan_model_for_toggle_reminder.set_vec(plan_reminder_rows(
+                &settings,
+                *plan_start_for_toggle_reminder.borrow(),
+            ));
         }
     });
     let settings_for_delete_reminder = shared_settings.clone();
     let model_for_delete_reminder = planner_reminder_model.clone();
+    let plan_model_for_delete_reminder = plan_reminder_model.clone();
+    let plan_start_for_delete_reminder = plan_week_start.clone();
     let planner_for_delete_reminder = planner_window.as_weak();
     let queue_for_delete_reminder = reminder_attention_queue.clone();
     let attention_for_delete_reminder = reminder_attention_window.as_weak();
@@ -1417,6 +1493,10 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         {
             *settings = updated;
             model_for_delete_reminder.set_vec(planner_reminder_rows(&settings));
+            plan_model_for_delete_reminder.set_vec(plan_reminder_rows(
+                &settings,
+                *plan_start_for_delete_reminder.borrow(),
+            ));
             queue_for_delete_reminder
                 .borrow_mut()
                 .retain(|item| item.reminder_id != id);
@@ -3546,6 +3626,73 @@ fn refresh_reminder_calendar(
     planner.set_reminder_calendar_title(anchor.format("%B %Y").to_string().into());
 }
 
+fn current_week_start(settings: &AppSettings) -> NaiveDate {
+    let today = calendar_local_now(settings).date();
+    today - chrono::Duration::days(today.weekday().num_days_from_monday().into())
+}
+
+fn refresh_plan_week(
+    planner: &PlannerWindow,
+    day_model: &VecModel<PlanWeekDayData>,
+    reminder_model: &VecModel<PlanReminderMarkerData>,
+    settings: &AppSettings,
+    start: NaiveDate,
+) {
+    let today = calendar_local_now(settings).date();
+    day_model.set_vec(
+        (0..7)
+            .map(|offset| {
+                let date = start + chrono::Duration::days(offset);
+                PlanWeekDayData {
+                    label: date.format("%a %-d").to_string().into(),
+                    date: date.format("%Y-%m-%d").to_string().into(),
+                    weekend: date.weekday().num_days_from_monday() >= 5,
+                    today: date == today,
+                }
+            })
+            .collect::<Vec<_>>(),
+    );
+    reminder_model.set_vec(plan_reminder_rows(settings, start));
+    let title = if start == current_week_start(settings) {
+        "This week".to_owned()
+    } else {
+        format!(
+            "{} – {}",
+            start.format("%-d %b"),
+            (start + chrono::Duration::days(6)).format("%-d %b")
+        )
+    };
+    planner.set_plan_week_title(title.into());
+}
+
+fn plan_reminder_rows(settings: &AppSettings, start: NaiveDate) -> Vec<PlanReminderMarkerData> {
+    let zone = main_time_zone(settings)
+        .parse::<Tz>()
+        .unwrap_or(chrono_tz::UTC);
+    settings
+        .planner
+        .reminders
+        .iter()
+        .filter(|reminder| reminder.enabled)
+        .filter_map(|reminder| {
+            let local =
+                oziclock_app::reminder_time::due_utc(&reminder.schedule)?.with_timezone(&zone);
+            let day_index = local.date_naive().signed_duration_since(start).num_days();
+            let minutes = i32::try_from(local.time().num_seconds_from_midnight() / 60).ok()?;
+            (0..7)
+                .contains(&day_index)
+                .then_some(())
+                .filter(|_| (540..1080).contains(&minutes))?;
+            Some(PlanReminderMarkerData {
+                title: reminder.title.clone().into(),
+                time: local.format("%H:%M").to_string().into(),
+                day_index: day_index as i32,
+                minute_offset: minutes - 540,
+            })
+        })
+        .collect()
+}
+
 fn duration_parts(total_seconds: u64) -> (u16, u8, u8, u8) {
     let days = (total_seconds / 86_400).min(u64::from(u16::MAX)) as u16;
     let hours = ((total_seconds % 86_400) / 3_600) as u8;
@@ -3807,6 +3954,40 @@ fn schedule_reminder_attention_pulse(
             schedule_reminder_attention_pulse(next_timer.clone(), window.clone());
         },
     );
+}
+
+fn schedule_plan_refresh(
+    timer: Rc<Timer>,
+    planner: slint::Weak<PlannerWindow>,
+    day_model: Rc<VecModel<PlanWeekDayData>>,
+    reminder_model: Rc<VecModel<PlanReminderMarkerData>>,
+    settings: Rc<RefCell<AppSettings>>,
+    start: Rc<RefCell<NaiveDate>>,
+) {
+    let next_timer = timer.clone();
+    let next_day_model = day_model.clone();
+    let next_reminder_model = reminder_model.clone();
+    let next_settings = settings.clone();
+    let next_start = start.clone();
+    timer.start(TimerMode::SingleShot, Duration::from_secs(60), move || {
+        if let Some(planner) = planner.upgrade() {
+            refresh_plan_week(
+                &planner,
+                &day_model,
+                &reminder_model,
+                &settings.borrow(),
+                *start.borrow(),
+            );
+        }
+        schedule_plan_refresh(
+            next_timer.clone(),
+            planner.clone(),
+            next_day_model.clone(),
+            next_reminder_model.clone(),
+            next_settings.clone(),
+            next_start.clone(),
+        );
+    });
 }
 
 fn schedule_alarm_refresh(
