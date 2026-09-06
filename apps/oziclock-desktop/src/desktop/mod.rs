@@ -193,6 +193,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     planner_window.set_reminder_date_draft(reminder_date.into());
     planner_window.set_reminder_hours_draft(reminder_time[..2].into());
     planner_window.set_reminder_minutes_draft(reminder_time[3..].into());
+    let initial_plan_minute = calendar_local_now(&shared_settings.borrow())
+        .time()
+        .num_seconds_from_midnight()
+        / 60;
+    planner_window.set_plan_scroll_y(-(initial_plan_minute.saturating_sub(300) as f32));
     let planner_for_alarm_entry = planner_window.as_weak();
     let settings_for_alarm_entry = shared_settings.clone();
     planner_window.on_request_alarm_section_enter(move || {
@@ -232,8 +237,16 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             return;
         };
         let today = calendar_local_now(&settings_for_open_reminder_calendar.borrow()).date();
-        let selected =
-            NaiveDate::parse_from_str(&planner.get_reminder_date_draft(), "%Y-%m-%d").ok();
+        let selected_text = if planner.get_editor_modal() == 6 {
+            if planner.get_event_calendar_target() == 1 {
+                planner.get_event_end_date_draft()
+            } else {
+                planner.get_event_date_draft()
+            }
+        } else {
+            planner.get_reminder_date_draft()
+        };
+        let selected = NaiveDate::parse_from_str(&selected_text, "%Y-%m-%d").ok();
         let anchor = selected
             .unwrap_or(today)
             .with_day(1)
@@ -267,8 +280,16 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         };
         *anchor_for_navigate_reminder_calendar.borrow_mut() = anchor;
         let today = calendar_local_now(&settings_for_navigate_reminder_calendar.borrow()).date();
-        let selected =
-            NaiveDate::parse_from_str(&planner.get_reminder_date_draft(), "%Y-%m-%d").ok();
+        let selected_text = if planner.get_editor_modal() == 6 {
+            if planner.get_event_calendar_target() == 1 {
+                planner.get_event_end_date_draft()
+            } else {
+                planner.get_event_date_draft()
+            }
+        } else {
+            planner.get_reminder_date_draft()
+        };
+        let selected = NaiveDate::parse_from_str(&selected_text, "%Y-%m-%d").ok();
         refresh_reminder_calendar(
             &planner,
             &model_for_navigate_reminder_calendar,
@@ -280,9 +301,18 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let planner_for_select_reminder_date = planner_window.as_weak();
     planner_window.on_request_select_reminder_date(move |date| {
         if let Some(planner) = planner_for_select_reminder_date.upgrade() {
-            planner.set_reminder_date_draft(date);
+            if planner.get_editor_modal() == 6 {
+                if planner.get_event_calendar_target() == 1 {
+                    planner.set_event_end_date_draft(date);
+                } else {
+                    planner.set_event_date_draft(date);
+                }
+                planner.set_event_error("".into());
+            } else {
+                planner.set_reminder_date_draft(date);
+                planner.set_reminder_error("".into());
+            }
             planner.set_reminder_calendar_visible(false);
-            planner.set_reminder_error("".into());
         }
     });
     let plan_day_model = Rc::new(VecModel::from(Vec::<PlanWeekDayData>::new()));
@@ -364,6 +394,44 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         planner
             .set_event_end_draft(format!("{:02}:{:02}", end_minutes / 60, end_minutes % 60).into());
         planner.set_event_all_day(false);
+        planner.set_event_error("".into());
+    });
+    let planner_for_adjust_event_time = planner_window.as_weak();
+    planner_window.on_request_adjust_event_time(move |target, direction| {
+        let Some(planner) = planner_for_adjust_event_time.upgrade() else {
+            return;
+        };
+        let value = if target == 0 {
+            planner.get_event_start_draft()
+        } else {
+            planner.get_event_end_draft()
+        };
+        let Some(normalized) = normalize_alarm_time(&value) else {
+            planner.set_event_error("Enter time as HH:MM.".into());
+            return;
+        };
+        let hours = normalized[..2].parse::<i32>().unwrap_or_default();
+        let minutes = normalized[3..].parse::<i32>().unwrap_or_default();
+        let adjusted = (hours * 60 + minutes + direction.signum() * 15).clamp(0, 1_439);
+        let adjusted = format!("{:02}:{:02}", adjusted / 60, adjusted % 60).into();
+        if target == 0 {
+            planner.set_event_start_draft(adjusted);
+        } else {
+            planner.set_event_end_draft(adjusted);
+        }
+        planner.set_event_error("".into());
+    });
+    let planner_for_edit_event_time = planner_window.as_weak();
+    planner_window.on_request_edit_event_time(move |target, text| {
+        let Some(planner) = planner_for_edit_event_time.upgrade() else {
+            return;
+        };
+        let masked = mask_clock_time(&text).into();
+        if target == 0 {
+            planner.set_event_start_draft(masked);
+        } else {
+            planner.set_event_end_draft(masked);
+        }
         planner.set_event_error("".into());
     });
     let planner_for_edit_event = planner_window.as_weak();
@@ -522,6 +590,39 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         planner.set_selected_plan_event("".into());
         planner.set_editing_event("".into());
         planner.set_editor_modal(-1);
+    });
+    let planner_for_delete_event = planner_window.as_weak();
+    let settings_for_delete_event = shared_settings.clone();
+    let event_model_for_delete_event = plan_event_model.clone();
+    let all_day_model_for_delete_event = plan_all_day_event_model.clone();
+    let start_for_delete_event = plan_week_start.clone();
+    planner_window.on_request_delete_event(move |event_id| {
+        let Some(id) = PlannerId::new(event_id.to_string()) else {
+            return;
+        };
+        let mut settings = settings_for_delete_event.borrow_mut();
+        let mut updated = settings.clone();
+        if !execute_planner_command(&mut updated.planner, PlannerCommand::DeleteEvent { id }) {
+            return;
+        }
+        if let Err(error) = oziclock_storage::save(&updated) {
+            if let Some(planner) = planner_for_delete_event.upgrade() {
+                planner.set_event_error(format!("Delete failed: {error}").into());
+            }
+            return;
+        }
+        *settings = updated;
+        let (events, all_day_events) = plan_event_rows(&settings, *start_for_delete_event.borrow());
+        event_model_for_delete_event.set_vec(events);
+        all_day_model_for_delete_event.set_vec(all_day_events);
+        if let Some(planner) = planner_for_delete_event.upgrade() {
+            planner.set_selected_plan_event("".into());
+            planner.set_selected_plan_date("".into());
+            planner.set_selected_plan_title("".into());
+            planner.set_selected_plan_time("".into());
+            planner.set_editing_event("".into());
+            planner.set_editor_modal(-1);
+        }
     });
     let planner_task_model = Rc::new(VecModel::from(planner_task_rows(&shared_settings.borrow())));
     let planner_completed_task_model = Rc::new(VecModel::from(planner_completed_task_rows(
@@ -807,6 +908,20 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             planner.set_alarm_minutes_draft(value);
         }
     });
+    let planner_for_edit_alarm = planner_window.as_weak();
+    planner_window.on_request_edit_alarm_part(move |part, text| {
+        let Some(planner) = planner_for_edit_alarm.upgrade() else {
+            return;
+        };
+        let Some(value) = mask_timer_part(&text, part) else {
+            return;
+        };
+        if part == 1 {
+            planner.set_alarm_hours_draft(value.into());
+        } else if part == 2 {
+            planner.set_alarm_minutes_draft(value.into());
+        }
+    });
     let planner_for_add_alarm = planner_window.as_weak();
     let settings_for_add_alarm = shared_settings.clone();
     let alarm_model_for_add_alarm = planner_alarm_model.clone();
@@ -1069,9 +1184,23 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         &timer_attention_queue,
     );
     schedule_timer_attention_pulse(Rc::new(Timer::default()), timer_attention_window.as_weak());
+    let planner_for_edit_timer_part = planner_window.as_weak();
     let settings_for_edit_timer = shared_settings.clone();
     planner_window.on_request_edit_timer_part(move |part, text| {
-        let Some(value) = parse_timer_part(&text, part) else {
+        let Some(masked) = mask_timer_part(&text, part) else {
+            return;
+        };
+        let Some(planner) = planner_for_edit_timer_part.upgrade() else {
+            return;
+        };
+        match part {
+            0 => planner.set_timer_days_draft(masked.clone().into()),
+            1 => planner.set_timer_hours_draft(masked.clone().into()),
+            2 => planner.set_timer_minutes_draft(masked.clone().into()),
+            3 => planner.set_timer_seconds_draft(masked.clone().into()),
+            _ => return,
+        }
+        let Some(value) = parse_timer_part(&masked, part) else {
             return;
         };
         let mut settings = settings_for_edit_timer.borrow_mut();
@@ -1431,6 +1560,20 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             planner.set_reminder_hours_draft(value);
         } else {
             planner.set_reminder_minutes_draft(value);
+        }
+    });
+    let planner_for_edit_reminder = planner_window.as_weak();
+    planner_window.on_request_edit_reminder_part(move |part, text| {
+        let Some(planner) = planner_for_edit_reminder.upgrade() else {
+            return;
+        };
+        let Some(value) = mask_timer_part(&text, part) else {
+            return;
+        };
+        if part == 1 {
+            planner.set_reminder_hours_draft(value.into());
+        } else if part == 2 {
+            planner.set_reminder_minutes_draft(value.into());
         }
     });
     let planner_for_add_reminder = planner_window.as_weak();
@@ -2682,6 +2825,9 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let planner_for_menu = planner_window.as_weak();
     let menu_for_planner = context_menu.as_weak();
     let owner_for_planner = window.as_weak();
+    let settings_for_planner_scroll = shared_settings.clone();
+    let planner_scroll_initialized = Rc::new(Cell::new(false));
+    let initialized_for_planner = planner_scroll_initialized.clone();
     context_menu.on_request_open_planner(move || {
         if let Some(menu) = menu_for_planner.upgrade() {
             let _ = menu.hide();
@@ -2694,6 +2840,25 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 .with_winit_window(|native| native.set_minimized(false));
             position_calendar_window(planner.window(), &owner_for_planner);
             focus_auxiliary_window(planner.window());
+            if !initialized_for_planner.replace(true) {
+                let planner = planner.as_weak();
+                let initial_plan_minute = calendar_local_now(&settings_for_planner_scroll.borrow())
+                    .time()
+                    .num_seconds_from_midnight()
+                    / 60;
+                let target = -(initial_plan_minute.saturating_sub(300) as f32);
+                if let Some(planner) = planner.upgrade() {
+                    planner.set_plan_scroll_y(target);
+                }
+                Timer::single_shot(Duration::from_millis(16), move || {
+                    if let Some(planner) = planner.upgrade() {
+                        planner.set_plan_scroll_y(target);
+                        let _ = planner
+                            .window()
+                            .with_winit_window(|native| native.request_redraw());
+                    }
+                });
+            }
         }
     });
     let menu_for_dismiss = context_menu.as_weak();
@@ -3903,9 +4068,9 @@ fn refresh_plan_week(
     let current_day = today.signed_duration_since(start).num_days();
     let current_minute =
         i32::try_from(local_now.time().num_seconds_from_midnight() / 60).unwrap_or_default();
-    if (0..7).contains(&current_day) && (540..1080).contains(&current_minute) {
+    if (0..7).contains(&current_day) {
         planner.set_current_plan_day(current_day as i32);
-        planner.set_current_plan_minute(current_minute - 540);
+        planner.set_current_plan_minute(current_minute);
         planner.set_current_plan_time(local_now.time().format("%H:%M").to_string().into());
     } else {
         planner.set_current_plan_day(-1);
@@ -3938,17 +4103,14 @@ fn plan_reminder_rows(settings: &AppSettings, start: NaiveDate) -> Vec<PlanRemin
                 oziclock_app::reminder_time::due_utc(&reminder.schedule)?.with_timezone(&zone);
             let day_index = local.date_naive().signed_duration_since(start).num_days();
             let minutes = i32::try_from(local.time().num_seconds_from_midnight() / 60).ok()?;
-            (0..7)
-                .contains(&day_index)
-                .then_some(())
-                .filter(|_| (540..1080).contains(&minutes))?;
+            (0..7).contains(&day_index).then_some(())?;
             Some(PlanReminderMarkerData {
                 id: reminder.id.to_string().into(),
                 title: reminder.title.clone().into(),
                 date: local.format("%Y-%m-%d").to_string().into(),
                 time: local.format("%H:%M").to_string().into(),
                 day_index: day_index as i32,
-                minute_offset: minutes - 540,
+                minute_offset: minutes,
                 lane_index: 0,
                 lane_count: 1,
             })
@@ -4038,8 +4200,8 @@ fn plan_event_rows(
                 } else {
                     1_440
                 };
-                let visible_start = start_minute.max(540);
-                let visible_end = end_minute.min(1_080);
+                let visible_start = start_minute.max(0);
+                let visible_end = end_minute.min(1_440);
                 if visible_end <= visible_start {
                     continue;
                 }
@@ -4049,8 +4211,10 @@ fn plan_event_rows(
                     date: date.format("%Y-%m-%d").to_string().into(),
                     time: start.format("%H:%M").to_string().into(),
                     day_index: day_index as i32,
-                    minute_offset: visible_start - 540,
+                    minute_offset: visible_start,
                     duration_minutes: visible_end - visible_start,
+                    lane_index: 0,
+                    lane_count: 1,
                 });
             }
             EventTime::AllDay {
@@ -4080,9 +4244,50 @@ fn plan_event_rows(
             }
         }
     }
-    timed.sort_by_key(|event| (event.day_index, event.minute_offset));
+    arrange_plan_event_lanes(&mut timed);
     all_day.sort_by_key(|event| event.day_index);
     (timed, all_day)
+}
+
+fn arrange_plan_event_lanes(rows: &mut [PlanEventMarkerData]) {
+    rows.sort_by(|left, right| {
+        left.day_index
+            .cmp(&right.day_index)
+            .then(left.minute_offset.cmp(&right.minute_offset))
+            .then(left.id.as_str().cmp(right.id.as_str()))
+    });
+    let mut cluster_start = 0;
+    while cluster_start < rows.len() {
+        let day = rows[cluster_start].day_index;
+        let mut cluster_end =
+            rows[cluster_start].minute_offset + rows[cluster_start].duration_minutes;
+        let mut cluster_limit = cluster_start + 1;
+        while cluster_limit < rows.len()
+            && rows[cluster_limit].day_index == day
+            && rows[cluster_limit].minute_offset < cluster_end
+        {
+            cluster_end = cluster_end
+                .max(rows[cluster_limit].minute_offset + rows[cluster_limit].duration_minutes);
+            cluster_limit += 1;
+        }
+        let mut lane_ends = Vec::<i32>::new();
+        for row in &mut rows[cluster_start..cluster_limit] {
+            let lane = lane_ends
+                .iter()
+                .position(|end| *end <= row.minute_offset)
+                .unwrap_or(lane_ends.len());
+            if lane == lane_ends.len() {
+                lane_ends.push(0);
+            }
+            lane_ends[lane] = row.minute_offset + row.duration_minutes;
+            row.lane_index = lane as i32;
+        }
+        let lane_count = lane_ends.len().max(1) as i32;
+        for row in &mut rows[cluster_start..cluster_limit] {
+            row.lane_count = lane_count;
+        }
+        cluster_start = cluster_limit;
+    }
 }
 
 fn duration_parts(total_seconds: u64) -> (u16, u8, u8, u8) {
@@ -4124,6 +4329,49 @@ fn parse_timer_part(text: &str, part: i32) -> Option<u16> {
     let maximum = timer_part_limit(part)?;
     let value = text.trim().parse::<u16>().ok()?;
     (value <= maximum).then_some(value)
+}
+
+fn mask_timer_part(text: &str, part: i32) -> Option<String> {
+    let maximum = timer_part_limit(part)?;
+    let maximum_digits = if part == 0 { 3 } else { 2 };
+    let digits = text
+        .chars()
+        .filter(char::is_ascii_digit)
+        .take(maximum_digits)
+        .collect::<String>();
+    if digits.is_empty() {
+        return Some(String::new());
+    }
+    let value = digits.parse::<u16>().ok()?;
+    if value <= maximum {
+        Some(digits)
+    } else {
+        Some(maximum.to_string())
+    }
+}
+
+fn mask_clock_time(text: &str) -> String {
+    let digits = text
+        .chars()
+        .filter(char::is_ascii_digit)
+        .take(4)
+        .collect::<String>();
+    let hour_digits = digits.len().min(2);
+    let mut result = digits[..hour_digits].to_string();
+    if hour_digits == 2 {
+        let hours = result.parse::<u8>().unwrap_or_default().min(23);
+        result = format!("{hours:02}:");
+    }
+    if digits.len() > 2 {
+        let minute_digits = &digits[2..];
+        let minutes = minute_digits.parse::<u8>().unwrap_or_default().min(59);
+        if minute_digits.len() == 1 {
+            result.push_str(&minutes.to_string());
+        } else {
+            result.push_str(&format!("{minutes:02}"));
+        }
+    }
+    result
 }
 
 fn adjust_timer_part(text: &str, part: i32, direction: i32) -> Option<u16> {
@@ -4977,6 +5225,33 @@ mod timer_editor_tests {
         }
     }
 
+    fn plan_event(id: &str, day: i32, minute: i32, duration: i32) -> PlanEventMarkerData {
+        PlanEventMarkerData {
+            id: id.into(),
+            title: id.into(),
+            date: "2026-09-07".into(),
+            time: "10:00".into(),
+            day_index: day,
+            minute_offset: minute,
+            duration_minutes: duration,
+            lane_index: 0,
+            lane_count: 1,
+        }
+    }
+
+    #[test]
+    fn overlapping_plan_events_share_lanes_until_the_cluster_ends() {
+        let mut rows = vec![
+            plan_event("long", 0, 60, 90),
+            plan_event("short", 0, 90, 30),
+            plan_event("later", 0, 180, 30),
+        ];
+        arrange_plan_event_lanes(&mut rows);
+        assert_eq!((rows[0].lane_index, rows[0].lane_count), (0, 2));
+        assert_eq!((rows[1].lane_index, rows[1].lane_count), (1, 2));
+        assert_eq!((rows[2].lane_index, rows[2].lane_count), (0, 1));
+    }
+
     #[test]
     fn overlapping_plan_reminders_share_deterministic_lanes() {
         let rows = arrange_plan_reminder_lanes(vec![
@@ -5073,6 +5348,17 @@ mod timer_editor_tests {
         for invalid in ["24:00", "12:60", "-1:30", ":30", "7:", "7:00:00"] {
             assert_eq!(normalize_alarm_time(invalid), None);
         }
+    }
+
+    #[test]
+    fn time_input_masks_remove_invalid_characters_and_enforce_ranges() {
+        assert_eq!(mask_timer_part("0a7", 1).as_deref(), Some("07"));
+        assert_eq!(mask_timer_part("99", 2).as_deref(), Some("59"));
+        assert_eq!(mask_timer_part("1234", 0).as_deref(), Some("123"));
+        assert_eq!(mask_clock_time("1"), "1");
+        assert_eq!(mask_clock_time("12"), "12:");
+        assert_eq!(mask_clock_time("12x34"), "12:34");
+        assert_eq!(mask_clock_time("2968"), "23:59");
     }
 
     #[test]

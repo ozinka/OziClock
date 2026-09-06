@@ -223,6 +223,7 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **PLN-06:** Reminder markers on the same day whose 30-minute visual intervals overlap are assigned deterministic parallel lanes. Every marker in the connected overlap group shares the available day-column width equally; non-overlapping markers retain the full usable width. Ordering is stable by day, start minute, and reminder ID.
 - **PLN-07:** The compact context panel below Plan reflects the current selection. An empty cell shows its date and time with a disabled future-Event action; a reminder shows its title, date, and time with an Edit action that opens the shared Reminder editor. With no selection, the panel remains an informational Events placeholder.
 - **PLN-08:** Week navigation is available only in the implemented Week view. Month and Year remain clearly labelled non-interactive placeholders until their schedule integration is implemented and must not silently change the hidden week range.
+- **PLN-09:** Week uses a vertically scrollable 00:00–24:00 timeline with a fixed 60-pixel hour height. Increasing Planner height reveals more hours instead of stretching rows. On initial opening, the viewport starts near the current local time, and the current-time line remains positioned by its absolute minute of day.
 
 ## Personal Events
 
@@ -231,6 +232,8 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **EVT-03:** Week view renders stored timed events as duration-sensitive amber blocks in the main clock's time zone and clips their visible portion to 09:00–18:00. All-day events occupy a dedicated row beneath the weekday headings, including every visible day of a multi-day range. Event selection is independent from Reminder selection and exposes the event title, date, and time in the shared context panel.
 - **EVT-04:** Double-clicking an empty Week cell opens the shared Event modal prefilled with that date, the cell's start hour, and a one-hour duration. The selected-cell action opens the same modal. Timed events accept a title, local date, start and end time; All day replaces the time range with inclusive start and end dates. Blank titles, invalid dates or times, reversed all-day ranges, and timed ranges whose end is not later than their start remain in the editor with a concise error.
 - **EVT-05:** Selecting an existing timed or all-day Event exposes Edit in the context panel, and double-clicking its block opens the same editor directly. Saving updates the existing event without changing its identity, persists before updating Plan, and closes the modal only after persistence succeeds.
+- **EVT-06:** Edit Event exposes Delete as a secondary destructive action. Deletion requires confirmation, persists before removing the Event from Plan, clears its selection, and leaves the editor open with an error if persistence fails.
+- **EVT-07:** Timed Events whose ranges overlap on the same day receive deterministic parallel lanes for the connected overlap group. Non-overlapping Events use the full day width. The editor reuses the Planner mini-calendar for start and all-day end dates and provides large 15-minute up/down controls for start and end times while retaining direct text entry.
 
 ## Cross-Platform Quality Requirements
 
