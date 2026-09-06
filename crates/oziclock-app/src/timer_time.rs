@@ -32,7 +32,19 @@ pub fn reconcile(planner: &mut Planner, now: DateTime<Utc>) -> Vec<PlannerId> {
         if let Some(timer) = planner.timers.iter_mut().find(|timer| &timer.id == id) {
             let was_pending = timer.attention_pending;
             timer.finish();
-            if timer.repeat {
+            if !was_pending {
+                timer.attention_triggered_at_utc = Some(now.to_rfc3339());
+            }
+            let should_repeat = timer.repeat
+                && match timer.repeats_remaining {
+                    Some(remaining) if remaining > 0 => {
+                        timer.repeats_remaining = Some(remaining - 1);
+                        true
+                    }
+                    Some(_) => false,
+                    None => true,
+                };
+            if should_repeat {
                 timer.state = TimerState::Running;
                 timer.remaining_seconds = timer.duration_seconds;
                 timer.started_at_utc = Some(now.to_rfc3339());
@@ -70,8 +82,11 @@ mod tests {
             remaining_seconds: 300,
             state: TimerState::Running,
             repeat: false,
+            repeat_count: Some(0),
+            repeats_remaining: Some(0),
             started_at_utc: Some(started_at_utc.into()),
             attention_pending: false,
+            attention_triggered_at_utc: None,
         }
     }
 
@@ -109,6 +124,8 @@ mod tests {
     fn repeating_timer_restarts_and_keeps_attention_pending() {
         let mut timer = running_timer("2026-09-05T10:00:00Z");
         timer.repeat = true;
+        timer.repeat_count = None;
+        timer.repeats_remaining = None;
         let mut planner = Planner {
             timers: vec![timer],
             ..Planner::default()
@@ -124,5 +141,34 @@ mod tests {
         );
         assert!(planner.timers[0].attention_pending);
         assert_eq!(pending_attention(&planner).len(), 1);
+    }
+
+    #[test]
+    fn finite_repeat_count_means_additional_runs_and_survives_pending_attention() {
+        let mut timer = running_timer("2026-09-05T10:00:00Z");
+        timer.repeat = true;
+        timer.repeat_count = Some(2);
+        timer.repeats_remaining = Some(2);
+        let mut planner = Planner {
+            timers: vec![timer],
+            ..Planner::default()
+        };
+
+        assert_eq!(
+            reconcile(&mut planner, utc("2026-09-05T10:05:00Z")).len(),
+            1
+        );
+        assert_eq!(planner.timers[0].state, TimerState::Running);
+        assert_eq!(planner.timers[0].repeats_remaining, Some(1));
+        let first_trigger = planner.timers[0].attention_triggered_at_utc.clone();
+
+        assert!(reconcile(&mut planner, utc("2026-09-05T10:10:00Z")).is_empty());
+        assert_eq!(planner.timers[0].state, TimerState::Running);
+        assert_eq!(planner.timers[0].repeats_remaining, Some(0));
+        assert_eq!(planner.timers[0].attention_triggered_at_utc, first_trigger);
+
+        assert!(reconcile(&mut planner, utc("2026-09-05T10:15:00Z")).is_empty());
+        assert_eq!(planner.timers[0].state, TimerState::Finished);
+        assert_eq!(planner.timers[0].repeats_remaining, Some(0));
     }
 }

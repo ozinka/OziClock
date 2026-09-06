@@ -281,13 +281,20 @@ pub struct Timer {
     pub remaining_seconds: u64,
     pub state: TimerState,
     pub repeat: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub repeat_count: Option<u32>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub repeats_remaining: Option<u32>,
     pub started_at_utc: Option<String>,
     #[cfg_attr(feature = "serde", serde(default))]
     pub attention_pending: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub attention_triggered_at_utc: Option<String>,
 }
 
 impl Timer {
     pub fn start(&mut self, started_at_utc: String) -> bool {
+        let starts_new_sequence = matches!(self.state, TimerState::Idle | TimerState::Finished);
         if self.remaining_seconds == 0 {
             self.remaining_seconds = self.duration_seconds;
         }
@@ -297,6 +304,10 @@ impl Timer {
         self.state = TimerState::Running;
         self.started_at_utc = Some(started_at_utc);
         self.attention_pending = false;
+        self.attention_triggered_at_utc = None;
+        if starts_new_sequence {
+            self.repeats_remaining = self.repeat_count;
+        }
         true
     }
 
@@ -323,10 +334,12 @@ impl Timer {
                 return false;
             }
             self.attention_pending = false;
+            self.attention_triggered_at_utc = None;
             return true;
         }
         self.state = TimerState::Idle;
         self.attention_pending = false;
+        self.attention_triggered_at_utc = None;
         true
     }
 
@@ -338,6 +351,8 @@ impl Timer {
         self.state = TimerState::Running;
         self.started_at_utc = Some(started_at_utc);
         self.attention_pending = false;
+        self.attention_triggered_at_utc = None;
+        self.repeats_remaining = self.repeat_count;
         true
     }
 
@@ -345,15 +360,25 @@ impl Timer {
         let changed = self.state != TimerState::Idle
             || self.remaining_seconds != self.duration_seconds
             || self.started_at_utc.is_some()
-            || self.attention_pending;
+            || self.attention_pending
+            || self.attention_triggered_at_utc.is_some()
+            || self.repeats_remaining != self.repeat_count;
         self.remaining_seconds = self.duration_seconds;
         self.state = TimerState::Idle;
         self.started_at_utc = None;
         self.attention_pending = false;
+        self.attention_triggered_at_utc = None;
+        self.repeats_remaining = self.repeat_count;
         changed
     }
 
-    pub fn update(&mut self, title: String, duration_seconds: u64, repeat: bool) -> bool {
+    pub fn update(
+        &mut self,
+        title: String,
+        duration_seconds: u64,
+        repeat: bool,
+        repeat_count: Option<u32>,
+    ) -> bool {
         if title.trim().is_empty() || duration_seconds == 0 {
             return false;
         }
@@ -361,9 +386,12 @@ impl Timer {
         self.duration_seconds = duration_seconds;
         self.remaining_seconds = duration_seconds;
         self.repeat = repeat;
+        self.repeat_count = repeat_count;
+        self.repeats_remaining = repeat_count;
         self.state = TimerState::Idle;
         self.started_at_utc = None;
         self.attention_pending = false;
+        self.attention_triggered_at_utc = None;
         true
     }
 }
@@ -489,8 +517,11 @@ mod tests {
             remaining_seconds: 60,
             state: TimerState::Idle,
             repeat: false,
+            repeat_count: Some(0),
+            repeats_remaining: Some(0),
             started_at_utc: None,
             attention_pending: false,
+            attention_triggered_at_utc: None,
         };
         assert!(timer.start("2026-09-03T10:00:00Z".into()));
         assert!(timer.pause(25));

@@ -40,6 +40,12 @@ recorded in `REMINDERS_DESIGN.md`; the interactive exploration is
 - Optional recurrence and association with a configured world clock.
 - Notification history sufficient to avoid duplicate delivery after restart.
 
+### Personal Events
+
+- Local calendar events with a title, start/end or all-day range, optional details, and alert offsets.
+- Common recurrence rules first, while preserving a series model for future custom recurrence and occurrence exceptions.
+- Display events directly in Plan; do not add participants, invitations, shared calendars, or network calendar synchronization.
+
 ### Countdown Timers
 
 - Multiple named timers with start, pause, resume, reset, and optional repeat.

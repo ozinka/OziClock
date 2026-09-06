@@ -3,6 +3,8 @@ import { TimerAttentionIcon } from "attention_icons.slint";
 export component TimerAttentionWindow inherits Window {
     in property <color> accent: #77d7cb;
     in property <string> timer-title: "Timer";
+    in property <string> triggered-at: "";
+    in-out property <bool> pulse: false;
     callback request-dismiss();
     callback request-restart();
     title: "OziClock Timer";
@@ -11,9 +13,11 @@ export component TimerAttentionWindow inherits Window {
     preferred-width: 360px; min-width: 360px; max-width: 360px;
     preferred-height: 126px; min-height: 126px; max-height: 126px;
     background: transparent;
-    Rectangle { width: parent.width; height: parent.height; background: #182022; border-color: root.accent; border-width: 1px; border-radius: 10px;
+    Rectangle { width: parent.width; height: parent.height; background: #182022; border-color: root.accent; border-width: root.pulse ? 3px : 1px; border-radius: 10px;
+        animate border-width { duration: 450ms; easing: ease-in-out; }
         TimerAttentionIcon { x: 18px; y: 14px; accent: root.accent; }
-        Text { x: 80px; y: 15px; width: parent.width - 98px; height: 25px; text: root.timer-title; color: #e1eae8; font-size: 18px; font-weight: 700; overflow: elide; }
+        Text { x: 80px; y: 15px; width: parent.width - 190px; height: 25px; text: root.timer-title; color: #e1eae8; font-size: 18px; font-weight: 700; overflow: elide; }
+        Text { x: parent.width - 108px; y: 16px; width: 90px; height: 20px; text: root.triggered-at; color: #829492; font-size: 11px; horizontal-alignment: right; vertical-alignment: center; }
         Text { x: 80px; y: 44px; width: parent.width - 98px; height: 22px; text: "Timer finished"; color: root.accent; font-size: 16px; }
         Rectangle { x: 18px; y: 78px; width: (parent.width - 44px) / 2; height: 34px; background: #344144; border-radius: 6px;
             Text { y: 2px; width: parent.width; height: parent.height; text: "Dismiss"; color: #dce8e5; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }

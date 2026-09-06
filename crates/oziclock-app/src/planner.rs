@@ -69,6 +69,7 @@ pub enum PlannerCommand {
         title: String,
         duration_seconds: u64,
         repeat: bool,
+        repeat_count: Option<u32>,
     },
     StartStopwatch,
     PauseStopwatch {
@@ -202,11 +203,12 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
             title,
             duration_seconds,
             repeat,
+            repeat_count,
         } => planner
             .timers
             .iter_mut()
             .find(|timer| timer.id == id)
-            .is_some_and(|timer| timer.update(title, duration_seconds, repeat)),
+            .is_some_and(|timer| timer.update(title, duration_seconds, repeat, repeat_count)),
         PlannerCommand::StartStopwatch => planner
             .stopwatch
             .as_mut()
@@ -325,8 +327,11 @@ mod tests {
             remaining_seconds: 120,
             state: TimerState::Paused,
             repeat: false,
+            repeat_count: Some(0),
+            repeats_remaining: Some(0),
             started_at_utc: None,
             attention_pending: true,
+            attention_triggered_at_utc: Some("2026-09-05T10:00:00Z".into()),
         }
     }
 
@@ -343,6 +348,7 @@ mod tests {
                 title: "Tea".into(),
                 duration_seconds: 600,
                 repeat: true,
+                repeat_count: Some(3),
             }
         ));
         assert_eq!(planner.timers[0].title, "Tea");

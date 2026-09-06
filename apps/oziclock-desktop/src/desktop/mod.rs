@@ -888,6 +888,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         &window.as_weak(),
         &timer_attention_queue,
     );
+    schedule_timer_attention_pulse(Rc::new(Timer::default()), timer_attention_window.as_weak());
     let settings_for_edit_timer = shared_settings.clone();
     planner_window.on_request_edit_timer_part(move |part, text| {
         let Some(value) = parse_timer_part(&text, part) else {
@@ -953,6 +954,21 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             planner.set_timer_error("Duration must be longer than zero.".into());
             return;
         }
+        let repeat_count = if !repeat {
+            Some(0)
+        } else if planner.get_timer_repeat_unlimited() {
+            None
+        } else {
+            let Ok(count) = planner.get_timer_repeat_count().trim().parse::<u32>() else {
+                planner.set_timer_error("Enter a positive repeat count or choose ∞.".into());
+                return;
+            };
+            if count == 0 {
+                planner.set_timer_error("Repeat count must be greater than zero.".into());
+                return;
+            }
+            Some(count)
+        };
         let mut settings = settings_for_add_timer.borrow_mut();
         let mut updated = settings.clone();
         let editing = planner.get_editing_timer();
@@ -970,8 +986,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 remaining_seconds: duration_seconds,
                 state: TimerState::Idle,
                 repeat,
+                repeat_count,
+                repeats_remaining: repeat_count,
                 started_at_utc: None,
                 attention_pending: false,
+                attention_triggered_at_utc: None,
             });
             true
         } else {
@@ -985,6 +1004,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                     title: title.to_owned(),
                     duration_seconds,
                     repeat,
+                    repeat_count,
                 },
             )
         };
@@ -1019,6 +1039,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         planner.set_selected_timer("".into());
         planner.set_timer_title_draft("Timer".into());
         planner.set_timer_repeat(false);
+        planner.set_timer_repeat_count("1".into());
+        planner.set_timer_repeat_unlimited(false);
         planner.set_editor_modal(-1);
     });
     let settings_for_edit_timer_item = shared_settings.clone();
@@ -1041,6 +1063,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         planner.set_timer_error("".into());
         planner.set_timer_title_draft(timer.title.clone().into());
         planner.set_timer_repeat(timer.repeat);
+        planner.set_timer_repeat_count(timer.repeat_count.unwrap_or(1).to_string().into());
+        planner.set_timer_repeat_unlimited(timer.repeat && timer.repeat_count.is_none());
         planner.set_timer_days_draft(days.to_string().into());
         planner.set_timer_hours_draft(hours.to_string().into());
         planner.set_timer_minutes_draft(minutes.to_string().into());
@@ -3504,6 +3528,15 @@ fn planner_timer_rows(settings: &AppSettings) -> Vec<PlannerTimerData> {
                 running: timer.state == TimerState::Running,
                 finished: timer.state == TimerState::Finished,
                 repeat: timer.repeat,
+                repeat_label: if timer.repeat {
+                    timer
+                        .repeat_count
+                        .map(|count| format!("Repeats ×{count}"))
+                        .unwrap_or_else(|| "Repeats ∞".to_owned())
+                } else {
+                    String::new()
+                }
+                .into(),
             }
         })
         .collect()
@@ -3805,6 +3838,7 @@ struct AlarmAttentionItem {
 struct TimerAttentionItem {
     timer_id: PlannerId,
     title: String,
+    triggered_at: String,
 }
 
 #[derive(Clone)]
@@ -3861,6 +3895,7 @@ fn pending_timer_attention_items(settings: &AppSettings) -> VecDeque<TimerAttent
                 .map(|timer| TimerAttentionItem {
                     timer_id: id,
                     title: timer_display_title(timer),
+                    triggered_at: timer_triggered_label(timer, settings),
                 })
         })
         .collect()
@@ -3879,10 +3914,46 @@ fn display_timer_attention(
         return;
     };
     window.set_timer_title(item.title.into());
+    window.set_triggered_at(item.triggered_at.into());
     if window.show().is_ok() {
         hide_auxiliary_window_from_taskbar(window.window());
         position_calendar_window(window.window(), owner);
     }
+}
+
+fn schedule_timer_attention_pulse(timer: Rc<Timer>, window: slint::Weak<TimerAttentionWindow>) {
+    let next_timer = timer.clone();
+    timer.start(
+        TimerMode::SingleShot,
+        Duration::from_millis(450),
+        move || {
+            if let Some(window) = window.upgrade() {
+                window.set_pulse(!window.get_pulse());
+            }
+            schedule_timer_attention_pulse(next_timer.clone(), window.clone());
+        },
+    );
+}
+
+fn timer_triggered_label(timer: &PlannerTimer, settings: &AppSettings) -> String {
+    let Some(triggered) = timer
+        .attention_triggered_at_utc
+        .as_deref()
+        .and_then(|value| DateTime::parse_from_rfc3339(value).ok())
+    else {
+        return String::new();
+    };
+    let zone = settings
+        .clocks_settings
+        .iter()
+        .find(|clock| clock.is_main)
+        .or_else(|| settings.clocks_settings.first())
+        .and_then(|clock| clock.time_zone.parse::<Tz>().ok())
+        .unwrap_or(chrono_tz::UTC);
+    triggered
+        .with_timezone(&zone)
+        .format("%d %b · %H:%M")
+        .to_string()
 }
 
 fn pending_alarm_attention_items(settings: &AppSettings) -> VecDeque<AlarmAttentionItem> {
@@ -4099,6 +4170,7 @@ fn schedule_planner_timer_refresh(
                     queue.borrow_mut().push_back(TimerAttentionItem {
                         timer_id: id,
                         title: timer_display_title(timer),
+                        triggered_at: timer_triggered_label(timer, &settings),
                     });
                 }
             }
