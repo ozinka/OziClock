@@ -2892,7 +2892,6 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     });
 
     window.show()?;
-    planner_window.show()?;
     #[cfg(target_os = "macos")]
     window_opacity::sync(&window);
     set_main_window_taskbar_visibility(&window, shared_settings.borrow().show_in_task_bar);
