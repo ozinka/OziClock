@@ -1,7 +1,48 @@
-use oziclock_domain::{Planner, PlannerId, ReminderSchedule, TimerState};
+use oziclock_domain::{Event, EventTime, Planner, PlannerId, ReminderSchedule, TimerState};
+
+fn valid_event_time(time: &EventTime) -> bool {
+    match time {
+        EventTime::Timed {
+            start_utc,
+            end_utc,
+            source_time_zone,
+        } => {
+            let Ok(start) = chrono::DateTime::parse_from_rfc3339(start_utc) else {
+                return false;
+            };
+            let Ok(end) = chrono::DateTime::parse_from_rfc3339(end_utc) else {
+                return false;
+            };
+            !source_time_zone.trim().is_empty() && end > start
+        }
+        EventTime::AllDay {
+            start_date,
+            end_date,
+        } => {
+            let Ok(start) = chrono::NaiveDate::parse_from_str(start_date, "%Y-%m-%d") else {
+                return false;
+            };
+            let Ok(end) = chrono::NaiveDate::parse_from_str(end_date, "%Y-%m-%d") else {
+                return false;
+            };
+            end >= start
+        }
+    }
+}
 
 /// Typed Planner intents issued by presentation adapters.
 pub enum PlannerCommand {
+    AddEvent {
+        event: Event,
+    },
+    UpdateEvent {
+        id: PlannerId,
+        title: String,
+        time: EventTime,
+    },
+    DeleteEvent {
+        id: PlannerId,
+    },
     SetReminderEnabled {
         id: PlannerId,
         enabled: bool,
@@ -86,6 +127,35 @@ pub enum PlannerCommand {
 /// Applies a Planner use case while preserving the domain state machine.
 pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -> bool {
     match command {
+        PlannerCommand::AddEvent { mut event } => {
+            if planner.events.iter().any(|current| current.id == event.id)
+                || !valid_event_time(&event.time)
+            {
+                return false;
+            }
+            let title = event.title.trim();
+            if title.is_empty() {
+                return false;
+            }
+            event.title = title.to_owned();
+            planner.events.push(event);
+            true
+        }
+        PlannerCommand::UpdateEvent { id, title, time } => {
+            if !valid_event_time(&time) {
+                return false;
+            }
+            planner
+                .events
+                .iter_mut()
+                .find(|event| event.id == id)
+                .is_some_and(|event| event.update(title, time))
+        }
+        PlannerCommand::DeleteEvent { id } => {
+            let count = planner.events.len();
+            planner.events.retain(|event| event.id != id);
+            count != planner.events.len()
+        }
         PlannerCommand::SetReminderEnabled { id, enabled } => planner
             .reminders
             .iter_mut()
@@ -243,10 +313,84 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oziclock_domain::{Reminder, Task, TaskStatus, Timer, TimerState};
+    use oziclock_domain::{Event, EventTime, Reminder, Task, TaskStatus, Timer, TimerState};
 
     fn id(value: &str) -> PlannerId {
         PlannerId::new(value).unwrap()
+    }
+
+    fn event(value: &str) -> Event {
+        Event {
+            id: id(value),
+            title: "Planning".into(),
+            time: EventTime::Timed {
+                start_utc: "2026-09-07T10:00:00Z".into(),
+                end_utc: "2026-09-07T11:00:00Z".into(),
+                source_time_zone: "UTC".into(),
+            },
+            location: None,
+            notes: None,
+            link: None,
+            color: None,
+            alerts: vec![],
+        }
+    }
+
+    #[test]
+    fn events_have_safe_add_update_and_delete_commands() {
+        let mut planner = Planner::default();
+        assert!(execute_planner_command(
+            &mut planner,
+            PlannerCommand::AddEvent {
+                event: event("event")
+            }
+        ));
+        assert!(!execute_planner_command(
+            &mut planner,
+            PlannerCommand::AddEvent {
+                event: event("event")
+            }
+        ));
+        assert!(execute_planner_command(
+            &mut planner,
+            PlannerCommand::UpdateEvent {
+                id: id("event"),
+                title: "Review".into(),
+                time: EventTime::AllDay {
+                    start_date: "2026-09-08".into(),
+                    end_date: "2026-09-08".into(),
+                },
+            }
+        ));
+        assert_eq!(planner.events[0].title, "Review");
+        assert!(!execute_planner_command(
+            &mut planner,
+            PlannerCommand::UpdateEvent {
+                id: id("event"),
+                title: "Invalid range".into(),
+                time: EventTime::Timed {
+                    start_utc: "2026-09-08T12:00:00Z".into(),
+                    end_utc: "2026-09-08T11:00:00Z".into(),
+                    source_time_zone: "UTC".into(),
+                },
+            }
+        ));
+        assert!(!execute_planner_command(
+            &mut planner,
+            PlannerCommand::UpdateEvent {
+                id: id("event"),
+                title: " ".into(),
+                time: EventTime::AllDay {
+                    start_date: "2026-09-08".into(),
+                    end_date: "2026-09-08".into(),
+                },
+            }
+        ));
+        assert!(execute_planner_command(
+            &mut planner,
+            PlannerCommand::DeleteEvent { id: id("event") }
+        ));
+        assert!(planner.events.is_empty());
     }
 
     #[test]

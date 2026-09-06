@@ -55,6 +55,18 @@ pub struct Event {
     pub alerts: Vec<AlertRule>,
 }
 
+impl Event {
+    pub fn update(&mut self, title: String, time: EventTime) -> bool {
+        let title = title.trim();
+        if title.is_empty() {
+            return false;
+        }
+        self.title = title.to_owned();
+        self.time = time;
+        true
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub enum TaskStatus {
