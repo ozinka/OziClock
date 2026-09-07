@@ -181,6 +181,10 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **TSK-08:** Archive removes a completed task from ordinary task views while retaining it in local Planner storage.
 - **TSK-09:** Open and completed tasks expose Delete through the shared trash icon and require confirmation before permanent removal.
 - **TSK-10:** Create, rename, complete, reopen, archive, and delete save the new Planner state before replacing the in-memory state and visible models. A save failure preserves the prior task collection.
+- **TSK-11:** A task can optionally have a due date and local time selected with the shared mini-calendar and masked `HH:MM` input.
+- **TSK-12:** A scheduled task can notify at its due time or 5, 15, 30, or 60 minutes beforehand. An unscheduled task has no alert.
+- **TSK-13:** Task alert delivery is persisted before it is shown, survives restart until dismissed, and is not repeated for the same due time after dismissal.
+- **TSK-14:** Completing, archiving, or editing a task clears obsolete pending attention. Changing its due time makes the new occurrence eligible for delivery.
 
 ## Planner Stopwatch
 
@@ -235,6 +239,9 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **EVT-06:** Edit Event exposes Delete as a secondary destructive action. Deletion requires confirmation, persists before removing the Event from Plan, clears its selection, and leaves the editor open with an error if persistence fails.
 - **EVT-07:** Timed Events whose ranges overlap on the same day receive deterministic parallel lanes for the connected overlap group. Non-overlapping Events use the full day width. The editor reuses the Planner mini-calendar for start and all-day end dates and provides large 15-minute up/down controls for start and end times while retaining direct text entry.
 - **EVT-08:** An Event may use Does not repeat, Daily, Weekly, Monthly, or Yearly recurrence. The stored Event remains one series record with its original start and duration; Week view derives matching occurrences on or after the series start, preserving the source wall time across daylight-saving changes. Older stored Events without recurrence load as Does not repeat. Monthly and yearly series occur only when the original day exists in that month or year. Custom rules and per-occurrence exceptions remain reserved for a later slice.
+- **EVT-09:** The Event editor offers No alert, At start, 5/15/30 minutes before, and 1 hour before. A selected alert is stored as a typed non-negative offset on the Event; Custom offsets remain reserved for a later slice.
+- **EVT-10:** A due Event alert is persisted before a dedicated always-on-top local attention card is shown. The card uses the Event calendar icon, displays the event title and occurrence time, pulses its border, and advances a chronological FIFO queue through Dismiss.
+- **EVT-11:** Event alert receipts uniquely identify the Event occurrence and offset, prevent duplicate delivery, and retain acknowledgement. Unacknowledged cards are restored after application restart; the scheduler reconciles up to five minutes of downtime, and editing or deleting an Event removes stale receipts and queued cards.
 
 ## Cross-Platform Quality Requirements
 

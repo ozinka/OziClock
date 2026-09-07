@@ -1,5 +1,5 @@
 use oziclock_domain::{
-    Event, EventRecurrence, EventTime, Planner, PlannerId, ReminderSchedule, TimerState,
+    AlertRule, Event, EventRecurrence, EventTime, Planner, PlannerId, ReminderSchedule, TimerState,
 };
 
 fn valid_event_time(time: &EventTime) -> bool {
@@ -32,6 +32,14 @@ fn valid_event_time(time: &EventTime) -> bool {
     }
 }
 
+fn valid_event_alerts(alerts: &[AlertRule]) -> bool {
+    alerts.iter().all(|alert| alert.offset_minutes >= 0)
+        && alerts
+            .iter()
+            .enumerate()
+            .all(|(index, alert)| alerts[..index].iter().all(|other| other.id != alert.id))
+}
+
 /// Typed Planner intents issued by presentation adapters.
 pub enum PlannerCommand {
     AddEvent {
@@ -42,6 +50,12 @@ pub enum PlannerCommand {
         title: String,
         time: EventTime,
         recurrence: EventRecurrence,
+        alerts: Vec<AlertRule>,
+    },
+    AcknowledgeEvent {
+        id: PlannerId,
+        occurrence_utc: String,
+        acknowledged_at_utc: String,
     },
     DeleteEvent {
         id: PlannerId,
@@ -79,6 +93,15 @@ pub enum PlannerCommand {
     RenameTask {
         id: PlannerId,
         title: String,
+    },
+    UpdateTask {
+        id: PlannerId,
+        title: String,
+        due_utc: Option<String>,
+        alerts: Vec<AlertRule>,
+    },
+    DismissTaskAlert {
+        id: PlannerId,
     },
     SetAlarmEnabled {
         id: PlannerId,
@@ -133,6 +156,7 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
         PlannerCommand::AddEvent { mut event } => {
             if planner.events.iter().any(|current| current.id == event.id)
                 || !valid_event_time(&event.time)
+                || !valid_event_alerts(&event.alerts)
             {
                 return false;
             }
@@ -149,20 +173,49 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
             title,
             time,
             recurrence,
+            alerts,
         } => {
-            if !valid_event_time(&time) {
+            if !valid_event_time(&time) || !valid_event_alerts(&alerts) {
                 return false;
             }
-            planner
+            let changed = planner
                 .events
                 .iter_mut()
                 .find(|event| event.id == id)
-                .is_some_and(|event| event.update(title, time, recurrence))
+                .is_some_and(|event| event.update(title, time, recurrence, alerts));
+            if changed {
+                planner
+                    .event_receipts
+                    .retain(|receipt| receipt.event_id != id);
+            }
+            changed
         }
+        PlannerCommand::AcknowledgeEvent {
+            id,
+            occurrence_utc,
+            acknowledged_at_utc,
+        } => planner
+            .event_receipts
+            .iter_mut()
+            .find(|receipt| {
+                receipt.event_id == id
+                    && receipt.occurrence_utc == occurrence_utc
+                    && receipt.acknowledged_at_utc.is_none()
+            })
+            .is_some_and(|receipt| {
+                receipt.acknowledged_at_utc = Some(acknowledged_at_utc);
+                true
+            }),
         PlannerCommand::DeleteEvent { id } => {
             let count = planner.events.len();
             planner.events.retain(|event| event.id != id);
-            count != planner.events.len()
+            let changed = count != planner.events.len();
+            if changed {
+                planner
+                    .event_receipts
+                    .retain(|receipt| receipt.event_id != id);
+            }
+            changed
         }
         PlannerCommand::SetReminderEnabled { id, enabled } => planner
             .reminders
@@ -225,6 +278,21 @@ pub fn execute_planner_command(planner: &mut Planner, command: PlannerCommand) -
             .iter_mut()
             .find(|task| task.id == id)
             .is_some_and(|task| task.rename(title)),
+        PlannerCommand::UpdateTask {
+            id,
+            title,
+            due_utc,
+            alerts,
+        } => planner
+            .tasks
+            .iter_mut()
+            .find(|task| task.id == id)
+            .is_some_and(|task| task.update(title, due_utc, alerts)),
+        PlannerCommand::DismissTaskAlert { id } => planner
+            .tasks
+            .iter_mut()
+            .find(|task| task.id == id)
+            .is_some_and(|task| task.dismiss_attention()),
         PlannerCommand::SetAlarmEnabled { id, enabled } => planner
             .alarms
             .iter_mut()
@@ -372,6 +440,7 @@ mod tests {
                     end_date: "2026-09-08".into(),
                 },
                 recurrence: EventRecurrence::Monthly,
+                alerts: vec![],
             }
         ));
         assert_eq!(planner.events[0].title, "Review");
@@ -387,6 +456,7 @@ mod tests {
                     source_time_zone: "UTC".into(),
                 },
                 recurrence: EventRecurrence::None,
+                alerts: vec![],
             }
         ));
         assert!(!execute_planner_command(
@@ -399,6 +469,7 @@ mod tests {
                     end_date: "2026-09-08".into(),
                 },
                 recurrence: EventRecurrence::None,
+                alerts: vec![],
             }
         ));
         assert!(execute_planner_command(
@@ -450,6 +521,9 @@ mod tests {
                 tags: vec![],
                 notes: None,
                 alerts: vec![],
+                attention_pending: false,
+                attention_due_utc: None,
+                delivered_for_due_utc: None,
             }],
             ..Planner::default()
         };

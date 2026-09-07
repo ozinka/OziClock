@@ -5,10 +5,10 @@ use serde::{Deserialize, Serialize};
 use std::{env, fs, io, path::PathBuf};
 
 pub use oziclock_domain::{
-    Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AlarmSnooze, Clock as ClockSettings,
-    Event, EventRecurrence, EventTime, Planner, PlannerId, Reminder, ReminderRecurrence,
-    ReminderSchedule, Stopwatch, StopwatchState, Task, TaskStatus, Timer as PlannerTimer,
-    TimerState,
+    Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AlarmSnooze, AlertRule,
+    Clock as ClockSettings, Event, EventReceipt, EventRecurrence, EventTime, Planner, PlannerId,
+    Reminder, ReminderRecurrence, ReminderSchedule, Stopwatch, StopwatchState, Task, TaskStatus,
+    Timer as PlannerTimer, TimerState,
 };
 
 const DEFAULT_SETTINGS: &str = include_str!("../assets/default_settings.json");
@@ -213,6 +213,16 @@ pub fn prune_alarm_receipts(settings: &mut AppSettings, now: DateTime<Utc>) {
         DateTime::parse_from_rfc3339(&receipt.recorded_at_utc)
             .map(|recorded| recorded.with_timezone(&Utc) >= oldest_retained)
             .unwrap_or(true)
+    });
+}
+
+pub fn prune_event_receipts(settings: &mut AppSettings, now: DateTime<Utc>) {
+    let oldest_retained = now - Duration::days(30);
+    settings.planner.event_receipts.retain(|receipt| {
+        receipt.acknowledged_at_utc.is_none()
+            || DateTime::parse_from_rfc3339(&receipt.delivered_at_utc)
+                .map(|delivered| delivered.with_timezone(&Utc) >= oldest_retained)
+                .unwrap_or(true)
     });
 }
 

@@ -1,0 +1,20 @@
+import { TaskAttentionIcon } from "attention_icons.slint";
+
+export component TaskAttentionWindow inherits Window {
+    in property <color> accent: #77d7cb;
+    in property <string> task-title: "Task";
+    in property <string> task-time: "";
+    in-out property <bool> pulse: false;
+    callback request-dismiss();
+    title: "OziClock Task"; no-frame: true; always-on-top: true;
+    preferred-width: 380px; min-width: 380px; max-width: 380px;
+    preferred-height: 126px; min-height: 126px; max-height: 126px;
+    background: transparent;
+    Rectangle { width: parent.width; height: parent.height; background: #182022; border-color: root.accent; border-width: root.pulse ? 3px : 1px; border-radius: 10px;
+        animate border-width { duration: 450ms; easing: ease-in-out; }
+        TaskAttentionIcon { x: 18px; y: 14px; accent: root.accent; }
+        Text { x: 80px; y: 15px; width: parent.width - 98px; height: 25px; text: root.task-title; color: #e1eae8; font-size: 18px; font-weight: 700; overflow: elide; }
+        Text { x: 80px; y: 44px; width: parent.width - 98px; height: 22px; text: root.task-time; color: root.accent; font-size: 15px; overflow: elide; }
+        Rectangle { x: 18px; y: 78px; width: parent.width - 36px; height: 34px; background: root.accent; border-radius: 6px; Text { width: parent.width; height: parent.height; text: "Dismiss"; color: #171d1f; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.request-dismiss(); } } }
+    }
+}

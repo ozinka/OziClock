@@ -68,8 +68,25 @@ pub struct Event {
     pub recurrence: EventRecurrence,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+pub struct EventReceipt {
+    pub event_id: PlannerId,
+    pub occurrence_utc: String,
+    pub alert_offset_minutes: i32,
+    pub delivered_at_utc: String,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub acknowledged_at_utc: Option<String>,
+}
+
 impl Event {
-    pub fn update(&mut self, title: String, time: EventTime, recurrence: EventRecurrence) -> bool {
+    pub fn update(
+        &mut self,
+        title: String,
+        time: EventTime,
+        recurrence: EventRecurrence,
+        alerts: Vec<AlertRule>,
+    ) -> bool {
         let title = title.trim();
         if title.is_empty() {
             return false;
@@ -77,6 +94,7 @@ impl Event {
         self.title = title.to_owned();
         self.time = time;
         self.recurrence = recurrence;
+        self.alerts = alerts;
         true
     }
 }
@@ -103,6 +121,12 @@ pub struct Task {
     pub tags: Vec<String>,
     pub notes: Option<String>,
     pub alerts: Vec<AlertRule>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub attention_pending: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub attention_due_utc: Option<String>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub delivered_for_due_utc: Option<String>,
 }
 
 impl Task {
@@ -111,6 +135,8 @@ impl Task {
             return false;
         }
         self.status = TaskStatus::Completed;
+        self.attention_pending = false;
+        self.attention_due_utc = None;
         true
     }
 
@@ -119,6 +145,8 @@ impl Task {
             return false;
         }
         self.status = TaskStatus::Archived;
+        self.attention_pending = false;
+        self.attention_due_utc = None;
         true
     }
 
@@ -136,6 +164,34 @@ impl Task {
             return false;
         }
         self.title = title.to_owned();
+        true
+    }
+
+    pub fn update(
+        &mut self,
+        title: String,
+        due_utc: Option<String>,
+        alerts: Vec<AlertRule>,
+    ) -> bool {
+        let title = title.trim();
+        if title.is_empty() {
+            return false;
+        }
+        self.title = title.to_owned();
+        self.due_utc = due_utc;
+        self.alerts = alerts;
+        self.attention_pending = false;
+        self.attention_due_utc = None;
+        self.delivered_for_due_utc = None;
+        true
+    }
+
+    pub fn dismiss_attention(&mut self) -> bool {
+        if !self.attention_pending {
+            return false;
+        }
+        self.attention_pending = false;
+        self.attention_due_utc = None;
         true
     }
 }
@@ -513,6 +569,10 @@ impl Stopwatch {
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct Planner {
     pub events: Vec<Event>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub event_receipts: Vec<EventReceipt>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub event_checked_at_utc: Option<String>,
     pub tasks: Vec<Task>,
     pub reminders: Vec<Reminder>,
     pub alarms: Vec<Alarm>,

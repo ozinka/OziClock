@@ -42,9 +42,10 @@ use oziclock_app::calendar::CalendarDate;
 use oziclock_app::planner::{PlannerCommand, execute_planner_command};
 use oziclock_app::{ClockCommand, execute_clock_command};
 use oziclock_storage::{
-    Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AppSettings, ClockSettings, Event,
-    EventRecurrence, EventTime, PlannerId, PlannerTimer, Reminder, ReminderRecurrence,
-    ReminderSchedule, Stopwatch, StopwatchState, Task, TaskStatus, TimerState,
+    Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AlertRule, AppSettings,
+    ClockSettings, Event, EventReceipt, EventRecurrence, EventTime, PlannerId, PlannerTimer,
+    Reminder, ReminderRecurrence, ReminderSchedule, Stopwatch, StopwatchState, Task, TaskStatus,
+    TimerState,
 };
 use slint::winit_030::EventResult;
 use slint::winit_030::WinitWindowAccessor;
@@ -157,11 +158,15 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let alarm_attention_window = AlarmAttentionWindow::new()?;
     let timer_attention_window = TimerAttentionWindow::new()?;
     let reminder_attention_window = ReminderAttentionWindow::new()?;
+    let event_attention_window = EventAttentionWindow::new()?;
+    let task_attention_window = TaskAttentionWindow::new()?;
     let planner_accent = calendar_accent(&shared_settings.borrow()).brighter(0.4);
     planner_window.set_accent(planner_accent);
     alarm_attention_window.set_accent(planner_accent);
     timer_attention_window.set_accent(planner_accent);
     reminder_attention_window.set_accent(planner_accent);
+    event_attention_window.set_accent(planner_accent);
+    task_attention_window.set_accent(planner_accent);
     planner_window
         .set_corner_radius(shared_settings.borrow().corner_radius.clamp(0.0, 15.5) as f32);
     planner_window.set_task_count(open_task_count(&shared_settings.borrow()));
@@ -190,6 +195,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             .into(),
     );
     let (reminder_date, reminder_time) = default_reminder_datetime(&shared_settings.borrow());
+    planner_window.set_task_date_draft(reminder_date.clone().into());
+    planner_window.set_task_time_draft(reminder_time.clone().into());
     planner_window.set_reminder_date_draft(reminder_date.into());
     planner_window.set_reminder_hours_draft(reminder_time[..2].into());
     planner_window.set_reminder_minutes_draft(reminder_time[3..].into());
@@ -237,7 +244,9 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             return;
         };
         let today = calendar_local_now(&settings_for_open_reminder_calendar.borrow()).date();
-        let selected_text = if planner.get_editor_modal() == 6 {
+        let selected_text = if planner.get_editor_modal() == 5 {
+            planner.get_task_date_draft()
+        } else if planner.get_editor_modal() == 6 {
             if planner.get_event_calendar_target() == 1 {
                 planner.get_event_end_date_draft()
             } else {
@@ -280,7 +289,9 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         };
         *anchor_for_navigate_reminder_calendar.borrow_mut() = anchor;
         let today = calendar_local_now(&settings_for_navigate_reminder_calendar.borrow()).date();
-        let selected_text = if planner.get_editor_modal() == 6 {
+        let selected_text = if planner.get_editor_modal() == 5 {
+            planner.get_task_date_draft()
+        } else if planner.get_editor_modal() == 6 {
             if planner.get_event_calendar_target() == 1 {
                 planner.get_event_end_date_draft()
             } else {
@@ -301,7 +312,10 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let planner_for_select_reminder_date = planner_window.as_weak();
     planner_window.on_request_select_reminder_date(move |date| {
         if let Some(planner) = planner_for_select_reminder_date.upgrade() {
-            if planner.get_editor_modal() == 6 {
+            if planner.get_editor_modal() == 5 {
+                planner.set_task_date_draft(date);
+                planner.set_task_error("".into());
+            } else if planner.get_editor_modal() == 6 {
                 if planner.get_event_calendar_target() == 1 {
                     planner.set_event_end_date_draft(date);
                 } else {
@@ -395,6 +409,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             .set_event_end_draft(format!("{:02}:{:02}", end_minutes / 60, end_minutes % 60).into());
         planner.set_event_all_day(false);
         planner.set_event_recurrence("Does not repeat".into());
+        planner.set_event_alert("No alert".into());
         planner.set_event_error("".into());
     });
     let planner_for_adjust_event_time = planner_window.as_weak();
@@ -430,10 +445,14 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         let masked = mask_clock_time(&text).into();
         if target == 0 {
             planner.set_event_start_draft(masked);
-        } else {
+            planner.set_event_error("".into());
+        } else if target == 1 {
             planner.set_event_end_draft(masked);
+            planner.set_event_error("".into());
+        } else {
+            planner.set_task_time_draft(masked);
+            planner.set_task_error("".into());
         }
-        planner.set_event_error("".into());
     });
     let planner_for_edit_event = planner_window.as_weak();
     let settings_for_edit_event = shared_settings.clone();
@@ -456,6 +475,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         planner.set_editing_event(event_id);
         planner.set_event_title_draft(event.title.clone().into());
         planner.set_event_recurrence(event_recurrence_label(event.recurrence).into());
+        planner.set_event_alert(event_alert_label(event.alerts.first()).into());
         planner.set_event_error("".into());
         match &event.time {
             EventTime::Timed {
@@ -486,13 +506,19 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             }
         }
     });
+    let event_attention_queue = Rc::new(RefCell::new(pending_event_attention_items(
+        &shared_settings.borrow(),
+    )));
     let planner_for_save_event = planner_window.as_weak();
     let settings_for_save_event = shared_settings.clone();
     let event_model_for_save_event = plan_event_model.clone();
     let all_day_model_for_save_event = plan_all_day_event_model.clone();
     let start_for_save_event = plan_week_start.clone();
+    let queue_for_save_event = event_attention_queue.clone();
+    let attention_for_save_event = event_attention_window.as_weak();
+    let owner_for_save_event = window.as_weak();
     planner_window.on_request_save_event(
-        move |title, date, end_date, start, end, all_day, recurrence| {
+        move |title, date, end_date, start, end, all_day, recurrence, alert| {
             let Some(planner) = planner_for_save_event.upgrade() else {
                 return;
             };
@@ -552,8 +578,25 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 planner.set_event_error("Select a valid repeat option.".into());
                 return;
             };
+            let Some(alert_offset) = parse_event_alert(&alert) else {
+                planner.set_event_error("Select a valid alert option.".into());
+                return;
+            };
+            let alerts = alert_offset
+                .map(|offset_minutes| AlertRule {
+                    id: PlannerId::new(format!(
+                        "event-alert-{}",
+                        Utc::now().timestamp_nanos_opt().unwrap_or_default()
+                    ))
+                    .expect("generated alert id is valid"),
+                    offset_minutes,
+                    play_sound: false,
+                })
+                .into_iter()
+                .collect::<Vec<_>>();
             let editing = planner.get_editing_event();
-            let changed = if let Some(id) = PlannerId::new(editing.to_string()) {
+            let edited_id = PlannerId::new(editing.to_string());
+            let changed = if let Some(id) = edited_id.clone() {
                 execute_planner_command(
                     &mut updated.planner,
                     PlannerCommand::UpdateEvent {
@@ -561,6 +604,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                         title: title.to_owned(),
                         time,
                         recurrence,
+                        alerts,
                     },
                 )
             } else {
@@ -579,7 +623,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                             notes: None,
                             link: None,
                             color: None,
-                            alerts: vec![],
+                            alerts,
                             recurrence,
                         },
                     },
@@ -594,6 +638,16 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 return;
             }
             *settings = updated;
+            if let Some(id) = edited_id {
+                queue_for_save_event
+                    .borrow_mut()
+                    .retain(|item| item.event_id != id);
+                display_event_attention(
+                    &attention_for_save_event,
+                    &owner_for_save_event,
+                    &queue_for_save_event,
+                );
+            }
             let (events, all_day_events) =
                 plan_event_rows(&settings, *start_for_save_event.borrow());
             event_model_for_save_event.set_vec(events);
@@ -608,13 +662,19 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let event_model_for_delete_event = plan_event_model.clone();
     let all_day_model_for_delete_event = plan_all_day_event_model.clone();
     let start_for_delete_event = plan_week_start.clone();
+    let queue_for_delete_event = event_attention_queue.clone();
+    let attention_for_delete_event = event_attention_window.as_weak();
+    let owner_for_delete_event = window.as_weak();
     planner_window.on_request_delete_event(move |event_id| {
         let Some(id) = PlannerId::new(event_id.to_string()) else {
             return;
         };
         let mut settings = settings_for_delete_event.borrow_mut();
         let mut updated = settings.clone();
-        if !execute_planner_command(&mut updated.planner, PlannerCommand::DeleteEvent { id }) {
+        if !execute_planner_command(
+            &mut updated.planner,
+            PlannerCommand::DeleteEvent { id: id.clone() },
+        ) {
             return;
         }
         if let Err(error) = oziclock_storage::save(&updated) {
@@ -624,6 +684,14 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             return;
         }
         *settings = updated;
+        queue_for_delete_event
+            .borrow_mut()
+            .retain(|item| item.event_id != id);
+        display_event_attention(
+            &attention_for_delete_event,
+            &owner_for_delete_event,
+            &queue_for_delete_event,
+        );
         let (events, all_day_events) = plan_event_rows(&settings, *start_for_delete_event.borrow());
         event_model_for_delete_event.set_vec(events);
         all_day_model_for_delete_event.set_vec(all_day_events);
@@ -636,6 +704,87 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             planner.set_editor_modal(-1);
         }
     });
+    let queue_for_event_dismiss = event_attention_queue.clone();
+    let settings_for_event_dismiss = shared_settings.clone();
+    let attention_for_event_dismiss = event_attention_window.as_weak();
+    let owner_for_event_dismiss = window.as_weak();
+    event_attention_window.on_request_dismiss(move || {
+        let Some(item) = queue_for_event_dismiss.borrow().front().cloned() else {
+            return;
+        };
+        let mut settings = settings_for_event_dismiss.borrow_mut();
+        let mut updated = settings.clone();
+        if execute_planner_command(
+            &mut updated.planner,
+            PlannerCommand::AcknowledgeEvent {
+                id: item.event_id,
+                occurrence_utc: item.occurrence_utc,
+                acknowledged_at_utc: Utc::now().to_rfc3339(),
+            },
+        ) && oziclock_storage::save(&updated).is_ok()
+        {
+            *settings = updated;
+            queue_for_event_dismiss.borrow_mut().pop_front();
+            display_event_attention(
+                &attention_for_event_dismiss,
+                &owner_for_event_dismiss,
+                &queue_for_event_dismiss,
+            );
+        }
+    });
+    display_event_attention(
+        &event_attention_window.as_weak(),
+        &window.as_weak(),
+        &event_attention_queue,
+    );
+    schedule_event_attention_pulse(Rc::new(Timer::default()), event_attention_window.as_weak());
+    schedule_event_refresh(
+        Rc::new(Timer::default()),
+        shared_settings.clone(),
+        event_attention_window.as_weak(),
+        window.as_weak(),
+        event_attention_queue,
+    );
+    let task_attention_queue = Rc::new(RefCell::new(pending_task_attention_items(
+        &shared_settings.borrow(),
+    )));
+    let queue_for_task_dismiss = task_attention_queue.clone();
+    let settings_for_task_dismiss = shared_settings.clone();
+    let attention_for_task_dismiss = task_attention_window.as_weak();
+    let owner_for_task_dismiss = window.as_weak();
+    task_attention_window.on_request_dismiss(move || {
+        let Some(item) = queue_for_task_dismiss.borrow().front().cloned() else {
+            return;
+        };
+        let mut settings = settings_for_task_dismiss.borrow_mut();
+        let mut updated = settings.clone();
+        if execute_planner_command(
+            &mut updated.planner,
+            PlannerCommand::DismissTaskAlert { id: item.task_id },
+        ) && oziclock_storage::save(&updated).is_ok()
+        {
+            *settings = updated;
+            queue_for_task_dismiss.borrow_mut().pop_front();
+            display_task_attention(
+                &attention_for_task_dismiss,
+                &owner_for_task_dismiss,
+                &queue_for_task_dismiss,
+            );
+        }
+    });
+    display_task_attention(
+        &task_attention_window.as_weak(),
+        &window.as_weak(),
+        &task_attention_queue,
+    );
+    schedule_task_attention_pulse(Rc::new(Timer::default()), task_attention_window.as_weak());
+    schedule_task_refresh(
+        Rc::new(Timer::default()),
+        shared_settings.clone(),
+        task_attention_window.as_weak(),
+        window.as_weak(),
+        task_attention_queue.clone(),
+    );
     let planner_task_model = Rc::new(VecModel::from(planner_task_rows(&shared_settings.borrow())));
     let planner_completed_task_model = Rc::new(VecModel::from(planner_completed_task_rows(
         &shared_settings.borrow(),
@@ -660,7 +809,10 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let settings_for_add_task = shared_settings.clone();
     let task_model_for_add_task = planner_task_model.clone();
     let completed_model_for_add_task = planner_completed_task_model.clone();
-    planner_window.on_request_add_task(move |title| {
+    let queue_for_add_task = task_attention_queue.clone();
+    let attention_for_add_task = task_attention_window.as_weak();
+    let owner_for_add_task = window.as_weak();
+    planner_window.on_request_add_task(move |title, scheduled, date, time, alert| {
         let Some(planner) = planner_for_add_task.upgrade() else {
             return;
         };
@@ -671,6 +823,41 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             return;
         }
         let mut settings = settings_for_add_task.borrow_mut();
+        let due_utc = if scheduled {
+            let zone = main_time_zone(&settings);
+            let Some(due) = oziclock_app::reminder_time::resolve_local(&date, &time, &zone) else {
+                planner.set_task_error("Enter a valid date and time.".into());
+                return;
+            };
+            Some(due.to_rfc3339())
+        } else {
+            None
+        };
+        let alert_offset = match alert.as_str() {
+            "At due time" => Some(Some(0)),
+            other => parse_event_alert(other),
+        };
+        let Some(alert_offset) = alert_offset else {
+            planner.set_task_error("Select a valid alert.".into());
+            return;
+        };
+        let alerts = if scheduled {
+            alert_offset
+                .map(|offset_minutes| {
+                    vec![AlertRule {
+                        id: PlannerId::new(format!(
+                            "task-alert-{}",
+                            Utc::now().timestamp_nanos_opt().unwrap_or_default()
+                        ))
+                        .expect("generated alert id is valid"),
+                        offset_minutes,
+                        play_sound: false,
+                    }]
+                })
+                .unwrap_or_default()
+        } else {
+            vec![]
+        };
         let mut updated = settings.clone();
         let editing = if planner.get_selected_section() == 5 {
             planner.get_editing_task()
@@ -687,13 +874,16 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 id,
                 title: title.into(),
                 status: TaskStatus::Open,
-                due_utc: None,
+                due_utc,
                 scheduled_start_utc: None,
                 scheduled_end_utc: None,
                 color: None,
                 tags: vec![],
                 notes: None,
-                alerts: vec![],
+                alerts,
+                attention_pending: false,
+                attention_due_utc: None,
+                delivered_for_due_utc: None,
             });
             true
         } else {
@@ -702,9 +892,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             };
             execute_planner_command(
                 &mut updated.planner,
-                PlannerCommand::RenameTask {
+                PlannerCommand::UpdateTask {
                     id,
                     title: title.into(),
+                    due_utc,
+                    alerts,
                 },
             )
         };
@@ -716,6 +908,16 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             return;
         }
         *settings = updated;
+        if !editing.is_empty() {
+            queue_for_add_task
+                .borrow_mut()
+                .retain(|item| item.task_id.to_string() != editing.as_str());
+            display_task_attention(
+                &attention_for_add_task,
+                &owner_for_add_task,
+                &queue_for_add_task,
+            );
+        }
         refresh_task_models(
             &planner,
             &settings,
@@ -723,6 +925,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             &completed_model_for_add_task,
         );
         planner.set_task_draft("".into());
+        planner.set_task_scheduled(false);
+        planner.set_task_alert("No alert".into());
         planner.set_editing_task("".into());
         planner.set_selected_task("".into());
         planner.set_editor_modal(-1);
@@ -731,6 +935,9 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let settings_for_complete_task = shared_settings.clone();
     let task_model_for_complete_task = planner_task_model.clone();
     let completed_model_for_complete_task = planner_completed_task_model.clone();
+    let queue_for_complete_task = task_attention_queue.clone();
+    let attention_for_complete_task = task_attention_window.as_weak();
+    let owner_for_complete_task = window.as_weak();
     planner_window.on_request_complete_task(move |task_id| {
         let Some(id) = PlannerId::new(task_id.to_string()) else {
             return;
@@ -743,6 +950,14 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             return;
         }
         *settings = updated;
+        queue_for_complete_task
+            .borrow_mut()
+            .retain(|item| item.task_id.to_string() != task_id.as_str());
+        display_task_attention(
+            &attention_for_complete_task,
+            &owner_for_complete_task,
+            &queue_for_complete_task,
+        );
         if let Some(planner) = planner_for_complete_task.upgrade() {
             refresh_task_models(
                 &planner,
@@ -768,6 +983,26 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         };
         planner.set_editing_task(task_id);
         planner.set_task_draft(task.title.clone().into());
+        planner.set_task_scheduled(task.due_utc.is_some());
+        if let Some(due) = task
+            .due_utc
+            .as_deref()
+            .and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok())
+        {
+            let zone = main_time_zone(&settings)
+                .parse::<Tz>()
+                .unwrap_or(chrono_tz::UTC);
+            let local = due.with_timezone(&zone);
+            planner.set_task_date_draft(local.format("%Y-%m-%d").to_string().into());
+            planner.set_task_time_draft(local.format("%H:%M").to_string().into());
+        }
+        planner.set_task_alert(
+            task.alerts
+                .first()
+                .map(|rule| task_alert_label(rule.offset_minutes))
+                .unwrap_or("No alert")
+                .into(),
+        );
         planner.set_task_error("".into());
     });
     let settings_for_reopen_task = shared_settings.clone();
@@ -4456,6 +4691,41 @@ fn event_recurrence_label(recurrence: EventRecurrence) -> &'static str {
     }
 }
 
+fn parse_event_alert(value: &str) -> Option<Option<i32>> {
+    match value {
+        "No alert" => Some(None),
+        "At start" => Some(Some(0)),
+        "5 minutes before" => Some(Some(5)),
+        "15 minutes before" => Some(Some(15)),
+        "30 minutes before" => Some(Some(30)),
+        "1 hour before" => Some(Some(60)),
+        _ => None,
+    }
+}
+
+fn event_alert_label(alert: Option<&AlertRule>) -> &'static str {
+    match alert.map(|alert| alert.offset_minutes) {
+        None => "No alert",
+        Some(0) => "At start",
+        Some(5) => "5 minutes before",
+        Some(15) => "15 minutes before",
+        Some(30) => "30 minutes before",
+        Some(60) => "1 hour before",
+        Some(_) => "No alert",
+    }
+}
+
+fn task_alert_label(offset_minutes: i32) -> &'static str {
+    match offset_minutes {
+        0 => "At due time",
+        5 => "5 minutes before",
+        15 => "15 minutes before",
+        30 => "30 minutes before",
+        60 => "1 hour before",
+        _ => "No alert",
+    }
+}
+
 fn adjust_timer_part(text: &str, part: i32, direction: i32) -> Option<u16> {
     let value = if text.trim().is_empty() {
         0
@@ -4535,6 +4805,146 @@ struct TimerAttentionItem {
 struct ReminderAttentionItem {
     reminder_id: PlannerId,
     title: String,
+}
+
+#[derive(Clone)]
+struct EventAttentionItem {
+    event_id: PlannerId,
+    occurrence_utc: String,
+    title: String,
+    time: String,
+}
+
+#[derive(Clone)]
+struct TaskAttentionItem {
+    task_id: PlannerId,
+    title: String,
+    time: String,
+}
+
+fn task_attention_item(id: &PlannerId, settings: &AppSettings) -> Option<TaskAttentionItem> {
+    let task = settings.planner.tasks.iter().find(|task| &task.id == id)?;
+    let due = task
+        .attention_due_utc
+        .as_deref()
+        .and_then(|value| DateTime::parse_from_rfc3339(value).ok())?;
+    let zone = main_time_zone(settings)
+        .parse::<Tz>()
+        .unwrap_or(chrono_tz::UTC);
+    Some(TaskAttentionItem {
+        task_id: id.clone(),
+        title: task.title.clone(),
+        time: due
+            .with_timezone(&zone)
+            .format("Due %d %b · %H:%M")
+            .to_string(),
+    })
+}
+
+fn pending_task_attention_items(settings: &AppSettings) -> VecDeque<TaskAttentionItem> {
+    oziclock_app::task_time::pending_attention(&settings.planner)
+        .iter()
+        .filter_map(|id| task_attention_item(id, settings))
+        .collect()
+}
+
+fn display_task_attention(
+    window: &slint::Weak<TaskAttentionWindow>,
+    owner: &slint::Weak<AppWindow>,
+    queue: &Rc<RefCell<VecDeque<TaskAttentionItem>>>,
+) {
+    let Some(window) = window.upgrade() else {
+        return;
+    };
+    let Some(item) = queue.borrow().front().cloned() else {
+        let _ = window.hide();
+        return;
+    };
+    window.set_task_title(item.title.into());
+    window.set_task_time(item.time.into());
+    if window.show().is_ok() {
+        hide_auxiliary_window_from_taskbar(window.window());
+        position_calendar_window(window.window(), owner);
+    }
+}
+
+fn schedule_task_attention_pulse(timer: Rc<Timer>, window: slint::Weak<TaskAttentionWindow>) {
+    let next_timer = timer.clone();
+    timer.start(
+        TimerMode::SingleShot,
+        Duration::from_millis(450),
+        move || {
+            if let Some(window) = window.upgrade() {
+                window.set_pulse(!window.get_pulse());
+            }
+            schedule_task_attention_pulse(next_timer.clone(), window.clone());
+        },
+    );
+}
+
+fn event_attention_item(
+    receipt: &EventReceipt,
+    settings: &AppSettings,
+) -> Option<EventAttentionItem> {
+    let event = settings
+        .planner
+        .events
+        .iter()
+        .find(|event| event.id == receipt.event_id)?;
+    let occurrence = DateTime::parse_from_rfc3339(&receipt.occurrence_utc).ok()?;
+    let zone = main_time_zone(settings)
+        .parse::<Tz>()
+        .unwrap_or(chrono_tz::UTC);
+    Some(EventAttentionItem {
+        event_id: receipt.event_id.clone(),
+        occurrence_utc: receipt.occurrence_utc.clone(),
+        title: event.title.clone(),
+        time: occurrence
+            .with_timezone(&zone)
+            .format("Starts %d %b · %H:%M")
+            .to_string(),
+    })
+}
+
+fn pending_event_attention_items(settings: &AppSettings) -> VecDeque<EventAttentionItem> {
+    oziclock_app::event_time::pending_attention(&settings.planner)
+        .iter()
+        .filter_map(|receipt| event_attention_item(receipt, settings))
+        .collect()
+}
+
+fn display_event_attention(
+    window: &slint::Weak<EventAttentionWindow>,
+    owner: &slint::Weak<AppWindow>,
+    queue: &Rc<RefCell<VecDeque<EventAttentionItem>>>,
+) {
+    let Some(window) = window.upgrade() else {
+        return;
+    };
+    let Some(item) = queue.borrow().front().cloned() else {
+        let _ = window.hide();
+        return;
+    };
+    window.set_event_title(item.title.into());
+    window.set_event_time(item.time.into());
+    if window.show().is_ok() {
+        hide_auxiliary_window_from_taskbar(window.window());
+        position_calendar_window(window.window(), owner);
+    }
+}
+
+fn schedule_event_attention_pulse(timer: Rc<Timer>, window: slint::Weak<EventAttentionWindow>) {
+    let next_timer = timer.clone();
+    timer.start(
+        TimerMode::SingleShot,
+        Duration::from_millis(450),
+        move || {
+            if let Some(window) = window.upgrade() {
+                window.set_pulse(!window.get_pulse());
+            }
+            schedule_event_attention_pulse(next_timer.clone(), window.clone());
+        },
+    );
 }
 
 fn pending_reminder_attention_items(settings: &AppSettings) -> VecDeque<ReminderAttentionItem> {
@@ -4753,6 +5163,89 @@ fn schedule_plan_refresh(
             next_models.clone(),
             next_settings.clone(),
             next_start.clone(),
+        );
+    });
+}
+
+fn schedule_event_refresh(
+    timer: Rc<Timer>,
+    settings: Rc<RefCell<AppSettings>>,
+    attention: slint::Weak<EventAttentionWindow>,
+    owner: slint::Weak<AppWindow>,
+    queue: Rc<RefCell<VecDeque<EventAttentionItem>>>,
+) {
+    let next_timer = timer.clone();
+    let next_settings = settings.clone();
+    timer.start(TimerMode::SingleShot, Duration::from_secs(1), move || {
+        let now = Utc::now();
+        let mut settings = next_settings.borrow_mut();
+        let checked = settings
+            .planner
+            .event_checked_at_utc
+            .as_deref()
+            .and_then(|value| DateTime::parse_from_rfc3339(value).ok())
+            .map(|value| value.with_timezone(&Utc))
+            .unwrap_or(now - chrono::Duration::seconds(1));
+        let after = checked.max(now - chrono::Duration::minutes(5));
+        let zone = main_time_zone(&settings);
+        let mut updated = settings.clone();
+        let receipts = oziclock_app::event_time::reconcile(&mut updated.planner, after, now, &zone);
+        oziclock_storage::prune_event_receipts(&mut updated, now);
+        if oziclock_storage::save(&updated).is_ok() {
+            *settings = updated;
+            let was_empty = queue.borrow().is_empty();
+            for receipt in &receipts {
+                if let Some(item) = event_attention_item(receipt, &settings) {
+                    queue.borrow_mut().push_back(item);
+                }
+            }
+            if was_empty && !queue.borrow().is_empty() {
+                display_event_attention(&attention, &owner, &queue);
+            }
+        }
+        drop(settings);
+        schedule_event_refresh(
+            next_timer.clone(),
+            next_settings.clone(),
+            attention.clone(),
+            owner.clone(),
+            queue.clone(),
+        );
+    });
+}
+
+fn schedule_task_refresh(
+    timer: Rc<Timer>,
+    settings: Rc<RefCell<AppSettings>>,
+    attention: slint::Weak<TaskAttentionWindow>,
+    owner: slint::Weak<AppWindow>,
+    queue: Rc<RefCell<VecDeque<TaskAttentionItem>>>,
+) {
+    let next_timer = timer.clone();
+    let next_settings = settings.clone();
+    timer.start(TimerMode::SingleShot, Duration::from_secs(1), move || {
+        let mut settings = next_settings.borrow_mut();
+        let mut updated = settings.clone();
+        let delivered = oziclock_app::task_time::reconcile(&mut updated.planner, Utc::now());
+        if !delivered.is_empty() && oziclock_storage::save(&updated).is_ok() {
+            *settings = updated;
+            let was_empty = queue.borrow().is_empty();
+            for id in &delivered {
+                if let Some(item) = task_attention_item(id, &settings) {
+                    queue.borrow_mut().push_back(item);
+                }
+            }
+            if was_empty {
+                display_task_attention(&attention, &owner, &queue);
+            }
+        }
+        drop(settings);
+        schedule_task_refresh(
+            next_timer.clone(),
+            next_settings.clone(),
+            attention.clone(),
+            owner.clone(),
+            queue.clone(),
         );
     });
 }
