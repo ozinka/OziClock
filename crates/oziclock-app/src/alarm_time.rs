@@ -5,11 +5,17 @@ use oziclock_domain::{
     Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AlarmSnooze, Planner, PlannerId,
 };
 
-pub fn snooze(planner: &mut Planner, alarm_id: &PlannerId, now: DateTime<Utc>) -> bool {
-    if !planner.alarms.iter().any(|alarm| &alarm.id == alarm_id) {
+pub fn snooze(
+    planner: &mut Planner,
+    alarm_id: &PlannerId,
+    now: DateTime<Utc>,
+    minutes: u16,
+) -> bool {
+    if !(1..=1_440).contains(&minutes) || !planner.alarms.iter().any(|alarm| &alarm.id == alarm_id)
+    {
         return false;
     }
-    let due_utc = (now + Duration::minutes(5)).to_rfc3339();
+    let due_utc = (now + Duration::minutes(i64::from(minutes))).to_rfc3339();
     if let Some(existing) = planner
         .alarm_snoozes
         .iter_mut()
@@ -492,8 +498,8 @@ mod tests {
             },
         });
         let first = utc("2026-09-05T09:00:00Z");
-        assert!(snooze(&mut planner, &id, first));
-        assert!(snooze(&mut planner, &id, first + Duration::minutes(1)));
+        assert!(snooze(&mut planner, &id, first, 5));
+        assert!(snooze(&mut planner, &id, first + Duration::minutes(1), 5));
         assert_eq!(planner.alarm_snoozes.len(), 1);
         assert!(
             reconcile_snoozes(
@@ -526,7 +532,14 @@ mod tests {
         assert!(!snooze(
             &mut Planner::default(),
             &oziclock_domain::PlannerId::new("missing").unwrap(),
-            utc("2026-09-05T09:00:00Z")
+            utc("2026-09-05T09:00:00Z"),
+            5
+        ));
+        assert!(!snooze(
+            &mut Planner::default(),
+            &oziclock_domain::PlannerId::new("missing").unwrap(),
+            utc("2026-09-05T09:00:00Z"),
+            0
         ));
     }
 

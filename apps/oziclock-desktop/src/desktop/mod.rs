@@ -3,6 +3,7 @@ slint::include_modules!();
 mod calendar_bindings;
 mod clock_refresh;
 mod colors;
+mod delivery_feedback;
 mod launch_at_login;
 mod settings_bindings;
 #[cfg(target_os = "windows")]
@@ -330,10 +331,16 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         }
     });
     let plan_day_model = Rc::new(VecModel::from(Vec::<PlanWeekDayData>::new()));
+    let plan_task_model = Rc::new(VecModel::from(Vec::<PlanTaskMarkerData>::new()));
+    let plan_month_model = Rc::new(VecModel::from(Vec::<PlanMonthDayData>::new()));
+    let plan_year_model = Rc::new(VecModel::from(Vec::<PlanYearMonthData>::new()));
     let plan_reminder_model = Rc::new(VecModel::from(Vec::<PlanReminderMarkerData>::new()));
     let plan_event_model = Rc::new(VecModel::from(Vec::<PlanEventMarkerData>::new()));
     let plan_all_day_event_model = Rc::new(VecModel::from(Vec::<PlanAllDayEventData>::new()));
     planner_window.set_plan_week_days(ModelRc::from(plan_day_model.clone()));
+    planner_window.set_plan_tasks(ModelRc::from(plan_task_model.clone()));
+    planner_window.set_plan_month_days(ModelRc::from(plan_month_model.clone()));
+    planner_window.set_plan_year_months(ModelRc::from(plan_year_model.clone()));
     planner_window.set_plan_reminders(ModelRc::from(plan_reminder_model.clone()));
     planner_window.set_plan_events(ModelRc::from(plan_event_model.clone()));
     planner_window.set_plan_all_day_events(ModelRc::from(plan_all_day_event_model.clone()));
@@ -341,16 +348,26 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     refresh_plan_week(
         &planner_window,
         &plan_day_model,
+        &plan_task_model,
         &plan_reminder_model,
-        &plan_event_model,
-        &plan_all_day_event_model,
+        (&plan_event_model, &plan_all_day_event_model),
         &shared_settings.borrow(),
         *plan_week_start.borrow(),
+    );
+    refresh_plan_overview(
+        &planner_window,
+        &plan_month_model,
+        &plan_year_model,
+        &shared_settings.borrow(),
+        calendar_local_now(&shared_settings.borrow()).date(),
     );
     let planner_for_plan_week = planner_window.as_weak();
     let settings_for_plan_week = shared_settings.clone();
     let days_for_plan_week = plan_day_model.clone();
     let reminders_for_plan_week = plan_reminder_model.clone();
+    let tasks_for_plan_week = plan_task_model.clone();
+    let month_for_plan = plan_month_model.clone();
+    let year_for_plan = plan_year_model.clone();
     let events_for_plan_week = plan_event_model.clone();
     let all_day_events_for_plan_week = plan_all_day_event_model.clone();
     let start_for_plan_week = plan_week_start.clone();
@@ -358,34 +375,85 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         let Some(planner) = planner_for_plan_week.upgrade() else {
             return;
         };
-        let start = if direction == 0 {
-            current_week_start(&settings_for_plan_week.borrow())
+        let view = planner.get_selected_view();
+        let current = *start_for_plan_week.borrow();
+        let today = calendar_local_now(&settings_for_plan_week.borrow()).date();
+        let start = if view == 0 {
+            if direction == 0 {
+                current_week_start(&settings_for_plan_week.borrow())
+            } else {
+                current + chrono::Duration::days(i64::from(direction.signum()) * 7)
+            }
+        } else if view == 1 {
+            let base = if direction == 0 {
+                today
+            } else if direction >= 100 {
+                today.with_month(direction as u32 - 100).unwrap_or(today)
+            } else {
+                current
+            };
+            let shifted = if (-1..=1).contains(&direction) && direction != 0 {
+                if direction < 0 {
+                    base.checked_sub_months(Months::new(1))
+                } else {
+                    base.checked_add_months(Months::new(1))
+                }
+                .unwrap_or(base)
+            } else {
+                base
+            };
+            shifted.with_day(1).unwrap_or(shifted)
         } else {
-            *start_for_plan_week.borrow()
-                + chrono::Duration::days(i64::from(direction.signum()) * 7)
+            let base = if direction == 0 { today } else { current };
+            let shifted = if direction < 0 {
+                base.checked_sub_months(Months::new(12))
+            } else if direction > 0 {
+                base.checked_add_months(Months::new(12))
+            } else {
+                Some(base)
+            }
+            .unwrap_or(base);
+            shifted
+                .with_month(1)
+                .and_then(|date| date.with_day(1))
+                .unwrap_or(shifted)
         };
         *start_for_plan_week.borrow_mut() = start;
         planner.set_selected_plan_date("".into());
         planner.set_selected_plan_hour(-1);
         planner.set_selected_plan_reminder("".into());
         planner.set_selected_plan_event("".into());
+        planner.set_selected_plan_task("".into());
         planner.set_selected_plan_title("".into());
         planner.set_selected_plan_time("".into());
-        refresh_plan_week(
-            &planner,
-            &days_for_plan_week,
-            &reminders_for_plan_week,
-            &events_for_plan_week,
-            &all_day_events_for_plan_week,
-            &settings_for_plan_week.borrow(),
-            start,
-        );
+        if view == 0 {
+            refresh_plan_week(
+                &planner,
+                &days_for_plan_week,
+                &tasks_for_plan_week,
+                &reminders_for_plan_week,
+                (&events_for_plan_week, &all_day_events_for_plan_week),
+                &settings_for_plan_week.borrow(),
+                start,
+            );
+        } else {
+            refresh_plan_overview(
+                &planner,
+                &month_for_plan,
+                &year_for_plan,
+                &settings_for_plan_week.borrow(),
+                start,
+            );
+        }
     });
     schedule_plan_refresh(
         Rc::new(Timer::default()),
         planner_window.as_weak(),
         PlanRefreshModels {
             days: plan_day_model.clone(),
+            tasks: plan_task_model.clone(),
+            month_days: plan_month_model.clone(),
+            year_months: plan_year_model.clone(),
             reminders: plan_reminder_model.clone(),
             events: plan_event_model.clone(),
             all_day_events: plan_all_day_event_model.clone(),
@@ -476,6 +544,13 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         planner.set_event_title_draft(event.title.clone().into());
         planner.set_event_recurrence(event_recurrence_label(event.recurrence).into());
         planner.set_event_alert(event_alert_label(event.alerts.first()).into());
+        if let Some(alert) = event
+            .alerts
+            .first()
+            .filter(|alert| !matches!(alert.offset_minutes, 0 | 5 | 15 | 30 | 60))
+        {
+            planner.set_event_custom_alert_minutes(alert.offset_minutes.to_string().into());
+        }
         planner.set_event_error("".into());
         match &event.time {
             EventTime::Timed {
@@ -578,7 +653,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 planner.set_event_error("Select a valid repeat option.".into());
                 return;
             };
-            let Some(alert_offset) = parse_event_alert(&alert) else {
+            let Some(alert_offset) = parse_alert_with_custom(
+                &alert,
+                &planner.get_event_custom_alert_minutes(),
+                "At start",
+            ) else {
                 planner.set_event_error("Select a valid alert option.".into());
                 return;
             };
@@ -590,7 +669,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                     ))
                     .expect("generated alert id is valid"),
                     offset_minutes,
-                    play_sound: false,
+                    play_sound: true,
                 })
                 .into_iter()
                 .collect::<Vec<_>>();
@@ -833,10 +912,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         } else {
             None
         };
-        let alert_offset = match alert.as_str() {
-            "At due time" => Some(Some(0)),
-            other => parse_event_alert(other),
-        };
+        let alert_offset = parse_alert_with_custom(
+            &alert,
+            &planner.get_task_custom_alert_minutes(),
+            "At due time",
+        );
         let Some(alert_offset) = alert_offset else {
             planner.set_task_error("Select a valid alert.".into());
             return;
@@ -851,7 +931,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                         ))
                         .expect("generated alert id is valid"),
                         offset_minutes,
-                        play_sound: false,
+                        play_sound: true,
                     }]
                 })
                 .unwrap_or_default()
@@ -1003,6 +1083,13 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 .unwrap_or("No alert")
                 .into(),
         );
+        if let Some(alert) = task
+            .alerts
+            .first()
+            .filter(|alert| !matches!(alert.offset_minutes, 0 | 5 | 15 | 30 | 60))
+        {
+            planner.set_task_custom_alert_minutes(alert.offset_minutes.to_string().into());
+        }
         planner.set_task_error("".into());
     });
     let settings_for_reopen_task = shared_settings.clone();
@@ -1327,14 +1414,15 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let settings_for_snooze = shared_settings.clone();
     let attention_for_snooze = alarm_attention_window.as_weak();
     let owner_for_snooze = window.as_weak();
-    alarm_attention_window.on_request_snooze(move || {
+    alarm_attention_window.on_request_snooze(move |minutes| {
         let Some(item) = queue_for_snooze.borrow().front().cloned() else {
             return;
         };
         let mut settings = settings_for_snooze.borrow_mut();
         let mut updated = settings.clone();
         let now = Utc::now();
-        if oziclock_app::alarm_time::snooze(&mut updated.planner, &item.alarm_id, now)
+        let minutes = minutes.round() as u16;
+        if oziclock_app::alarm_time::snooze(&mut updated.planner, &item.alarm_id, now, minutes)
             && oziclock_app::alarm_time::acknowledge_attention(
                 &mut updated.planner,
                 &item.alarm_id,
@@ -4257,12 +4345,92 @@ fn current_week_start(settings: &AppSettings) -> NaiveDate {
     today - chrono::Duration::days(today.weekday().num_days_from_monday().into())
 }
 
+fn refresh_plan_overview(
+    planner: &PlannerWindow,
+    month_model: &VecModel<PlanMonthDayData>,
+    year_model: &VecModel<PlanYearMonthData>,
+    settings: &AppSettings,
+    anchor: NaiveDate,
+) {
+    let today = calendar_local_now(settings).date();
+    let first = anchor.with_day(1).expect("month has a first day");
+    let grid_start = first - chrono::Duration::days(first.weekday().num_days_from_monday().into());
+    month_model.set_vec(
+        (0..42)
+            .map(|offset| {
+                let date = grid_start + chrono::Duration::days(offset);
+                let (event_count, task_count) = plan_counts_for_date(settings, date);
+                PlanMonthDayData {
+                    label: date.day().to_string().into(),
+                    date: date.format("%Y-%m-%d").to_string().into(),
+                    in_month: date.month() == anchor.month(),
+                    today: date == today,
+                    event_count,
+                    task_count,
+                }
+            })
+            .collect::<Vec<_>>(),
+    );
+    year_model.set_vec(
+        (1..=12)
+            .map(|month| {
+                let mut event_count = 0;
+                let mut task_count = 0;
+                let mut date =
+                    NaiveDate::from_ymd_opt(anchor.year(), month, 1).expect("valid month");
+                while date.month() == month {
+                    let counts = plan_counts_for_date(settings, date);
+                    event_count += counts.0;
+                    task_count += counts.1;
+                    date += chrono::Duration::days(1);
+                }
+                PlanYearMonthData {
+                    label: NaiveDate::from_ymd_opt(anchor.year(), month, 1)
+                        .unwrap()
+                        .format("%B")
+                        .to_string()
+                        .into(),
+                    month: month as i32,
+                    current: today.year() == anchor.year() && today.month() == month,
+                    event_count,
+                    task_count,
+                }
+            })
+            .collect::<Vec<_>>(),
+    );
+    planner.set_plan_week_title(
+        if planner.get_selected_view() == 1 {
+            anchor.format("%B %Y")
+        } else {
+            anchor.format("%Y")
+        }
+        .to_string()
+        .into(),
+    );
+}
+
+fn plan_counts_for_date(settings: &AppSettings, date: NaiveDate) -> (i32, i32) {
+    let week = date - chrono::Duration::days(date.weekday().num_days_from_monday().into());
+    let day = date.signed_duration_since(week).num_days() as i32;
+    let (timed, all_day) = plan_event_rows(settings, week);
+    let events = timed.iter().filter(|item| item.day_index == day).count()
+        + all_day.iter().filter(|item| item.day_index == day).count();
+    let tasks = plan_task_rows(settings, week)
+        .iter()
+        .filter(|item| item.day_index == day)
+        .count();
+    (events as i32, tasks as i32)
+}
+
 fn refresh_plan_week(
     planner: &PlannerWindow,
     day_model: &VecModel<PlanWeekDayData>,
+    task_model: &VecModel<PlanTaskMarkerData>,
     reminder_model: &VecModel<PlanReminderMarkerData>,
-    event_model: &VecModel<PlanEventMarkerData>,
-    all_day_event_model: &VecModel<PlanAllDayEventData>,
+    event_models: (
+        &VecModel<PlanEventMarkerData>,
+        &VecModel<PlanAllDayEventData>,
+    ),
     settings: &AppSettings,
     start: NaiveDate,
 ) {
@@ -4295,6 +4463,7 @@ fn refresh_plan_week(
         planner.set_selected_plan_time("".into());
     }
     reminder_model.set_vec(reminder_rows);
+    task_model.set_vec(plan_task_rows(settings, start));
     let (event_rows, all_day_rows) = plan_event_rows(settings, start);
     let selected_event = planner.get_selected_plan_event();
     if !selected_event.is_empty()
@@ -4310,8 +4479,8 @@ fn refresh_plan_week(
         planner.set_selected_plan_title("".into());
         planner.set_selected_plan_time("".into());
     }
-    event_model.set_vec(event_rows);
-    all_day_event_model.set_vec(all_day_rows);
+    event_models.0.set_vec(event_rows);
+    event_models.1.set_vec(all_day_rows);
     let current_day = today.signed_duration_since(start).num_days();
     let current_minute =
         i32::try_from(local_now.time().num_seconds_from_midnight() / 60).unwrap_or_default();
@@ -4364,6 +4533,32 @@ fn plan_reminder_rows(settings: &AppSettings, start: NaiveDate) -> Vec<PlanRemin
         })
         .collect();
     arrange_plan_reminder_lanes(rows)
+}
+
+fn plan_task_rows(settings: &AppSettings, start: NaiveDate) -> Vec<PlanTaskMarkerData> {
+    let zone = main_time_zone(settings)
+        .parse::<Tz>()
+        .unwrap_or(chrono_tz::UTC);
+    settings
+        .planner
+        .tasks
+        .iter()
+        .filter(|task| task.status == TaskStatus::Open)
+        .filter_map(|task| {
+            let due = DateTime::parse_from_rfc3339(task.due_utc.as_deref()?)
+                .ok()?
+                .with_timezone(&zone);
+            let day_index = due.date_naive().signed_duration_since(start).num_days();
+            (0..7).contains(&day_index).then_some(PlanTaskMarkerData {
+                id: task.id.to_string().into(),
+                title: task.title.clone().into(),
+                date: due.format("%Y-%m-%d").to_string().into(),
+                time: due.format("%H:%M").to_string().into(),
+                day_index: day_index as i32,
+                minute_offset: i32::try_from(due.time().num_seconds_from_midnight() / 60).ok()?,
+            })
+        })
+        .collect()
 }
 
 fn arrange_plan_reminder_lanes(
@@ -4703,6 +4898,17 @@ fn parse_event_alert(value: &str) -> Option<Option<i32>> {
     }
 }
 
+fn parse_alert_with_custom(value: &str, custom: &str, zero_label: &str) -> Option<Option<i32>> {
+    if value == zero_label {
+        return Some(Some(0));
+    }
+    if value == "Custom" {
+        let minutes = custom.trim().parse::<i32>().ok()?;
+        return (1..=10_080).contains(&minutes).then_some(Some(minutes));
+    }
+    parse_event_alert(value)
+}
+
 fn event_alert_label(alert: Option<&AlertRule>) -> &'static str {
     match alert.map(|alert| alert.offset_minutes) {
         None => "No alert",
@@ -4711,7 +4917,7 @@ fn event_alert_label(alert: Option<&AlertRule>) -> &'static str {
         Some(15) => "15 minutes before",
         Some(30) => "30 minutes before",
         Some(60) => "1 hour before",
-        Some(_) => "No alert",
+        Some(_) => "Custom",
     }
 }
 
@@ -4722,7 +4928,7 @@ fn task_alert_label(offset_minutes: i32) -> &'static str {
         15 => "15 minutes before",
         30 => "30 minutes before",
         60 => "1 hour before",
-        _ => "No alert",
+        _ => "Custom",
     }
 }
 
@@ -5129,6 +5335,9 @@ fn schedule_reminder_attention_pulse(
 #[derive(Clone)]
 struct PlanRefreshModels {
     days: Rc<VecModel<PlanWeekDayData>>,
+    tasks: Rc<VecModel<PlanTaskMarkerData>>,
+    month_days: Rc<VecModel<PlanMonthDayData>>,
+    year_months: Rc<VecModel<PlanYearMonthData>>,
     reminders: Rc<VecModel<PlanReminderMarkerData>>,
     events: Rc<VecModel<PlanEventMarkerData>>,
     all_day_events: Rc<VecModel<PlanAllDayEventData>>,
@@ -5147,15 +5356,25 @@ fn schedule_plan_refresh(
     let next_start = start.clone();
     timer.start(TimerMode::SingleShot, Duration::from_secs(60), move || {
         if let Some(planner) = planner.upgrade() {
-            refresh_plan_week(
-                &planner,
-                &models.days,
-                &models.reminders,
-                &models.events,
-                &models.all_day_events,
-                &settings.borrow(),
-                *start.borrow(),
-            );
+            if planner.get_selected_view() == 0 {
+                refresh_plan_week(
+                    &planner,
+                    &models.days,
+                    &models.tasks,
+                    &models.reminders,
+                    (&models.events, &models.all_day_events),
+                    &settings.borrow(),
+                    *start.borrow(),
+                );
+            } else {
+                refresh_plan_overview(
+                    &planner,
+                    &models.month_days,
+                    &models.year_months,
+                    &settings.borrow(),
+                    *start.borrow(),
+                );
+            }
         }
         schedule_plan_refresh(
             next_timer.clone(),
@@ -5196,6 +5415,7 @@ fn schedule_event_refresh(
             let was_empty = queue.borrow().is_empty();
             for receipt in &receipts {
                 if let Some(item) = event_attention_item(receipt, &settings) {
+                    delivery_feedback::deliver(&item.title, &item.time, true);
                     queue.borrow_mut().push_back(item);
                 }
             }
@@ -5232,6 +5452,7 @@ fn schedule_task_refresh(
             let was_empty = queue.borrow().is_empty();
             for id in &delivered {
                 if let Some(item) = task_attention_item(id, &settings) {
+                    delivery_feedback::deliver(&item.title, &item.time, true);
                     queue.borrow_mut().push_back(item);
                 }
             }
@@ -5303,6 +5524,7 @@ fn schedule_alarm_refresh(
                 .filter(|receipt| receipt.status == AlarmOccurrenceStatus::Delivered)
             {
                 if let Some((title, time)) = titles.get(&receipt.alarm_id) {
+                    delivery_feedback::deliver(title, time, true);
                     queue.borrow_mut().push_back(AlarmAttentionItem {
                         alarm_id: receipt.alarm_id.clone(),
                         occurrence_utc: receipt.occurrence_utc.clone(),
@@ -5357,10 +5579,13 @@ fn schedule_planner_timer_refresh(
             let was_empty = queue.borrow().is_empty();
             for id in finished_ids {
                 if let Some(timer) = settings.planner.timers.iter().find(|timer| timer.id == id) {
+                    let title = timer_display_title(timer);
+                    let triggered_at = timer_triggered_label(timer, &settings);
+                    delivery_feedback::deliver(&title, &triggered_at, true);
                     queue.borrow_mut().push_back(TimerAttentionItem {
                         timer_id: id,
-                        title: timer_display_title(timer),
-                        triggered_at: timer_triggered_label(timer, &settings),
+                        title,
+                        triggered_at,
                     });
                 }
             }
@@ -5413,6 +5638,7 @@ fn schedule_reminder_refresh(
                     .iter()
                     .find(|reminder| reminder.id == id)
                 {
+                    delivery_feedback::deliver(&reminder.title, "Reminder is due", true);
                     queue.borrow_mut().push_back(ReminderAttentionItem {
                         reminder_id: id,
                         title: reminder.title.clone(),

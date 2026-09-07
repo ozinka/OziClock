@@ -1,4 +1,5 @@
 import { AlarmAttentionIcon } from "attention_icons.slint";
+import { LineEdit } from "std-widgets.slint";
 
 export component AlarmAttentionWindow inherits Window {
     in property <color> accent: #77d7cb;
@@ -6,23 +7,27 @@ export component AlarmAttentionWindow inherits Window {
     in property <string> alarm-time: "";
     in-out property <bool> pulse: false;
     callback request-dismiss();
-    callback request-snooze();
+    in-out property <string> snooze-minutes: "5";
+    callback request-snooze(float);
     title: "OziClock Alarm";
     no-frame: true;
     always-on-top: true;
     preferred-width: 360px; min-width: 360px; max-width: 360px;
-    preferred-height: 126px; min-height: 126px; max-height: 126px;
+    preferred-height: 166px; min-height: 166px; max-height: 166px;
     background: transparent;
     Rectangle { width: parent.width; height: parent.height; background: #182022; border-color: root.accent; border-width: root.pulse ? 3px : 1px; border-radius: 10px;
         animate border-width { duration: 450ms; easing: ease-in-out; }
         AlarmAttentionIcon { x: 18px; y: 14px; accent: root.accent; }
         Text { x: 80px; y: 15px; width: parent.width - 98px; height: 25px; text: root.alarm-title; color: #e1eae8; font-size: 18px; font-weight: 700; overflow: elide; }
         Text { x: 80px; y: 44px; width: parent.width - 98px; height: 22px; text: root.alarm-time; color: root.accent; font-size: 16px; overflow: elide; }
-        Rectangle { x: 18px; y: 78px; width: (parent.width - 44px) / 2; height: 34px; background: #344144; border-radius: 6px;
-            Text { y: 2px; width: parent.width; height: parent.height; text: "Snooze 5 min"; color: #dce8e5; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
-            TouchArea { clicked => { root.request-snooze(); } }
+        HorizontalLayout { x: 18px; y: 75px; width: parent.width - 36px; height: 30px; spacing: 5px;
+            Text { width: 48px; text: "Snooze"; color: #aab9b7; font-size: 12px; vertical-alignment: center; }
+            for minutes in ["5", "10", "15"]: Rectangle { width: 42px; border-radius: 5px; background: root.snooze-minutes == minutes ? root.accent : #344144; Text { width: parent.width; height: parent.height; text: minutes + "m"; color: root.snooze-minutes == minutes ? #082725 : #dce8e5; font-size: 11px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.snooze-minutes = minutes; } } }
+            Rectangle { horizontal-stretch: 1; LineEdit { width: parent.width; height: parent.height; text <=> root.snooze-minutes; placeholder-text: "Custom"; input-type: InputType.number; horizontal-alignment: center; } }
+            Text { width: 24px; text: "min"; color: #829492; font-size: 11px; vertical-alignment: center; }
         }
-        Rectangle { x: 26px + (parent.width - 44px) / 2; y: 78px; width: (parent.width - 44px) / 2; height: 34px; background: root.accent; border-radius: 6px;
+        Rectangle { x: 18px; y: 116px; width: (parent.width - 44px) / 2; height: 34px; background: #344144; border-radius: 6px; Text { width: parent.width; height: parent.height; text: "Snooze"; color: #dce8e5; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.request-snooze(root.snooze-minutes.to-float()); } } }
+        Rectangle { x: 26px + (parent.width - 44px) / 2; y: 116px; width: (parent.width - 44px) / 2; height: 34px; background: root.accent; border-radius: 6px;
             Text { y: 2px; width: parent.width; height: parent.height; text: "Dismiss"; color: #082725; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
             TouchArea { clicked => { root.request-dismiss(); } }
         }
