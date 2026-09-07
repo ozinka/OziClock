@@ -38,6 +38,7 @@ pub(super) fn restore_settings_window_size(window: &SettingsWindow, settings: &A
     window.set_saved_window_width(width as f32);
     window.set_saved_window_height(height as f32);
     let _ = window.window().with_winit_window(|native| {
+        native.set_resizable(true);
         let scale_factor = native.scale_factor();
         let _ = native.request_inner_size(PhysicalSize::new(
             (width * scale_factor).round() as u32,

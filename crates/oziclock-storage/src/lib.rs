@@ -46,6 +46,8 @@ pub struct AppSettings {
     pub calendar_monday_first: bool,
     #[serde(default)]
     pub calendar_hour_range: u8,
+    #[serde(default = "default_alert_sound_duration_seconds")]
+    pub alert_sound_duration_seconds: u8,
     #[serde(default = "default_settings_window_width")]
     pub settings_window_width: f64,
     #[serde(default = "default_settings_window_height")]
@@ -97,6 +99,10 @@ fn default_calendar_light_theme() -> bool {
 
 fn default_calendar_monday_first() -> bool {
     true
+}
+
+fn default_alert_sound_duration_seconds() -> u8 {
+    20
 }
 
 #[cfg(target_os = "macos")]
@@ -241,6 +247,7 @@ mod tests {
         assert!(!settings.soft_clock_style);
         assert_eq!(settings.border_color, "#000000");
         assert_eq!(settings.non_main_dimming, 0.0);
+        assert_eq!(settings.alert_sound_duration_seconds, 20);
     }
 
     #[test]
@@ -333,11 +340,13 @@ mod tests {
         document.remove("SoftClockStyle");
         document.remove("BorderColor");
         document.remove("NonMainDimming");
+        document.remove("AlertSoundDurationSeconds");
         let settings: AppSettings = serde_json::from_value(legacy).unwrap();
 
         assert_eq!(settings.corner_radius, 12.0);
         assert!(!settings.soft_clock_style);
         assert_eq!(settings.border_color, "#000000");
         assert_eq!(settings.non_main_dimming, 0.0);
+        assert_eq!(settings.alert_sound_duration_seconds, 20);
     }
 }

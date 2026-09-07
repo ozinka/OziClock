@@ -1,5 +1,6 @@
 slint::include_modules!();
 
+mod alert_sound;
 mod calendar_bindings;
 mod clock_refresh;
 mod colors;
@@ -64,6 +65,7 @@ use slint::{Model, ModelRc, Timer, TimerMode, VecModel};
 use windows_sys::Win32::Graphics::Gdi::{GetMonitorInfoW, MONITORINFO};
 
 pub(crate) fn run() -> Result<(), slint::PlatformError> {
+    let alert_sound = alert_sound::AlertSound::new();
     let mut settings = oziclock_storage::load_or_initialize().map_err(|error| {
         slint::PlatformError::Other(format!("could not load OziClock settings: {error}"))
     })?;
@@ -72,6 +74,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings.border_color =
         normalize_border_color(&settings.border_color).unwrap_or_else(|| "#000000".to_owned());
     settings.non_main_dimming = settings.non_main_dimming.clamp(0.0, 80.0);
+    settings.alert_sound_duration_seconds =
+        normalize_alert_sound_duration_seconds(settings.alert_sound_duration_seconds);
     let initial_main_window_position =
         LogicalPosition::new(settings.main_wnd_left, settings.main_wnd_top);
     let is_first_native_window = Rc::new(Cell::new(true));
@@ -145,6 +149,9 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.set_calendar_light_theme(settings.calendar_light_theme);
     settings_window.set_calendar_monday_first(settings.calendar_monday_first);
     settings_window.set_calendar_hour_range(i32::from(settings.calendar_hour_range.min(2)));
+    settings_window.set_alert_sound_duration_seconds(i32::from(
+        normalize_alert_sound_duration_seconds(settings.alert_sound_duration_seconds),
+    ));
     settings_window.set_opacity_percent((settings.opacity.clamp(0.02, 1.0) * 100.0) as f32);
     update_settings_preview(&settings_window, &settings.clocks_settings);
     select_clock(&settings_window, &settings.clocks_settings, 0);
@@ -784,6 +791,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         }
     });
     let queue_for_event_dismiss = event_attention_queue.clone();
+    let sound_for_event_dismiss = alert_sound.clone();
     let settings_for_event_dismiss = shared_settings.clone();
     let attention_for_event_dismiss = event_attention_window.as_weak();
     let owner_for_event_dismiss = window.as_weak();
@@ -803,6 +811,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         ) && oziclock_storage::save(&updated).is_ok()
         {
             *settings = updated;
+            sound_for_event_dismiss.stop();
             queue_for_event_dismiss.borrow_mut().pop_front();
             display_event_attention(
                 &attention_for_event_dismiss,
@@ -818,6 +827,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     );
     schedule_event_attention_pulse(Rc::new(Timer::default()), event_attention_window.as_weak());
     schedule_event_refresh(
+        alert_sound.clone(),
         Rc::new(Timer::default()),
         shared_settings.clone(),
         event_attention_window.as_weak(),
@@ -828,6 +838,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         &shared_settings.borrow(),
     )));
     let queue_for_task_dismiss = task_attention_queue.clone();
+    let sound_for_task_dismiss = alert_sound.clone();
     let settings_for_task_dismiss = shared_settings.clone();
     let attention_for_task_dismiss = task_attention_window.as_weak();
     let owner_for_task_dismiss = window.as_weak();
@@ -843,6 +854,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         ) && oziclock_storage::save(&updated).is_ok()
         {
             *settings = updated;
+            sound_for_task_dismiss.stop();
             queue_for_task_dismiss.borrow_mut().pop_front();
             display_task_attention(
                 &attention_for_task_dismiss,
@@ -858,6 +870,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     );
     schedule_task_attention_pulse(Rc::new(Timer::default()), task_attention_window.as_weak());
     schedule_task_refresh(
+        alert_sound.clone(),
         Rc::new(Timer::default()),
         shared_settings.clone(),
         task_attention_window.as_weak(),
@@ -1385,6 +1398,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         &shared_settings.borrow(),
     )));
     let queue_for_dismiss = alarm_attention_queue.clone();
+    let sound_for_alarm_dismiss = alert_sound.clone();
     let settings_for_dismiss = shared_settings.clone();
     let attention_for_dismiss = alarm_attention_window.as_weak();
     let owner_for_dismiss = window.as_weak();
@@ -1402,6 +1416,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         ) && oziclock_storage::save(&updated).is_ok()
         {
             *settings = updated;
+            sound_for_alarm_dismiss.stop();
             queue_for_dismiss.borrow_mut().pop_front();
             display_alarm_attention(
                 &attention_for_dismiss,
@@ -1411,6 +1426,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         }
     });
     let queue_for_snooze = alarm_attention_queue.clone();
+    let sound_for_snooze = alert_sound.clone();
     let settings_for_snooze = shared_settings.clone();
     let attention_for_snooze = alarm_attention_window.as_weak();
     let owner_for_snooze = window.as_weak();
@@ -1432,6 +1448,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             && oziclock_storage::save(&updated).is_ok()
         {
             *settings = updated;
+            sound_for_snooze.stop();
             queue_for_snooze.borrow_mut().pop_front();
             display_alarm_attention(&attention_for_snooze, &owner_for_snooze, &queue_for_snooze);
         }
@@ -1444,6 +1461,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     );
     let alarm_scheduler_timer = Rc::new(Timer::default());
     schedule_alarm_refresh(
+        alert_sound.clone(),
         alarm_scheduler_timer,
         planner_alarm_model.clone(),
         shared_settings.clone(),
@@ -1459,6 +1477,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         &shared_settings.borrow(),
     )));
     let queue_for_timer_dismiss = timer_attention_queue.clone();
+    let sound_for_timer_dismiss = alert_sound.clone();
     let settings_for_timer_dismiss = shared_settings.clone();
     let model_for_timer_dismiss = planner_timer_model.clone();
     let attention_for_timer_dismiss = timer_attention_window.as_weak();
@@ -1475,6 +1494,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         ) && oziclock_storage::save(&updated).is_ok()
         {
             *settings = updated;
+            sound_for_timer_dismiss.stop();
             model_for_timer_dismiss.set_vec(planner_timer_rows(&settings));
             queue_for_timer_dismiss.borrow_mut().pop_front();
             display_timer_attention(
@@ -1485,6 +1505,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         }
     });
     let queue_for_timer_restart = timer_attention_queue.clone();
+    let sound_for_timer_restart = alert_sound.clone();
     let settings_for_timer_restart = shared_settings.clone();
     let model_for_timer_restart = planner_timer_model.clone();
     let attention_for_timer_restart = timer_attention_window.as_weak();
@@ -1504,6 +1525,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         ) && oziclock_storage::save(&updated).is_ok()
         {
             *settings = updated;
+            sound_for_timer_restart.stop();
             model_for_timer_restart.set_vec(planner_timer_rows(&settings));
             queue_for_timer_restart.borrow_mut().pop_front();
             display_timer_attention(
@@ -1826,6 +1848,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         }
     });
     schedule_planner_timer_refresh(
+        alert_sound.clone(),
         Rc::new(Timer::default()),
         planner_timer_model.clone(),
         shared_settings.clone(),
@@ -1841,6 +1864,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         &shared_settings.borrow(),
     )));
     let queue_for_reminder_dismiss = reminder_attention_queue.clone();
+    let sound_for_reminder_dismiss = alert_sound.clone();
     let settings_for_reminder_dismiss = shared_settings.clone();
     let model_for_reminder_dismiss = planner_reminder_model.clone();
     let attention_for_reminder_dismiss = reminder_attention_window.as_weak();
@@ -1859,6 +1883,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         ) && oziclock_storage::save(&updated).is_ok()
         {
             *settings = updated;
+            sound_for_reminder_dismiss.stop();
             model_for_reminder_dismiss.set_vec(planner_reminder_rows(&settings));
             queue_for_reminder_dismiss.borrow_mut().pop_front();
             display_reminder_attention(
@@ -2194,6 +2219,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         }
     });
     schedule_reminder_refresh(
+        alert_sound.clone(),
         Rc::new(Timer::default()),
         planner_reminder_model,
         shared_settings.clone(),
@@ -2490,6 +2516,13 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.on_request_select_calendar(move || {
         if let Some(editor) = editor.upgrade() {
             editor.set_selected_section(2);
+            editor.set_color_picker_open(false);
+        }
+    });
+    let editor = settings_window.as_weak();
+    settings_window.on_request_select_planner(move || {
+        if let Some(editor) = editor.upgrade() {
+            editor.set_selected_section(3);
             editor.set_color_picker_open(false);
         }
     });
@@ -2868,6 +2901,17 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.on_request_set_calendar_hour_range(move |hour_range| {
         state.borrow_mut().calendar_hour_range = hour_range.clamp(0, 2) as u8;
     });
+    let state = shared_settings.clone();
+    let sound_for_duration_change = alert_sound.clone();
+    let editor = settings_window.as_weak();
+    settings_window.on_request_set_alert_sound_duration_seconds(move |seconds| {
+        let seconds = normalize_alert_sound_duration_seconds(seconds as u8);
+        state.borrow_mut().alert_sound_duration_seconds = seconds;
+        sound_for_duration_change.stop();
+        if let Some(editor) = editor.upgrade() {
+            editor.set_alert_sound_duration_seconds(i32::from(seconds));
+        }
+    });
     let editor = settings_window.as_weak();
     settings_window.on_request_select_time_zone(move |index| {
         if let Some(editor) = editor.upgrade()
@@ -3170,6 +3214,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         if let Some(planner) = planner_for_menu.upgrade()
             && planner.show().is_ok()
         {
+            hide_auxiliary_window_from_taskbar(planner.window());
             let _ = planner
                 .window()
                 .with_winit_window(|native| native.set_minimized(false));
@@ -3662,6 +3707,13 @@ fn apply_clock_scale(window: &AppWindow, clock_scale: f32) {
 
 fn normalize_clock_scale_percent(clock_scale_percent: f32) -> f32 {
     ((clock_scale_percent / 5.0).round() * 5.0).clamp(80.0, 150.0)
+}
+
+fn normalize_alert_sound_duration_seconds(seconds: u8) -> u8 {
+    match seconds {
+        0 | 1 | 5 | 10 | 20 | 30 => seconds,
+        _ => 20,
+    }
 }
 
 fn normalize_border_color(value: &str) -> Option<String> {
@@ -5387,6 +5439,7 @@ fn schedule_plan_refresh(
 }
 
 fn schedule_event_refresh(
+    alert_sound: alert_sound::AlertSound,
     timer: Rc<Timer>,
     settings: Rc<RefCell<AppSettings>>,
     attention: slint::Weak<EventAttentionWindow>,
@@ -5415,7 +5468,12 @@ fn schedule_event_refresh(
             let was_empty = queue.borrow().is_empty();
             for receipt in &receipts {
                 if let Some(item) = event_attention_item(receipt, &settings) {
-                    delivery_feedback::deliver(&item.title, &item.time, true);
+                    delivery_feedback::deliver(
+                        &item.title,
+                        &item.time,
+                        settings.alert_sound_duration_seconds,
+                        &alert_sound,
+                    );
                     queue.borrow_mut().push_back(item);
                 }
             }
@@ -5425,6 +5483,7 @@ fn schedule_event_refresh(
         }
         drop(settings);
         schedule_event_refresh(
+            alert_sound.clone(),
             next_timer.clone(),
             next_settings.clone(),
             attention.clone(),
@@ -5435,6 +5494,7 @@ fn schedule_event_refresh(
 }
 
 fn schedule_task_refresh(
+    alert_sound: alert_sound::AlertSound,
     timer: Rc<Timer>,
     settings: Rc<RefCell<AppSettings>>,
     attention: slint::Weak<TaskAttentionWindow>,
@@ -5452,7 +5512,12 @@ fn schedule_task_refresh(
             let was_empty = queue.borrow().is_empty();
             for id in &delivered {
                 if let Some(item) = task_attention_item(id, &settings) {
-                    delivery_feedback::deliver(&item.title, &item.time, true);
+                    delivery_feedback::deliver(
+                        &item.title,
+                        &item.time,
+                        settings.alert_sound_duration_seconds,
+                        &alert_sound,
+                    );
                     queue.borrow_mut().push_back(item);
                 }
             }
@@ -5462,6 +5527,7 @@ fn schedule_task_refresh(
         }
         drop(settings);
         schedule_task_refresh(
+            alert_sound.clone(),
             next_timer.clone(),
             next_settings.clone(),
             attention.clone(),
@@ -5472,6 +5538,7 @@ fn schedule_task_refresh(
 }
 
 fn schedule_alarm_refresh(
+    alert_sound: alert_sound::AlertSound,
     timer: Rc<Timer>,
     model: Rc<VecModel<PlannerAlarmData>>,
     settings: Rc<RefCell<AppSettings>>,
@@ -5524,7 +5591,12 @@ fn schedule_alarm_refresh(
                 .filter(|receipt| receipt.status == AlarmOccurrenceStatus::Delivered)
             {
                 if let Some((title, time)) = titles.get(&receipt.alarm_id) {
-                    delivery_feedback::deliver(title, time, true);
+                    delivery_feedback::deliver(
+                        title,
+                        time,
+                        settings_guard.alert_sound_duration_seconds,
+                        &alert_sound,
+                    );
                     queue.borrow_mut().push_back(AlarmAttentionItem {
                         alarm_id: receipt.alarm_id.clone(),
                         occurrence_utc: receipt.occurrence_utc.clone(),
@@ -5539,6 +5611,7 @@ fn schedule_alarm_refresh(
         }
         drop(settings_guard);
         schedule_alarm_refresh(
+            alert_sound.clone(),
             next_timer.clone(),
             model.clone(),
             next_settings.clone(),
@@ -5558,6 +5631,7 @@ fn alarm_time_label(alarm: &Alarm) -> String {
 }
 
 fn schedule_planner_timer_refresh(
+    alert_sound: alert_sound::AlertSound,
     timer: Rc<Timer>,
     model: Rc<VecModel<PlannerTimerData>>,
     settings: Rc<RefCell<AppSettings>>,
@@ -5581,7 +5655,12 @@ fn schedule_planner_timer_refresh(
                 if let Some(timer) = settings.planner.timers.iter().find(|timer| timer.id == id) {
                     let title = timer_display_title(timer);
                     let triggered_at = timer_triggered_label(timer, &settings);
-                    delivery_feedback::deliver(&title, &triggered_at, true);
+                    delivery_feedback::deliver(
+                        &title,
+                        &triggered_at,
+                        settings.alert_sound_duration_seconds,
+                        &alert_sound,
+                    );
                     queue.borrow_mut().push_back(TimerAttentionItem {
                         timer_id: id,
                         title,
@@ -5603,6 +5682,7 @@ fn schedule_planner_timer_refresh(
         }
         drop(settings);
         schedule_planner_timer_refresh(
+            alert_sound.clone(),
             next_timer.clone(),
             next_model.clone(),
             next_settings.clone(),
@@ -5614,6 +5694,7 @@ fn schedule_planner_timer_refresh(
 }
 
 fn schedule_reminder_refresh(
+    alert_sound: alert_sound::AlertSound,
     timer: Rc<Timer>,
     model: Rc<VecModel<PlannerReminderData>>,
     settings: Rc<RefCell<AppSettings>>,
@@ -5638,7 +5719,12 @@ fn schedule_reminder_refresh(
                     .iter()
                     .find(|reminder| reminder.id == id)
                 {
-                    delivery_feedback::deliver(&reminder.title, "Reminder is due", true);
+                    delivery_feedback::deliver(
+                        &reminder.title,
+                        "Reminder is due",
+                        settings.alert_sound_duration_seconds,
+                        &alert_sound,
+                    );
                     queue.borrow_mut().push_back(ReminderAttentionItem {
                         reminder_id: id,
                         title: reminder.title.clone(),
@@ -5652,6 +5738,7 @@ fn schedule_reminder_refresh(
         next_model.set_vec(planner_reminder_rows(&settings));
         drop(settings);
         schedule_reminder_refresh(
+            alert_sound.clone(),
             next_timer.clone(),
             next_model.clone(),
             next_settings.clone(),

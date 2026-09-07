@@ -16,7 +16,7 @@ export component SettingsWindow inherits Window {
     preferred-height: root.saved-window-height * 1px;
     min-width: 710px;
     min-height: 632px;
-    resize-border-width: 1px;
+    resize-border-width: 6px;
     background: transparent;
 
     in property <[ClockListItem]> clocks;
@@ -48,6 +48,7 @@ export component SettingsWindow inherits Window {
     in-out property <bool> calendar-light-theme: true;
     in-out property <bool> calendar-monday-first: true;
     in-out property <int> calendar-hour-range: 0;
+    in-out property <int> alert-sound-duration-seconds: 20;
     in-out property <string> status-message;
     in-out property <bool> color-picker-open: false;
     in-out property <bool> picking-border-color: false;
@@ -67,6 +68,7 @@ export component SettingsWindow inherits Window {
     callback request-select(int);
     callback request-select-general();
     callback request-select-calendar();
+    callback request-select-planner();
     callback request-add();
     callback request-remove(int);
     callback request-confirm-remove();
@@ -101,6 +103,7 @@ export component SettingsWindow inherits Window {
     callback request-set-calendar-light-theme(bool);
     callback request-set-calendar-monday-first(bool);
     callback request-set-calendar-hour-range(int);
+    callback request-set-alert-sound-duration-seconds(int);
 
     Rectangle {
         width: parent.width;
@@ -118,11 +121,12 @@ export component SettingsWindow inherits Window {
         Rectangle { x: 0px; y: 82px; width: 260px; height: parent.height - 82px; background: #202126; }
         Rectangle { x: 14px; y: 120px; width: 232px; height: 37px; border-radius: 6px; background: root.selected-section == 0 ? #31343c : #202126; Text { x: 10px; y: 9px; text: "General"; color: #d7d9de; font-family: "Carlito"; font-size: 14px; } TouchArea { clicked => { root.request-select-general(); } } }
         Rectangle { x: 14px; y: 163px; width: 232px; height: 37px; border-radius: 6px; background: root.selected-section == 2 ? #31343c : #202126; Text { x: 10px; y: 9px; text: "Calendar"; color: #d7d9de; font-family: "Carlito"; font-size: 14px; } TouchArea { clicked => { root.request-select-calendar(); } } }
-        Text { x: 28px; y: 217px; text: "CLOCKS"; color: #8f949e; font-family: "Carlito"; font-size: 11px; font-weight: 700; }
+        Rectangle { x: 14px; y: 206px; width: 232px; height: 37px; border-radius: 6px; background: root.selected-section == 3 ? #31343c : #202126; Text { x: 10px; y: 9px; text: "Planner"; color: #d7d9de; font-family: "Carlito"; font-size: 14px; } TouchArea { clicked => { root.request-select-planner(); } } }
+        Text { x: 28px; y: 260px; text: "CLOCKS"; color: #8f949e; font-family: "Carlito"; font-size: 11px; font-weight: 700; }
 
         Rectangle {
             x: 14px;
-            y: 238px;
+            y: 281px;
             width: 232px;
             height: 37px;
             border-radius: 6px;
@@ -132,9 +136,9 @@ export component SettingsWindow inherits Window {
         }
         clock-list-scroll := ScrollView {
             x: 0px;
-            y: 283px;
+            y: 326px;
             width: 260px;
-            height: parent.height - 283px;
+            height: parent.height - 326px;
             viewport-width: 260px;
             viewport-height: root.clocks.length * 43px;
             vertical-scrollbar-policy: ScrollBarPolicy.always-on;
@@ -163,7 +167,7 @@ export component SettingsWindow inherits Window {
         }
         Rectangle {
             x: 14px;
-            y: 283px + root.dragging-index * 43px - clock-list-scroll.viewport-y + root.dragging-offset * 1px;
+            y: 326px + root.dragging-index * 43px - clock-list-scroll.viewport-y + root.dragging-offset * 1px;
             width: 232px;
             height: 37px;
             visible: root.dragging-index >= 0 && root.dragging-index < root.clocks.length;
@@ -179,7 +183,7 @@ export component SettingsWindow inherits Window {
         }
 
         Rectangle { x: 286px; y: 82px; width: 446px; height: 1px; background: #33353c; }
-        Text { x: 286px; y: 107px; text: root.selected-section == 0 ? "General" : (root.selected-section == 2 ? "Calendar" : "Edit clock"); color: #f2f3f5; font-family: "Carlito"; font-size: 21px; font-weight: 700; }
+        Text { x: 286px; y: 107px; text: root.selected-section == 0 ? "General" : (root.selected-section == 2 ? "Calendar" : (root.selected-section == 3 ? "Planner" : "Edit clock")); color: #f2f3f5; font-family: "Carlito"; font-size: 21px; font-weight: 700; }
         Text { x: 286px; y: 139px; visible: root.selected-section == 1; text: root.status-message; color: #969aa4; font-family: "Carlito"; font-size: 13px; }
         Text { x: 286px; y: 145px; visible: root.selected-section == 0; text: "Application behavior"; color: #969aa4; font-family: "Carlito"; font-size: 13px; }
         Text { x: 286px; y: 185px; visible: root.selected-section == 1; text: "Name"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
@@ -232,6 +236,10 @@ export component SettingsWindow inherits Window {
         Text { x: 286px; y: 513px; visible: root.selected-section == 0; text: "Border and separator color"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         Rectangle { x: 286px; y: 533px; visible: root.selected-section == 0; width: 190px; height: 38px; border-radius: 6px; background: transparent; LineEdit { width: parent.width; height: parent.height; text <=> root.border-color-value; edited => { root.request-set-border-color(root.border-color-value); } } }
         Rectangle { x: 488px; y: 531px; visible: root.selected-section == 0; width: 42px; height: 42px; border-radius: 6px; border-width: 1px; border-color: #70747d; background: root.border-preview-color; TouchArea { clicked => { root.request-open-border-color-picker(); } } }
+        Text { x: 286px; y: 145px; visible: root.selected-section == 3; text: "Delivery feedback for Planner alerts"; color: #969aa4; font-family: "Carlito"; font-size: 13px; }
+        Text { x: 286px; y: 192px; visible: root.selected-section == 3; text: "Alert sound duration"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
+        ComboBox { x: 286px; y: 214px; visible: root.selected-section == 3; width: 240px; height: 40px; model: ["Off", "1 second", "5 seconds", "10 seconds", "20 seconds", "30 seconds"]; current-index: root.alert-sound-duration-seconds == 0 ? 0 : (root.alert-sound-duration-seconds == 1 ? 1 : (root.alert-sound-duration-seconds == 5 ? 2 : (root.alert-sound-duration-seconds == 10 ? 3 : (root.alert-sound-duration-seconds == 20 ? 4 : 5)))); selected => { root.alert-sound-duration-seconds = self.current-index == 0 ? 0 : (self.current-index == 1 ? 1 : (self.current-index == 2 ? 5 : (self.current-index == 3 ? 10 : (self.current-index == 4 ? 20 : 30)))); root.request-set-alert-sound-duration-seconds(root.alert-sound-duration-seconds); } }
+        Text { x: 286px; y: 272px; visible: root.selected-section == 3; width: 390px; text: "The chime repeats until the selected duration ends. Dismiss, Snooze and Restart stop it immediately."; color: #969aa4; font-family: "Carlito"; font-size: 13px; wrap: word-wrap; }
         Text { x: 286px; y: 145px; visible: root.selected-section == 2; text: "Calendar appearance and week layout"; color: #969aa4; font-family: "Carlito"; font-size: 13px; }
         Text { x: 286px; y: 192px; visible: root.selected-section == 2; text: "Theme"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         ComboBox { x: 286px; y: 214px; visible: root.selected-section == 2; width: 240px; height: 40px; model: ["Light", "Dark"]; current-index: root.calendar-light-theme ? 0 : 1; selected => { root.calendar-light-theme = self.current-index == 0; root.request-set-calendar-light-theme(root.calendar-light-theme); } }
@@ -262,13 +270,18 @@ export component SettingsWindow inherits Window {
             Rectangle { x: 328px; y: 274px; width: 68px; height: 32px; border-radius: 5px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "OK"; color: white; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-confirm(); } } } }
             Text { x: 358px; y: 10px; width: 30px; height: 30px; text: "×"; color: #aeb3bd; font-size: 22px; horizontal-alignment: center; TouchArea { clicked => { root.color-picker-open = false; } } }
         }
-        Rectangle {
-            x: 278px; y: 230px; width: 462px; height: 190px; visible: root.remove-confirmation-open; border-radius: root.corner-radius * 1px; border-width: 1px; border-color: #4a4e58; background: #25272d;
-            Text { x: 22px; y: 20px; text: "Remove clock?"; color: #f0f1f3; font-family: "Carlito"; font-size: 17px; font-weight: 700; }
-            Text { x: 22px; y: 57px; width: 418px; height: 40px; text: "Remove " + root.remove-confirmation-label + " from the clock list?"; color: #c7ccd5; font-family: "Carlito"; font-size: 13px; wrap: word-wrap; }
-            Text { x: 22px; y: 108px; text: "This action cannot be undone."; color: #969aa4; font-family: "Carlito"; font-size: 12px; }
-            Text { x: 284px; y: 138px; width: 70px; height: 34px; text: "Cancel"; color: #c7ccd5; font-family: "Carlito"; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-cancel-remove(); } } }
-            Rectangle { x: 362px; y: 136px; width: 78px; height: 36px; border-radius: 5px; background: #b84b4b; Text { width: parent.width; height: parent.height; text: "Remove"; color: white; font-family: "Carlito"; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-confirm-remove(); } } } }
+        if root.remove-confirmation-open : Rectangle {
+            width: parent.width; height: parent.height; background: #00000088;
+            TouchArea { clicked => { root.request-cancel-remove(); } }
+            Rectangle {
+                x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; width: 462px; height: 190px; border-radius: root.corner-radius * 1px; border-width: 1px; border-color: #4a4e58; background: #25272d;
+                TouchArea {}
+                Text { x: 22px; y: 20px; text: "Remove clock?"; color: #f0f1f3; font-family: "Carlito"; font-size: 17px; font-weight: 700; }
+                Text { x: 22px; y: 57px; width: parent.width - 44px; height: 40px; text: "Remove " + root.remove-confirmation-label + " from the clock list?"; color: #c7ccd5; font-family: "Carlito"; font-size: 13px; wrap: word-wrap; }
+                Text { x: 22px; y: 108px; text: "This action cannot be undone."; color: #969aa4; font-family: "Carlito"; font-size: 12px; }
+                Text { x: parent.width - 178px; y: 138px; width: 70px; height: 34px; text: "Cancel"; color: #c7ccd5; font-family: "Carlito"; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-cancel-remove(); } } }
+                Rectangle { x: parent.width - 100px; y: 136px; width: 78px; height: 36px; border-radius: 5px; background: #b84b4b; Text { width: parent.width; height: parent.height; text: "Remove"; color: white; font-family: "Carlito"; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-confirm-remove(); } } } }
+            }
         }
     }
 }

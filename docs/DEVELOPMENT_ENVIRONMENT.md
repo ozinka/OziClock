@@ -59,5 +59,8 @@ The current scaffold prints `OziClock`. Later, Cargo will download Slint and all
 
 ## Later Platform Setup
 
-Windows is the first development target. macOS and Linux packaging will require their native build environments on those operating systems or CI runners; they are not needed now and should not be emulated through extra local tooling.
+The audio adapter uses playback-only Rodio/CPAL. Linux builds need ALSA headers and pkg-config (`sudo apt-get install libasound2-dev pkg-config` on Debian/Ubuntu), in addition to the graphics dependencies installed by CI. Linux playback requires the ALSA runtime library and a configured audio output. Windows and macOS use native audio APIs; no external audio player, codec pack or sound file is required.
 
+To audition the same synthesized chime used by Planner without changing saved settings, run `cargo test -p oziclock-desktop play_alert_on_default_device -- --ignored --nocapture` on a machine with an audio output. This hardware check is excluded from normal CI. Confirm listening separately, including macOS Finder launch, resume from sleep and headphone/output changes.
+
+Windows is the first development target. macOS and Linux packaging will require their native build environments on those operating systems or CI runners; they are not needed now and should not be emulated through extra local tooling.
