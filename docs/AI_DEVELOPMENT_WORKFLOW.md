@@ -26,6 +26,16 @@ When code and documentation disagree, do not silently copy current behavior. Ide
 8. Run formatting, linting, unit tests, golden tests, and relevant platform smoke tests.
 9. Update requirements, design notes, and backlog status in the same change.
 
+## Requirements and Decision Reconciliation
+
+Record agreed observable behavior in the relevant functional requirements (FRs) during the feature, future requests in the backlog, and significant architectural decisions in ADRs under the existing ADR criteria. Tentative suggestions and unresolved alternatives are not approved requirements; label them as open questions or candidate work. Do not defer these updates until the periodic review.
+
+After 3 completed features, perform a short documentation reconciliation at a natural task boundary, and no later than the fifth completed feature. Count distinct backlog items reaching `Done`, not commits, chat turns, or intermediate edits; do not mark a feature complete while required verification is pending.
+
+Review the affected FRs, design notes, decisions, and backlog against implemented and verified behavior. Update existing entries rather than duplicating them, preserve stable IDs, and flag unresolved discrepancies instead of treating implementation as approval. Keep the review scoped to changes since the checkpoint; it is not a full repository audit.
+
+Maintain the `Documentation Reconciliation` checkpoint in `BACKLOG.md`: the last review date and covered backlog IDs, distinct feature IDs completed since that review, and any unresolved follow-ups. Update the pending IDs whenever a feature reaches `Done`. After reconciliation, record the covered IDs and clear the pending list. If no checkpoint exists, establish an explicitly unreviewed baseline without claiming a retrospective audit.
+
 ## User Confirmation and Build Recovery
 
 When the user requests an implementation, proceed immediately if the scope is clear. Ask for confirmation only when a choice would materially change product behavior, design, data, or external state. State the interpretation and present a single concise confirmation question.

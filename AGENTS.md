@@ -1,5 +1,16 @@
 # Repository Guidelines
 
+## Collaboration and Efficiency
+
+- Treat tentative wording such as "maybe" or "could we" as openness to alternatives, not a requirement to ask for confirmation. Separate the user's desired outcome from their suggested implementation; evaluate suggestions critically and explain material tradeoffs.
+- Infer the intended action from the whole request. For discussion, evaluation, or diagnosis, inspect and explain without changing code. For implementation, proceed with routine decisions within the agreed scope. Clarify only unresolved choices that materially affect the outcome or authorization.
+- Use existing requirements and the request to identify observable acceptance criteria. State assumptions briefly when useful; do not add a planning or approval round for straightforward work.
+- Distinguish observations, hypotheses, and verified causes. For uncertain bugs, seek a discriminating reproduction or diagnostic before changing behavior. After two unsuccessful fix approaches to the same symptom, reassess the evidence and report what was ruled out before trying another approach; avoid stacking speculative workarounds.
+- Keep related edits in one coherent change and avoid unrelated improvements. Read targeted files and relevant log excerpts. Reuse completed checks when the checked state has not changed; repeat or broaden them only for changed code, failures, or unresolved risks. Preserve all required validation and debug-launch rules below.
+- After substantial investigation, record durable findings, rejected approaches and reasons, and unresolved questions in the appropriate existing project documentation. Keep this concise; do not create a report for every small task.
+- Keep agreed requirements and decisions current within each feature. After every 3–5 completed features, reconcile documentation using `docs/AI_DEVELOPMENT_WORKFLOW.md` and persist the checkpoint in `docs/BACKLOG.md` so the cadence survives new chats.
+- Finish with the outcome, verification, and any remaining limitation. Do not claim success from compilation alone when acceptance requires observing runtime or visual behavior.
+
 ## Project Structure & Module Organization
 
 The active rewrite is a Rust workspace: `apps/oziclock-desktop/` is the executable, `crates/oziclock-domain/` owns framework-free rules, `crates/oziclock-app/` owns use cases, and `ui/` will contain Slint components. The preserved .NET 9/WPF reference remains in `legacy/dotnet-wpf/`, including its solution, release script, assets, and `Ozi.Clock/` source.

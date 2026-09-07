@@ -1,4 +1,7 @@
 pub fn deliver(title: &str, body: &str, play_sound: bool) {
+    if play_sound {
+        play_sound_once();
+    }
     if let Err(error) = notify_rust::Notification::new()
         .summary(title)
         .body(body)
@@ -7,17 +10,31 @@ pub fn deliver(title: &str, body: &str, play_sound: bool) {
     {
         eprintln!("Native notification unavailable: {error}");
     }
-    if play_sound {
-        play_sound_once();
-    }
 }
 
 #[cfg(target_os = "macos")]
 fn play_sound_once() {
-    objc2_app_kit::NSBeep();
+    if let Err(error) = std::process::Command::new("/usr/bin/afplay")
+        .arg("/System/Library/Sounds/Glass.aiff")
+        .spawn()
+    {
+        eprintln!("Could not start alert sound: {error}");
+    }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(all(unix, not(target_os = "macos")))]
 fn play_sound_once() {
-    print!("\u{7}");
+    if let Err(error) = std::process::Command::new("canberra-gtk-play")
+        .args(["--id=message-new-instant", "--description=OziClock alert"])
+        .spawn()
+    {
+        eprintln!("Could not start alert sound: {error}");
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn play_sound_once() {
+    unsafe {
+        windows_sys::Win32::UI::WindowsAndMessaging::MessageBeep(0);
+    }
 }

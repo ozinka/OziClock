@@ -17,10 +17,20 @@ Priorities describe sequencing, not severity:
 - `P2` — focused product improvement after P1 work.
 - `P3` — larger optional capability requiring its own product slice.
 
+## Documentation Reconciliation
+
+- Tracking baseline: 2026-09-07; existing work has not been retrospectively reconciled by this checkpoint.
+- Last completed review: none recorded.
+- Backlog IDs covered by the last review: none recorded.
+- Feature IDs reaching `Done` since the baseline or last review: none recorded.
+- Review cadence: after 3 completed features at a natural task boundary, no later than 5; follow `AI_DEVELOPMENT_WORKFLOW.md`.
+- Unresolved reconciliation follow-ups: none recorded; this does not certify existing documentation as reconciled.
+
 ## Queue
 
 | ID | Priority | Status | Area | Item | Next step |
 | --- | --- | --- | --- | --- | --- |
+| BL-062 | P2 | Ready | Plan Year view | Hide zero-value summaries | Do not render `0 events` or `0 tasks` in Year month cards. Keep months with no entries visually clean while preserving navigation and current-month emphasis. |
 | BL-061 | P2 | Discovery | Plan interaction | Review the selected-item context panel | Determine whether the Event/Reminder context panel and its Edit button add value now that double-click opens the shared editor. Preserve an accessible non-double-click editing path if the panel is removed. |
 | BL-060 | P1 | Candidate | Tasks | Extend completed-task history and discovery | Allow editing completed tasks, add title/status/date search, persist and display the actual completion timestamp, and define how reopening affects that timestamp. |
 | BL-059 | P1 | Candidate | Planner settings | Add independent Planner appearance and sound settings | Add Light/Dark theme selection, enable/disable sound signals, and choose either the main clock accent or a custom Planner accent. Persist settings, update open Planner/attention windows live, and define defaults/migration. |
