@@ -21,8 +21,8 @@ Priorities describe sequencing, not severity:
 
 - Tracking baseline: 2026-09-07; existing work has not been retrospectively reconciled by this checkpoint.
 - Last completed review: 2026-09-08.
-- Backlog IDs covered by the last review: BL-063, BL-064, BL-065.
-- Feature IDs reaching `Done` since the baseline or last review: BL-066, BL-067.
+- Backlog IDs covered by the last review: BL-066, BL-067, BL-068.
+- Feature IDs reaching `Done` since the baseline or last review: none.
 - Review cadence: after 3 completed features at a natural task boundary, no later than 5; follow `AI_DEVELOPMENT_WORKFLOW.md`.
 - Unresolved reconciliation follow-ups: none.
 
@@ -101,6 +101,7 @@ An item is `Ready` when:
 
 | ID | Completed | Item | Evidence |
 | --- | --- | --- | --- |
+| BL-068 | 2026-09 | Extract task desktop bindings | Task editor callbacks, persisted mutations, open/completed model refresh, attention queue, pulse timer, and scheduler refresh moved to `desktop/planner_task_bindings.rs`; the shared date picker and independent Plan refresh remain in the composition root and `desktop/mod.rs` is reduced by 451 lines. Focused task tests, formatting, Clippy, 82 automated workspace tests, desktop build, and macOS debug launch pass. |
 | BL-067 | 2026-09 | Extract reminder desktop bindings | Reminder editor callbacks, persisted mutations, Plan marker updates, attention queue, pulse timer, and scheduler refresh moved to `desktop/planner_reminder_bindings.rs`; the shared date picker remains in the composition root and `desktop/mod.rs` is reduced by 477 lines. Focused reminder tests, formatting, Clippy, 82 automated workspace tests, desktop build, and macOS debug launch pass. |
 | BL-066 | 2026-09 | Extract timer desktop bindings | Timer editor callbacks, persisted mutations, attention queue, pulse timer, and scheduler refresh moved to `desktop/planner_timer_bindings.rs`; `desktop/mod.rs` reduced by 524 lines. Focused timer tests, formatting, Clippy, 82 automated workspace tests, desktop build, and macOS debug launch pass. |
 | BL-065 | 2026-09 | Extract alarm desktop bindings | Alarm editor callbacks, persisted mutations, attention queue, pulse timer, and scheduler refresh moved to `desktop/planner_alarm_bindings.rs`; `desktop/mod.rs` reduced by 457 lines. Focused alarm tests, formatting, Clippy, 82 automated workspace tests, desktop build, and macOS debug launch pass. |
