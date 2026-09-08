@@ -21,8 +21,8 @@ Priorities describe sequencing, not severity:
 
 - Tracking baseline: 2026-09-07; existing work has not been retrospectively reconciled by this checkpoint.
 - Last completed review: 2026-09-08.
-- Backlog IDs covered by the last review: BL-066, BL-067, BL-068.
-- Feature IDs reaching `Done` since the baseline or last review: BL-069, BL-070.
+- Backlog IDs covered by the last review: BL-069, BL-070, BL-071.
+- Feature IDs reaching `Done` since the baseline or last review: none.
 - Review cadence: after 3 completed features at a natural task boundary, no later than 5; follow `AI_DEVELOPMENT_WORKFLOW.md`.
 - Unresolved reconciliation follow-ups: none.
 
@@ -101,6 +101,7 @@ An item is `Ready` when:
 
 | ID | Completed | Item | Evidence |
 | --- | --- | --- | --- |
+| BL-071 | 2026-09 | Extract Plan navigation and refresh bindings | Plan model ownership, Week/Month/Year navigation, overview and week refresh, selection cleanup, and the periodic refresh timer moved to `desktop/planner_plan_bindings.rs`; only the reminder/event models and week anchor are returned to existing feature bindings, reducing `desktop/mod.rs` by 333 lines. Focused Plan and calendar navigation tests, formatting, Clippy, 82 automated workspace tests, desktop build, and macOS debug launch pass. Documentation reconciliation for BL-069 through BL-071 found no requirement, architecture, or ADR changes. |
 | BL-070 | 2026-09 | Extract stopwatch desktop bindings | Stopwatch runtime state, UI callbacks, lap-model refresh, persistence coordination, and display timer moved to `desktop/planner_stopwatch_bindings.rs`; monotonic elapsed-time calculation and restart interruption are preserved, reducing `desktop/mod.rs` by 231 lines. Focused stopwatch tests, formatting, Clippy, 82 automated workspace tests, desktop build, and macOS debug launch pass. |
 | BL-069 | 2026-09 | Extract event desktop bindings | Event editor callbacks, persisted mutations, Plan event-model updates, attention queue, pulse timer, and scheduler refresh moved to `desktop/planner_event_bindings.rs`; the shared date picker, date/time input callback, and general Plan refresh remain in the composition root, reducing `desktop/mod.rs` by 471 lines. Focused event tests, formatting, Clippy, 82 automated workspace tests, desktop build, and macOS debug launch pass. |
 | BL-068 | 2026-09 | Extract task desktop bindings | Task editor callbacks, persisted mutations, open/completed model refresh, attention queue, pulse timer, and scheduler refresh moved to `desktop/planner_task_bindings.rs`; the shared date picker and independent Plan refresh remain in the composition root and `desktop/mod.rs` is reduced by 451 lines. Focused task tests, formatting, Clippy, 82 automated workspace tests, desktop build, and macOS debug launch pass. |
