@@ -30,6 +30,7 @@ Priorities describe sequencing, not severity:
 
 | ID | Priority | Status | Area | Item | Next step |
 | --- | --- | --- | --- | --- | --- |
+| BL-072 | P2 | In Progress | Desktop maintainability | Extract the shared Planner date picker | Move the shared Reminder/Task/Event date-picker model, month navigation, editor-target routing, selection updates, and calendar-grid mapping from the desktop composition root into `planner_date_picker_bindings`. Keep feature-specific editor defaults in their existing owners; preserve Monday-first six-week layout, disabled past dates, and existing modal routing; add focused REM-11 coverage and verify workspace checks plus a debug launch. |
 | BL-062 | P2 | Ready | Plan Year view | Hide zero-value summaries | Do not render `0 events` or `0 tasks` in Year month cards. Keep months with no entries visually clean while preserving navigation and current-month emphasis. |
 | BL-061 | P2 | Discovery | Plan interaction | Review the selected-item context panel | Determine whether the Event/Reminder context panel and its Edit button add value now that double-click opens the shared editor. Preserve an accessible non-double-click editing path if the panel is removed. |
 | BL-060 | P1 | Candidate | Tasks | Extend completed-task history and discovery | Allow editing completed tasks, add title/status/date search, persist and display the actual completion timestamp, and define how reopening affects that timestamp. |

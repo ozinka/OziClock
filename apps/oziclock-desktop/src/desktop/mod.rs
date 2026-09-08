@@ -7,6 +7,7 @@ mod colors;
 mod delivery_feedback;
 mod launch_at_login;
 mod planner_alarm_bindings;
+mod planner_date_picker_bindings;
 mod planner_event_bindings;
 mod planner_inputs;
 mod planner_models;
@@ -45,10 +46,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chrono::{
-    DateTime, Datelike, LocalResult, Months, NaiveDate, NaiveDateTime, Offset, TimeZone, Timelike,
-    Utc,
-};
+use chrono::{DateTime, Datelike, LocalResult, NaiveDateTime, Offset, TimeZone, Timelike, Utc};
 use chrono_tz::Tz;
 use oziclock_app::calendar::CalendarDate;
 use oziclock_app::{ClockCommand, execute_clock_command};
@@ -244,103 +242,10 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         planner.set_reminder_hours_draft(time[..2].into());
         planner.set_reminder_minutes_draft(time[3..].into());
     });
-    let reminder_calendar_model = Rc::new(VecModel::from(Vec::<ReminderCalendarDayData>::new()));
-    planner_window.set_reminder_calendar_days(ModelRc::from(reminder_calendar_model.clone()));
-    let reminder_calendar_anchor = Rc::new(RefCell::new(Utc::now().date_naive()));
-    let planner_for_open_reminder_calendar = planner_window.as_weak();
-    let settings_for_open_reminder_calendar = shared_settings.clone();
-    let model_for_open_reminder_calendar = reminder_calendar_model.clone();
-    let anchor_for_open_reminder_calendar = reminder_calendar_anchor.clone();
-    planner_window.on_request_open_reminder_calendar(move || {
-        let Some(planner) = planner_for_open_reminder_calendar.upgrade() else {
-            return;
-        };
-        let today = calendar_local_now(&settings_for_open_reminder_calendar.borrow()).date();
-        let selected_text = if planner.get_editor_modal() == 5 {
-            planner.get_task_date_draft()
-        } else if planner.get_editor_modal() == 6 {
-            if planner.get_event_calendar_target() == 1 {
-                planner.get_event_end_date_draft()
-            } else {
-                planner.get_event_date_draft()
-            }
-        } else {
-            planner.get_reminder_date_draft()
-        };
-        let selected = NaiveDate::parse_from_str(&selected_text, "%Y-%m-%d").ok();
-        let anchor = selected
-            .unwrap_or(today)
-            .with_day(1)
-            .expect("the first day exists in every month");
-        *anchor_for_open_reminder_calendar.borrow_mut() = anchor;
-        refresh_reminder_calendar(
-            &planner,
-            &model_for_open_reminder_calendar,
-            anchor,
-            selected,
-            today,
-        );
-        planner.set_reminder_calendar_visible(true);
-    });
-    let planner_for_navigate_reminder_calendar = planner_window.as_weak();
-    let settings_for_navigate_reminder_calendar = shared_settings.clone();
-    let model_for_navigate_reminder_calendar = reminder_calendar_model.clone();
-    let anchor_for_navigate_reminder_calendar = reminder_calendar_anchor.clone();
-    planner_window.on_request_navigate_reminder_calendar(move |direction| {
-        let Some(planner) = planner_for_navigate_reminder_calendar.upgrade() else {
-            return;
-        };
-        let current = *anchor_for_navigate_reminder_calendar.borrow();
-        let shifted = if direction < 0 {
-            current.checked_sub_months(Months::new(1))
-        } else {
-            current.checked_add_months(Months::new(1))
-        };
-        let Some(anchor) = shifted else {
-            return;
-        };
-        *anchor_for_navigate_reminder_calendar.borrow_mut() = anchor;
-        let today = calendar_local_now(&settings_for_navigate_reminder_calendar.borrow()).date();
-        let selected_text = if planner.get_editor_modal() == 5 {
-            planner.get_task_date_draft()
-        } else if planner.get_editor_modal() == 6 {
-            if planner.get_event_calendar_target() == 1 {
-                planner.get_event_end_date_draft()
-            } else {
-                planner.get_event_date_draft()
-            }
-        } else {
-            planner.get_reminder_date_draft()
-        };
-        let selected = NaiveDate::parse_from_str(&selected_text, "%Y-%m-%d").ok();
-        refresh_reminder_calendar(
-            &planner,
-            &model_for_navigate_reminder_calendar,
-            anchor,
-            selected,
-            today,
-        );
-    });
-    let planner_for_select_reminder_date = planner_window.as_weak();
-    planner_window.on_request_select_reminder_date(move |date| {
-        if let Some(planner) = planner_for_select_reminder_date.upgrade() {
-            if planner.get_editor_modal() == 5 {
-                planner.set_task_date_draft(date);
-                planner.set_task_error("".into());
-            } else if planner.get_editor_modal() == 6 {
-                if planner.get_event_calendar_target() == 1 {
-                    planner.set_event_end_date_draft(date);
-                } else {
-                    planner.set_event_date_draft(date);
-                }
-                planner.set_event_error("".into());
-            } else {
-                planner.set_reminder_date_draft(date);
-                planner.set_reminder_error("".into());
-            }
-            planner.set_reminder_calendar_visible(false);
-        }
-    });
+    planner_date_picker_bindings::wire_date_picker_bindings(
+        &planner_window,
+        shared_settings.clone(),
+    );
     let planner_plan_bindings::PlanBindings {
         reminders: plan_reminder_model,
         events: plan_event_model,
@@ -2149,34 +2054,6 @@ fn default_reminder_datetime(settings: &AppSettings) -> (String, String) {
         local.format("%Y-%m-%d").to_string(),
         local.format("%H:%M").to_string(),
     )
-}
-
-fn refresh_reminder_calendar(
-    planner: &PlannerWindow,
-    model: &VecModel<ReminderCalendarDayData>,
-    anchor: NaiveDate,
-    selected: Option<NaiveDate>,
-    today: NaiveDate,
-) {
-    let first = anchor
-        .with_day(1)
-        .expect("the first day exists in every month");
-    let grid_start = first - chrono::Duration::days(first.weekday().num_days_from_monday().into());
-    let days: Vec<_> = (0..42)
-        .map(|offset| {
-            let date = grid_start + chrono::Duration::days(offset);
-            ReminderCalendarDayData {
-                label: date.day().to_string().into(),
-                date: date.format("%Y-%m-%d").to_string().into(),
-                in_month: date.month() == anchor.month() && date.year() == anchor.year(),
-                enabled: date >= today,
-                selected: selected == Some(date),
-                today: date == today,
-            }
-        })
-        .collect();
-    model.set_vec(days);
-    planner.set_reminder_calendar_title(anchor.format("%B %Y").to_string().into());
 }
 
 fn accent_foreground(accent: slint::Color) -> slint::Color {
