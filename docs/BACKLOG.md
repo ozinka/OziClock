@@ -22,7 +22,7 @@ Priorities describe sequencing, not severity:
 - Tracking baseline: 2026-09-07; existing work has not been retrospectively reconciled by this checkpoint.
 - Last completed review: none recorded.
 - Backlog IDs covered by the last review: none recorded.
-- Feature IDs reaching `Done` since the baseline or last review: none recorded.
+- Feature IDs reaching `Done` since the baseline or last review: BL-063, BL-064.
 - Review cadence: after 3 completed features at a natural task boundary, no later than 5; follow `AI_DEVELOPMENT_WORKFLOW.md`.
 - Unresolved reconciliation follow-ups: none recorded; this does not certify existing documentation as reconciled.
 
@@ -101,6 +101,8 @@ An item is `Ready` when:
 
 | ID | Completed | Item | Evidence |
 | --- | --- | --- | --- |
+| BL-064 | 2026-09 | Extract Planner editor input mapping | Segmented-time parsing, masking and adjustment plus event recurrence and alert label mapping moved to `desktop/planner_inputs.rs` with seven requirement-linked tests. `desktop/mod.rs` reduced by another 239 lines; formatting, Clippy, 82 automated workspace tests, and the desktop debug build pass. |
+| BL-063 | 2026-09 | Extract Planner view-model mapping | Planner row construction, recurrence expansion, lane assignment, timer/stopwatch formatting, and seven requirement-linked tests moved to `desktop/planner_models.rs`; `desktop/mod.rs` reduced by 745 lines. Formatting, Clippy, 80 automated workspace tests, and the desktop debug build pass. |
 | BL-015 | 2026-09 | Fade the clock and system shadow together on macOS | WIN-06A: native window alpha implemented; user confirmed improved fading with the system shadow enabled. |
 | BL-011 | 2026-08 | Native macOS application icon | `OziClock.icns` is packaged and declared through `CFBundleIconFile`. |
 | BL-012 | 2026-08 | Initialize the color picker from the current color | The desktop adapter converts the current color to HSV and positions all picker controls when opened. |
