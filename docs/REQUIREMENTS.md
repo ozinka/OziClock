@@ -73,8 +73,8 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 
 - **RUL-01 (Legacy):** Attach one 99-pixel-wide vertical ruler beneath each tile and keep all auxiliary windows aligned when the main strip moves or changes height.
 - **RUL-02 (Legacy):** Draw a 24-hour scale with minor ticks on both sides and 25 labels, including fractional offsets such as `12:30`.
-- **RUL-03:** Only the main-clock ruler displays `24` at its final label; all other rulers wrap from `23` to `0` after applying their current time-zone offset.
-- **RUL-04:** The ruler surface has a one-pixel black outer border and one-pixel black joins between 99-pixel clock columns.
+- **RUL-03A:** Only the main-clock ruler displays `24` at its final label; all other rulers wrap from `23` to `0` after applying their current time-zone offset.
+- **RUL-04A:** The ruler surface has a one-pixel black outer border and one-pixel black joins between 99-pixel clock columns.
 - **RUL-03 (Legacy):** Align every ruler against the selected main zone and emphasize the main ruler with a bright focus column and red edges.
 - **RUL-04 (Legacy):** Present a shared horizontal focus band across all rulers with shaded/blurred regions outside it.
 - **RUL-05 (Legacy):** Allow dragging the horizontal focus band; synchronize its position with the slider.

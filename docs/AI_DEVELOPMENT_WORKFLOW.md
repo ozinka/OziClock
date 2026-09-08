@@ -2,6 +2,8 @@
 
 ## Sources of Truth
 
+Start with `AI_REPOSITORY_GUIDE.md` for the current ownership map and task-specific reading paths. It is an index, not a source of product behavior.
+
 Use documentation in this order:
 
 1. `REQUIREMENTS.md` defines observable behavior and acceptance criteria.
@@ -25,6 +27,8 @@ When code and documentation disagree, do not silently copy current behavior. Ide
 7. Test domain behavior independently from UI and OS integration.
 8. Run formatting, linting, unit tests, golden tests, and relevant platform smoke tests.
 9. Update requirements, design notes, and backlog status in the same change.
+
+New focused test names should begin with the normalized controlling requirement ID when practical, for example `alm_11_due_interval_is_half_open`. For criteria that require visual, hardware, or platform verification, record the exact pending or completed evidence in the backlog item rather than implying that an automated test covers it.
 
 ## Requirements and Decision Reconciliation
 
@@ -63,6 +67,8 @@ Use the conversation language selected by the user for all messages to the user.
 ## Definition of Done
 
 A feature is complete only when its behavior is documented, module ownership is clear, failure and restart cases are handled, tests cover its acceptance criteria, UI matches design tokens, resource impact is measured when relevant, and no known platform limitation is hidden. Temporary shortcuts must be recorded explicitly; comments are not substitutes for tracked architectural decisions.
+
+Run `sh scripts/check-docs.sh` after changing requirements, backlog entries, ADRs, or AI-facing documentation. Documentation-only changes do not require building or launching the application. Source changes still require the build, validation, and debug-launch workflow above.
 
 ## Implementation Discipline
 

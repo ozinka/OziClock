@@ -135,6 +135,7 @@ The last legacy WPF/.NET release is [v1.0.10](https://github.com/ozinka/OziClock
 
 ## Documentation
 
+- [AI repository guide](docs/AI_REPOSITORY_GUIDE.md)
 - [Product and architecture notes](docs/PRODUCT_ARCHITECTURE.md)
 - [Target modular architecture](docs/ARCHITECTURE.md)
 - [Functional and quality requirements](docs/REQUIREMENTS.md)
