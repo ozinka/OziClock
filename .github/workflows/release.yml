@@ -116,6 +116,7 @@ jobs:
 
             ### Highlights
 
+            - macOS borderless clock windows now keep their top-edge position when switching between compact and expanded modes.
             - Local alarms with Once and Weekly schedules, missed/delivered status, Snooze and durable attention cards.
             - Named countdown timers with pause, restart, reset, repeat and recovery after restart.
             - Stopwatch with hundredths, laps, split analysis, undo and clear controls.

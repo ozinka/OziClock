@@ -244,7 +244,11 @@ fn write_atomically(path: &Path, content: &[u8]) -> io::Result<()> {
 fn temporary_path(path: &Path) -> PathBuf {
     let file_name = path.file_name().unwrap_or_default().to_string_lossy();
     let sequence = TEMPORARY_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    path.with_file_name(format!(".{file_name}.{}.{}.tmp", std::process::id(), sequence))
+    path.with_file_name(format!(
+        ".{file_name}.{}.{}.tmp",
+        std::process::id(),
+        sequence
+    ))
 }
 
 #[cfg(not(windows))]
@@ -266,7 +270,7 @@ fn sync_parent_directory(_parent: &Path) -> io::Result<()> {
 fn replace_file_atomically(temporary_path: &Path, path: &Path) -> io::Result<()> {
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Storage::FileSystem::{
-        MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+        MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH, MoveFileExW,
     };
 
     let temporary_path = temporary_path

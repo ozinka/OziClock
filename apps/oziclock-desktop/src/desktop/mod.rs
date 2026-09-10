@@ -1560,11 +1560,12 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let timer_attention_for_shutdown = timer_attention_window.as_weak();
     let reminder_attention_for_shutdown = reminder_attention_window.as_weak();
     window.window().on_winit_window_event(move |_, event| {
-        if matches!(event, WindowEvent::Resized(_)) && ruler_resize_pending_for_events.replace(false) {
-            if let Some(main_window) = main_window_for_attached_layout.upgrade() {
-                main_window.set_show_rulers(true);
-                main_window.invoke_request_focus_progress(main_window.get_focus_progress());
-            }
+        if matches!(event, WindowEvent::Resized(_))
+            && ruler_resize_pending_for_events.replace(false)
+            && let Some(main_window) = main_window_for_attached_layout.upgrade()
+        {
+            main_window.set_show_rulers(true);
+            main_window.invoke_request_focus_progress(main_window.get_focus_progress());
         }
         if matches!(event, WindowEvent::CloseRequested) {
             save_state_before_exit(

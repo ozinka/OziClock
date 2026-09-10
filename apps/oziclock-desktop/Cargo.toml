@@ -1,6 +1,6 @@
 [package]
 name = "oziclock-desktop"
-version = "2.2.1-beta.6"
+version = "2.2.1-beta.7"
 edition.workspace = true
 license.workspace = true
 
@@ -17,7 +17,7 @@ rodio = { version = "0.22.2", default-features = false, features = ["playback"] 
 slint-build = "1.17.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSView", "NSWindow"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSView", "NSWindow", "NSScreen"] }
 notify-rust = { version = "4.18.0", default-features = false, features = ["preview-macos-un"] }
 
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
