@@ -2,7 +2,12 @@
 
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
-use std::{env, fs, io, path::PathBuf};
+use std::{
+    env, fs,
+    io::{self, Write},
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
+};
 
 pub use oziclock_domain::{
     Alarm, AlarmOccurrenceStatus, AlarmReceipt, AlarmSchedule, AlarmSnooze, AlertRule,
@@ -12,6 +17,7 @@ pub use oziclock_domain::{
 };
 
 const DEFAULT_SETTINGS: &str = include_str!("../assets/default_settings.json");
+static TEMPORARY_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -141,14 +147,8 @@ fn migrate_legacy_settings(
     let Some(legacy) = legacy.filter(|path| path.is_file()) else {
         return Ok(false);
     };
-    let parent = target.parent().ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::NotFound,
-            "settings path has no parent directory",
-        )
-    })?;
-    fs::create_dir_all(parent)?;
-    fs::copy(legacy, target)?;
+    let content = fs::read(legacy)?;
+    write_atomically(target, &content)?;
     Ok(true)
 }
 
@@ -198,17 +198,99 @@ pub fn load_or_initialize() -> Result<AppSettings, Box<dyn std::error::Error>> {
             )
         })?;
         fs::create_dir_all(parent)?;
-        fs::write(&path, DEFAULT_SETTINGS)?;
+        write_atomically(&path, DEFAULT_SETTINGS.as_bytes())?;
     }
 
     let content = fs::read_to_string(path)?;
     Ok(serde_json::from_str(&content)?)
 }
 
-/// Persists settings beside the executable.
+/// Persists settings atomically at the configured settings path.
 pub fn save(settings: &AppSettings) -> Result<(), Box<dyn std::error::Error>> {
     let content = serde_json::to_string_pretty(settings)?;
-    fs::write(settings_path()?, content)?;
+    write_atomically(&settings_path()?, content.as_bytes())?;
+    Ok(())
+}
+
+fn write_atomically(path: &Path, content: &[u8]) -> io::Result<()> {
+    let parent = path.parent().ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            "settings path has no parent directory",
+        )
+    })?;
+    fs::create_dir_all(parent)?;
+
+    let temporary_path = temporary_path(path);
+    let write_result = (|| {
+        let mut temporary_file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary_path)?;
+        temporary_file.write_all(content)?;
+        temporary_file.sync_all()?;
+        drop(temporary_file);
+        replace_file_atomically(&temporary_path, path)?;
+        sync_parent_directory(parent)
+    })();
+
+    if write_result.is_err() {
+        let _ = fs::remove_file(&temporary_path);
+    }
+
+    write_result
+}
+
+fn temporary_path(path: &Path) -> PathBuf {
+    let file_name = path.file_name().unwrap_or_default().to_string_lossy();
+    let sequence = TEMPORARY_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    path.with_file_name(format!(".{file_name}.{}.{}.tmp", std::process::id(), sequence))
+}
+
+#[cfg(not(windows))]
+fn replace_file_atomically(temporary_path: &Path, path: &Path) -> io::Result<()> {
+    fs::rename(temporary_path, path)
+}
+
+#[cfg(unix)]
+fn sync_parent_directory(parent: &Path) -> io::Result<()> {
+    fs::File::open(parent)?.sync_all()
+}
+
+#[cfg(not(unix))]
+fn sync_parent_directory(_parent: &Path) -> io::Result<()> {
+    Ok(())
+}
+
+#[cfg(windows)]
+fn replace_file_atomically(temporary_path: &Path, path: &Path) -> io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::{
+        MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+    };
+
+    let temporary_path = temporary_path
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect::<Vec<_>>();
+    let path = path
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect::<Vec<_>>();
+    let result = unsafe {
+        MoveFileExW(
+            temporary_path.as_ptr(),
+            path.as_ptr(),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    };
+
+    if result == 0 {
+        return Err(io::Error::last_os_error());
+    }
+
     Ok(())
 }
 

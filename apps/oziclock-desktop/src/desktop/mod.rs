@@ -640,9 +640,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             );
         }
     });
+    let ruler_resize_pending = Rc::new(Cell::new(false));
     let state = shared_settings.clone();
     let main_window = window.as_weak();
     let explored_time_for_toggle = explored_time.clone();
+    let ruler_resize_pending_for_toggle = ruler_resize_pending.clone();
     window.on_request_toggle_rulers(move || {
         let settings = {
             let mut state = state.borrow_mut();
@@ -651,12 +653,18 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         };
         let show_rulers = settings.show_rulers;
         if let Some(main_window) = main_window.upgrade() {
-            main_window.set_show_rulers(show_rulers);
             if show_rulers {
                 initialize_ruler_content(&main_window, &settings);
-                main_window.invoke_request_focus_progress(main_window.get_focus_progress());
+
+                // Render only after Winit reports that the larger native surface exists.
+                // This avoids exposing the surface's unpainted black area for a frame.
+                ruler_resize_pending_for_toggle.set(true);
+                resize_main_window(&main_window, true);
+            } else {
+                ruler_resize_pending_for_toggle.set(false);
+                main_window.set_show_rulers(false);
+                sync_main_window_size(&main_window);
             }
-            sync_main_window_size(&main_window);
         }
         if !show_rulers {
             *explored_time_for_toggle.borrow_mut() = None;
@@ -1542,6 +1550,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     );
 
     let main_window_for_attached_layout = window.as_weak();
+    let ruler_resize_pending_for_events = ruler_resize_pending.clone();
     let settings_for_attached_layout = shared_settings.clone();
     let settings_window_for_shutdown = settings_window.as_weak();
     let context_menu_for_shutdown = context_menu.as_weak();
@@ -1551,6 +1560,12 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let timer_attention_for_shutdown = timer_attention_window.as_weak();
     let reminder_attention_for_shutdown = reminder_attention_window.as_weak();
     window.window().on_winit_window_event(move |_, event| {
+        if matches!(event, WindowEvent::Resized(_)) && ruler_resize_pending_for_events.replace(false) {
+            if let Some(main_window) = main_window_for_attached_layout.upgrade() {
+                main_window.set_show_rulers(true);
+                main_window.invoke_request_focus_progress(main_window.get_focus_progress());
+            }
+        }
         if matches!(event, WindowEvent::CloseRequested) {
             save_state_before_exit(
                 &main_window_for_attached_layout,
@@ -1826,6 +1841,10 @@ fn set_main_window_height_for_compact_progress(window: &AppWindow, compact_progr
 }
 
 fn sync_main_window_size(window: &AppWindow) {
+    resize_main_window(window, window.get_show_rulers());
+}
+
+fn resize_main_window(window: &AppWindow, show_rulers: bool) {
     let _ = window.window().with_winit_window(|native| {
         let system_scale = native.scale_factor() as f32;
         let clock_scale = window.get_clock_scale();
@@ -1835,7 +1854,7 @@ fn sync_main_window_size(window: &AppWindow) {
         } else {
             62.0
         };
-        let logical_height = clock_height + if window.get_show_rulers() { 532.0 } else { 0.0 };
+        let logical_height = clock_height + if show_rulers { 532.0 } else { 0.0 };
         let _ = native.request_inner_size(PhysicalSize::new(
             (logical_width * clock_scale * system_scale).round() as u32,
             (logical_height * clock_scale * system_scale).round() as u32,

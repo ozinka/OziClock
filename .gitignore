@@ -57,3 +57,4 @@ _ReSharper*/
 *.g.cs
 *.baml
 *.xaml.cs~
+.DS_Store
