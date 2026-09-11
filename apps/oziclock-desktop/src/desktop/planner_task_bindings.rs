@@ -7,14 +7,14 @@ use oziclock_storage::{AlertRule, AppSettings, PlannerId, Task, TaskStatus};
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
 
 use super::{
-    AppWindow, PlannerTaskData, PlannerWindow, TaskAttentionWindow,
+    AppWindow, AuxiliaryFocusPolicy, PlannerTaskData, PlannerWindow, TaskAttentionWindow,
     alert_sound::AlertSound,
-    delivery_feedback, hide_auxiliary_window_from_taskbar, main_time_zone,
+    delivery_feedback, main_time_zone,
     planner_inputs::{parse_alert_with_custom, task_alert_label},
     planner_models::{
         completed_task_count, open_task_count, planner_completed_task_rows, planner_task_rows,
     },
-    position_calendar_window,
+    position_calendar_window, show_auxiliary_window,
 };
 
 pub(super) fn wire_task_bindings(
@@ -427,10 +427,12 @@ fn display_task_attention(
     };
     window.set_task_title(item.title.into());
     window.set_task_time(item.time.into());
-    if window.show().is_ok() {
-        hide_auxiliary_window_from_taskbar(window.window());
-        position_calendar_window(window.window(), owner);
-    }
+    let _ = show_auxiliary_window(
+        window.window(),
+        |_| {},
+        |window| position_calendar_window(window, owner),
+        AuxiliaryFocusPolicy::Preserve,
+    );
 }
 
 fn schedule_task_attention_pulse(timer: Rc<Timer>, window: slint::Weak<TaskAttentionWindow>) {

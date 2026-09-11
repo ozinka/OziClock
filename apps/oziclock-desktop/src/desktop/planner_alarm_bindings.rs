@@ -11,12 +11,12 @@ use oziclock_storage::{Alarm, AlarmOccurrenceStatus, AlarmSchedule, AppSettings,
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
 
 use super::{
-    AlarmAttentionWindow, AppWindow, PlannerAlarmData, PlannerWindow,
+    AlarmAttentionWindow, AppWindow, AuxiliaryFocusPolicy, PlannerAlarmData, PlannerWindow,
     alert_sound::AlertSound,
-    delivery_feedback, hide_auxiliary_window_from_taskbar,
+    delivery_feedback,
     planner_inputs::{adjust_timer_part, mask_timer_part, normalize_alarm_time},
     planner_models::planner_alarm_rows,
-    position_calendar_window,
+    position_calendar_window, show_auxiliary_window,
 };
 
 pub(super) fn wire_alarm_bindings(
@@ -395,10 +395,12 @@ fn display_alarm_attention(
     };
     window.set_alarm_title(item.title.into());
     window.set_alarm_time(item.time.into());
-    if window.show().is_ok() {
-        hide_auxiliary_window_from_taskbar(window.window());
-        position_calendar_window(window.window(), owner);
-    }
+    let _ = show_auxiliary_window(
+        window.window(),
+        |_| {},
+        |window| position_calendar_window(window, owner),
+        AuxiliaryFocusPolicy::Preserve,
+    );
 }
 
 fn schedule_alarm_attention_pulse(timer: Rc<Timer>, window: slint::Weak<AlarmAttentionWindow>) {

@@ -7,15 +7,15 @@ use oziclock_storage::{AppSettings, PlannerId, PlannerTimer, TimerState};
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
 
 use super::{
-    AppWindow, PlannerTimerData, PlannerWindow, TimerAttentionWindow,
+    AppWindow, AuxiliaryFocusPolicy, PlannerTimerData, PlannerWindow, TimerAttentionWindow,
     alert_sound::AlertSound,
-    delivery_feedback, hide_auxiliary_window_from_taskbar,
+    delivery_feedback,
     planner_inputs::{
         adjust_timer_part, duration_parts, mask_timer_part, parse_timer_duration, parse_timer_part,
         store_timer_part,
     },
     planner_models::{planner_timer_rows, timer_display_title},
-    position_calendar_window,
+    position_calendar_window, show_auxiliary_window,
 };
 
 pub(super) fn wire_timer_bindings(
@@ -463,10 +463,12 @@ fn display_timer_attention(
     };
     window.set_timer_title(item.title.into());
     window.set_triggered_at(item.triggered_at.into());
-    if window.show().is_ok() {
-        hide_auxiliary_window_from_taskbar(window.window());
-        position_calendar_window(window.window(), owner);
-    }
+    let _ = show_auxiliary_window(
+        window.window(),
+        |_| {},
+        |window| position_calendar_window(window, owner),
+        AuxiliaryFocusPolicy::Preserve,
+    );
 }
 
 fn schedule_timer_attention_pulse(timer: Rc<Timer>, window: slint::Weak<TimerAttentionWindow>) {

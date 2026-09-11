@@ -1,7 +1,7 @@
 use super::colors::parse_color;
 use super::{
-    AppSettings, AppWindow, ClockListItem, SettingsWindow, focus_auxiliary_window,
-    hide_auxiliary_window_from_taskbar, position_auxiliary_window_near_clock,
+    AppSettings, AppWindow, AuxiliaryFocusPolicy, ClockListItem, SettingsWindow,
+    position_auxiliary_window_near_clock, show_auxiliary_window,
 };
 use chrono::{DateTime, Offset, Utc};
 use chrono_tz::{TZ_VARIANTS, Tz};
@@ -25,11 +25,12 @@ pub(super) fn open_settings_window(
     if let Some(main_window) = main_window.upgrade() {
         main_window.set_modal_open(true);
     }
-    let _ = settings_window.show();
-    restore_settings_window_size(settings_window, settings);
-    hide_auxiliary_window_from_taskbar(settings_window.window());
-    position_auxiliary_window_near_clock(settings_window.window(), main_window);
-    focus_auxiliary_window(settings_window.window());
+    let _ = show_auxiliary_window(
+        settings_window.window(),
+        |_| restore_settings_window_size(settings_window, settings),
+        |window| position_auxiliary_window_near_clock(window, main_window),
+        AuxiliaryFocusPolicy::Focus,
+    );
 }
 
 pub(super) fn restore_settings_window_size(window: &SettingsWindow, settings: &AppSettings) {

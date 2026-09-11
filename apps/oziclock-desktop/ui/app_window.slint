@@ -66,11 +66,14 @@ export component AppWindow inherits Window {
     title: product-name;
     no-frame: true;
     always-on-top: root.top-most;
-    preferred-width: (100px * root.clocks.length + 1px) * root.clock-scale;
-    preferred-height: (root.visible-clock-height + (root.show-rulers ? 532px : 0px)) * root.clock-scale;
-    min-width: 101px * root.clock-scale;
-    min-height: 31px * root.clock-scale;
-    max-height: 594px * root.clock-scale;
+    property <length> window-width: (100px * root.clocks.length + 1px) * root.clock-scale;
+    property <length> window-height: (root.visible-clock-height + (root.show-rulers ? 532px : 0px)) * root.clock-scale;
+    preferred-width: root.window-width;
+    preferred-height: root.window-height;
+    min-width: root.window-width;
+    max-width: root.window-width;
+    min-height: root.window-height;
+    max-height: root.window-height;
     background: transparent;
 
     content := Rectangle {

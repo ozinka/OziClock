@@ -39,6 +39,8 @@ Do not create all crates before they carry real behavior. Begin with `domain`, `
 
 The executable entry point in `apps/oziclock-desktop/src/main.rs` is intentionally limited to starting the desktop adapter. Slint callback wiring and desktop-only integration live under `apps/oziclock-desktop/src/desktop/`; new framework-free behavior must not be added there. Within that adapter, system tray events, clock refresh scheduling, native window dragging, settings bindings, and color conversion are isolated in focused modules.
 
+Auxiliary Slint windows must be shown through the desktop adapter's shared auxiliary-window helper instead of calling `.show()` directly. The helper owns native taskbar visibility, placement, optional focus activation, and the first redraw request needed for reliable initial painting on macOS.
+
 The world-clock model and collection invariants are owned by `oziclock-domain`. Clock editing enters through typed commands in `oziclock-app`. `oziclock-storage` owns the serialized settings document and reuses the domain clock type through its serialization feature. This feature boundary keeps serialization support optional for other domain consumers.
 
 Further desktop modules should be extracted when a responsibility becomes independently testable or gains a platform boundary. File count alone is not a reason to introduce a new crate.

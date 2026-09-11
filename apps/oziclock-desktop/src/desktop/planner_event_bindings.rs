@@ -7,15 +7,16 @@ use oziclock_storage::{AlertRule, AppSettings, Event, EventReceipt, EventTime, P
 use slint::{ComponentHandle, Timer, TimerMode, VecModel};
 
 use super::{
-    AppWindow, EventAttentionWindow, PlanAllDayEventData, PlanEventMarkerData, PlannerWindow,
+    AppWindow, AuxiliaryFocusPolicy, EventAttentionWindow, PlanAllDayEventData,
+    PlanEventMarkerData, PlannerWindow,
     alert_sound::AlertSound,
-    delivery_feedback, hide_auxiliary_window_from_taskbar, main_time_zone,
+    delivery_feedback, main_time_zone,
     planner_inputs::{
         event_alert_label, event_recurrence_label, normalize_alarm_time, parse_alert_with_custom,
         parse_event_recurrence,
     },
     planner_models::plan_event_rows,
-    position_calendar_window,
+    position_calendar_window, show_auxiliary_window,
 };
 
 pub(super) struct EventPlanModels {
@@ -471,10 +472,12 @@ fn display_event_attention(
     };
     window.set_event_title(item.title.into());
     window.set_event_time(item.time.into());
-    if window.show().is_ok() {
-        hide_auxiliary_window_from_taskbar(window.window());
-        position_calendar_window(window.window(), owner);
-    }
+    let _ = show_auxiliary_window(
+        window.window(),
+        |_| {},
+        |window| position_calendar_window(window, owner),
+        AuxiliaryFocusPolicy::Preserve,
+    );
 }
 
 fn schedule_event_attention_pulse(timer: Rc<Timer>, window: slint::Weak<EventAttentionWindow>) {

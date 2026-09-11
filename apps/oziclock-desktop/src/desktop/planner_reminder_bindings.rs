@@ -7,13 +7,13 @@ use oziclock_storage::{AppSettings, PlannerId, Reminder, ReminderRecurrence, Rem
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
 
 use super::{
-    AppWindow, PlanReminderMarkerData, PlannerReminderData, PlannerWindow, ReminderAttentionWindow,
+    AppWindow, AuxiliaryFocusPolicy, PlanReminderMarkerData, PlannerReminderData, PlannerWindow,
+    ReminderAttentionWindow,
     alert_sound::AlertSound,
-    default_reminder_datetime, delivery_feedback, hide_auxiliary_window_from_taskbar,
-    main_time_zone,
+    default_reminder_datetime, delivery_feedback, main_time_zone,
     planner_inputs::{adjust_timer_part, mask_timer_part, normalize_alarm_time},
     planner_models::{plan_reminder_rows, planner_reminder_rows},
-    position_calendar_window,
+    position_calendar_window, show_auxiliary_window,
 };
 
 pub(super) fn wire_reminder_bindings(
@@ -439,10 +439,12 @@ fn display_reminder_attention(
         return;
     };
     window.set_reminder_title(item.title.into());
-    if window.show().is_ok() {
-        hide_auxiliary_window_from_taskbar(window.window());
-        position_calendar_window(window.window(), owner);
-    }
+    let _ = show_auxiliary_window(
+        window.window(),
+        |_| {},
+        |window| position_calendar_window(window, owner),
+        AuxiliaryFocusPolicy::Preserve,
+    );
 }
 
 fn schedule_reminder_attention_pulse(

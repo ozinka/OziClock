@@ -116,6 +116,8 @@ jobs:
 
             ### Highlights
 
+            - Auxiliary windows, including Calendar, context menu, About, Settings, Planner and local attention cards, now paint immediately on their first open on macOS.
+            - The main borderless clock window no longer allows manual edge resizing.
             - macOS borderless clock windows now keep their top-edge position when switching between compact and expanded modes.
             - Local alarms with Once and Weekly schedules, missed/delivered status, Snooze and durable attention cards.
             - Named countdown timers with pause, restart, reset, repeat and recovery after restart.

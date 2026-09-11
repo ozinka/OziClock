@@ -1162,33 +1162,33 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             let _ = menu.hide();
         }
         if let Some(planner) = planner_for_menu.upgrade()
-            && planner.show().is_ok()
+            && show_auxiliary_window(
+                planner.window(),
+                |window| {
+                    let _ = window.with_winit_window(|native| native.set_minimized(false));
+                },
+                |window| position_calendar_window(window, &owner_for_planner),
+                AuxiliaryFocusPolicy::Focus,
+            )
+            && !initialized_for_planner.replace(true)
         {
-            hide_auxiliary_window_from_taskbar(planner.window());
-            let _ = planner
-                .window()
-                .with_winit_window(|native| native.set_minimized(false));
-            position_calendar_window(planner.window(), &owner_for_planner);
-            focus_auxiliary_window(planner.window());
-            if !initialized_for_planner.replace(true) {
-                let planner = planner.as_weak();
-                let initial_plan_minute = calendar_local_now(&settings_for_planner_scroll.borrow())
-                    .time()
-                    .num_seconds_from_midnight()
-                    / 60;
-                let target = -(initial_plan_minute.saturating_sub(300) as f32);
+            let planner = planner.as_weak();
+            let initial_plan_minute = calendar_local_now(&settings_for_planner_scroll.borrow())
+                .time()
+                .num_seconds_from_midnight()
+                / 60;
+            let target = -(initial_plan_minute.saturating_sub(300) as f32);
+            if let Some(planner) = planner.upgrade() {
+                planner.set_plan_scroll_y(target);
+            }
+            Timer::single_shot(Duration::from_millis(16), move || {
                 if let Some(planner) = planner.upgrade() {
                     planner.set_plan_scroll_y(target);
+                    let _ = planner
+                        .window()
+                        .with_winit_window(|native| native.request_redraw());
                 }
-                Timer::single_shot(Duration::from_millis(16), move || {
-                    if let Some(planner) = planner.upgrade() {
-                        planner.set_plan_scroll_y(target);
-                        let _ = planner
-                            .window()
-                            .with_winit_window(|native| native.request_redraw());
-                    }
-                });
-            }
+            });
         }
     });
     let menu_for_dismiss = context_menu.as_weak();
@@ -1626,10 +1626,12 @@ fn save_state_before_exit(
 
 fn open_about_window(about_window: &AboutWindow, main_window: &slint::Weak<AppWindow>) {
     set_main_window_modal(main_window, true);
-    let _ = about_window.show();
-    hide_auxiliary_window_from_taskbar(about_window.window());
-    position_auxiliary_window_near_clock(about_window.window(), main_window);
-    focus_auxiliary_window(about_window.window());
+    let _ = show_auxiliary_window(
+        about_window.window(),
+        |_| {},
+        |window| position_auxiliary_window_near_clock(window, main_window),
+        AuxiliaryFocusPolicy::Focus,
+    );
 }
 
 fn set_main_window_modal(main_window: &slint::Weak<AppWindow>, modal_open: bool) {
@@ -1924,10 +1926,12 @@ fn open_calendar_window(
             &settings.borrow(),
         )));
     }
-    let _ = calendar.show();
-    hide_auxiliary_window_from_taskbar(calendar.window());
-    position_calendar_window(calendar.window(), owner);
-    focus_auxiliary_window(calendar.window());
+    let _ = show_auxiliary_window(
+        calendar.window(),
+        |_| {},
+        |window| position_calendar_window(window, owner),
+        AuxiliaryFocusPolicy::Focus,
+    );
     let revision = refresh_generation.get().wrapping_add(1);
     refresh_generation.set(revision);
     schedule_calendar_boundary_refresh(
@@ -2188,34 +2192,65 @@ fn refresh_clock_order(main_window: &slint::Weak<AppWindow>, settings: &AppSetti
 
 fn show_context_menu(context_menu: &ContextMenuWindow, owner: &AppWindow) {
     context_menu.set_show_rulers(owner.get_show_rulers());
-    let _ = context_menu.show();
-    hide_auxiliary_window_from_taskbar(context_menu.window());
     let requested_x = owner.get_menu_x();
-    let _ = owner.window().with_winit_window(|winit_owner| {
-        let owner_position = winit_owner.outer_position().unwrap_or_default();
-        let scale_factor = winit_owner.scale_factor();
-        let Some(work_area) = monitor_work_area(winit_owner) else {
-            return;
-        };
-        let _ = context_menu.window().with_winit_window(|menu| {
-            let menu_size = menu.outer_size();
-            let requested_left = owner_position.x + (requested_x * scale_factor as f32) as i32;
-            let maximum_left = work_area.right - menu_size.width as i32;
-            let left = requested_left.clamp(work_area.left, maximum_left);
-            let clock_height = if owner.get_compact_mode() { 31.0 } else { 62.0 };
-            let below = owner_position.y
-                + (clock_height * owner.get_clock_scale() * scale_factor as f32).round() as i32;
-            let above = owner_position.y - menu_size.height as i32;
-            let maximum_top = work_area.bottom - menu_size.height as i32;
-            let top = if below <= maximum_top {
-                below
-            } else {
-                above.clamp(work_area.top, maximum_top)
-            };
-            menu.set_outer_position(PhysicalPosition::new(left, top));
-        });
-    });
-    focus_auxiliary_window(context_menu.window());
+    let _ = show_auxiliary_window(
+        context_menu.window(),
+        |_| {},
+        |window| {
+            let _ = owner.window().with_winit_window(|winit_owner| {
+                let owner_position = winit_owner.outer_position().unwrap_or_default();
+                let scale_factor = winit_owner.scale_factor();
+                let Some(work_area) = monitor_work_area(winit_owner) else {
+                    return;
+                };
+                let _ = window.with_winit_window(|menu| {
+                    let menu_size = menu.outer_size();
+                    let requested_left =
+                        owner_position.x + (requested_x * scale_factor as f32) as i32;
+                    let maximum_left = work_area.right - menu_size.width as i32;
+                    let left = requested_left.clamp(work_area.left, maximum_left);
+                    let clock_height = if owner.get_compact_mode() { 31.0 } else { 62.0 };
+                    let below = owner_position.y
+                        + (clock_height * owner.get_clock_scale() * scale_factor as f32).round()
+                            as i32;
+                    let above = owner_position.y - menu_size.height as i32;
+                    let maximum_top = work_area.bottom - menu_size.height as i32;
+                    let top = if below <= maximum_top {
+                        below
+                    } else {
+                        above.clamp(work_area.top, maximum_top)
+                    };
+                    menu.set_outer_position(PhysicalPosition::new(left, top));
+                });
+            });
+        },
+        AuxiliaryFocusPolicy::Focus,
+    );
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum AuxiliaryFocusPolicy {
+    Focus,
+    Preserve,
+}
+
+pub(super) fn show_auxiliary_window(
+    window: &slint::Window,
+    configure_after_show: impl FnOnce(&slint::Window),
+    position: impl FnOnce(&slint::Window),
+    focus_policy: AuxiliaryFocusPolicy,
+) -> bool {
+    if window.show().is_err() {
+        return false;
+    }
+    configure_after_show(window);
+    hide_auxiliary_window_from_taskbar(window);
+    position(window);
+    if focus_policy == AuxiliaryFocusPolicy::Focus {
+        focus_auxiliary_window(window);
+    }
+    window.request_redraw();
+    true
 }
 
 fn focus_auxiliary_window(window: &slint::Window) {
@@ -2274,6 +2309,7 @@ fn to_clock_tile(
 #[cfg(test)]
 mod timer_editor_tests {
     use super::*;
+    use std::{fs, path::Path};
 
     #[test]
     fn accent_tracks_color_edits_and_main_clock_selection() {
@@ -2301,5 +2337,46 @@ mod timer_editor_tests {
         assert_eq!(clock_accent(&clocks), clock_accent(&clocks[1..]));
         clocks[1].is_main = false;
         assert_eq!(clock_accent(&clocks), edited);
+    }
+
+    #[test]
+    fn auxiliary_window_show_is_centralized() {
+        let desktop_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/desktop");
+        let direct_show_call = concat!(".", "show()");
+        let main_window_show = format!("window{}?;", direct_show_call);
+        let helper_show = format!("if window{}.is_err() {{", direct_show_call);
+        let allowed_mod_lines = [main_window_show.as_str(), helper_show.as_str()];
+        let ignored_files = ["delivery_feedback.rs", "tray.rs"];
+        let mut violations = Vec::new();
+
+        for entry in fs::read_dir(&desktop_dir).expect("desktop source directory is readable") {
+            let path = entry.expect("desktop source entry is readable").path();
+            if path.extension().and_then(|extension| extension.to_str()) != Some("rs") {
+                continue;
+            }
+            let file_name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .expect("desktop source file has a UTF-8 file name");
+            if ignored_files.contains(&file_name) {
+                continue;
+            }
+            let source = fs::read_to_string(&path).expect("desktop source file is readable");
+            for (index, line) in source.lines().enumerate() {
+                if !line.contains(direct_show_call) {
+                    continue;
+                }
+                if file_name == "mod.rs" && allowed_mod_lines.contains(&line.trim()) {
+                    continue;
+                }
+                violations.push(format!("{file_name}:{}: {}", index + 1, line.trim()));
+            }
+        }
+
+        assert!(
+            violations.is_empty(),
+            "show auxiliary Slint windows through show_auxiliary_window:\n{}",
+            violations.join("\n")
+        );
     }
 }
