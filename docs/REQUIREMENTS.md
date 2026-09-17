@@ -42,6 +42,8 @@ This catalog is derived from the WPF source, its bundled screenshots, and the in
 - **CLK-07 (Legacy):** Add a new clock initially as UTC, then immediately open its editor.
 - **CLK-08 (Legacy):** Edit the selected clock’s label, time zone from the supported IANA time-zone list with its current UTC offset (sorted by offset, then name), and accent color with immediate preview.
 - **CLK-08A:** The clock editor provides a time-zone search field above the picker. Filtering is case-insensitive and matches both the IANA identifier and the visible offset-and-name text. Results preserve the full list's current-offset-then-identifier ordering; an empty query restores the complete list. When no time zone matches, the picker is empty and the editor shows a non-blocking `No matching time zones` message. The search field and filtered picker remain operable with the keyboard, and selecting a result updates the edited clock immediately without changing any other clock property.
+- **CLK-08B:** If time-zone filtering changes the zone displayed in the picker, immediately activate that zone for the edited clock and update both the clock tile's time and the zone shown in the left clock list. No additional dropdown click or OK is required. Mouse and keyboard selection apply immediately as well. If the filter has no matches, retain the active clock zone while showing the empty picker and search feedback specified by CLK-08A.
+- **CLK-08C:** Each edit to the clock's Name field immediately updates its label in both the left clock list and the clock tile, without requiring Enter, focus loss, or OK.
 - **CLK-09 (Legacy):** Reorder a clock by dragging its six-dot handle in the Settings list, immediately keeping the clock strip and its ruler in the same order.
 - **CLK-10 (Legacy):** The trailing trash icon in the Settings list opens a confirmation before removing a non-main clock. Never remove the last clock or the main clock.
 - **CLK-11:** Persist label, portable time-zone identifier, color, order, main selection, and seconds preference in the per-user JSON settings file. The UI must not hardcode a clock list.
@@ -134,7 +136,7 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 
 - **UI-01 (Legacy):** Edit, Settings, About, Planner, Calendar, color picker, rulers, and slider use frameless custom styling and do not create separate taskbar entries; the main clock is the only taskbar entry. Settings and About remain above an always-on-top clock.
 - **UI-02 (Legacy):** Position Edit and Settings near the clock strip, preferring below it, falling back above, and constraining them to the working area.
-- **UI-03 (Legacy):** The color picker offers the existing curated palette, closes after selection, and dismisses when it loses focus.
+- **UI-03 (Legacy):** The color picker offers the existing curated palette, closes after selection, and dismisses when it loses focus. Switching the selected clock also dismisses the picker; it must not remain visible for the previously edited clock.
 - **UI-04:** Dialogs must remain reachable by keyboard; Escape closes Settings, About, and the context menu, Enter accepts Settings and About, and focus indication must be visible.
 - **UI-05:** Context-menu and mouse shortcuts must have discoverable menu equivalents.
 - **UI-06:** Settings, About, and the custom context menu must take foreground focus above the ruler and slider windows whenever they are shown.
