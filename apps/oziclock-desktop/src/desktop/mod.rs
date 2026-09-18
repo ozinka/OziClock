@@ -115,6 +115,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window
         .window()
         .on_winit_window_event(move |_, event| {
+            if matches!(event, WindowEvent::Focused(false))
+                && let Some(settings_window) = settings_for_keyboard.upgrade()
+            {
+                settings_window.set_color_picker_open(false);
+            }
             if is_escape_key(event) || matches!(event, WindowEvent::CloseRequested) {
                 if let Some(settings_window) = settings_for_keyboard.upgrade() {
                     settings_window.invoke_request_close();
@@ -580,13 +585,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 (state.clone(), main_clock_changed)
             };
             refresh_auxiliary_accents(&planner_for_apply, &calendar_for_apply, &settings);
-            if main_clock_changed {
-                update_settings_preview(&editor, &settings.clocks_settings);
-                if let Some(main_window) = main_window.upgrade() {
-                    initialize_ruler_content(&main_window, &settings);
-                    if settings.show_rulers {
-                        main_window.invoke_request_focus_progress(main_window.get_focus_progress());
-                    }
+            update_settings_preview(&editor, &settings.clocks_settings);
+            if main_clock_changed && let Some(main_window) = main_window.upgrade() {
+                initialize_ruler_content(&main_window, &settings);
+                if settings.show_rulers {
+                    main_window.invoke_request_focus_progress(main_window.get_focus_progress());
                 }
             }
             if let Some(main_window) = main_window.upgrade() {
@@ -874,8 +877,12 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let editor = settings_window.as_weak();
     let time_zones_for_filter = time_zone_options.clone();
     settings_window.on_request_filter_time_zones(move |query| {
-        if let Some(editor) = editor.upgrade() {
-            apply_time_zone_filter(&editor, &time_zones_for_filter, query.as_str());
+        if let Some(editor) = editor.upgrade()
+            && let Some(time_zone) =
+                apply_time_zone_filter(&editor, &time_zones_for_filter, query.as_str())
+        {
+            editor.set_editor_time_zone(time_zone.into());
+            editor.invoke_request_apply();
         }
     });
     let state = shared_settings.clone();

@@ -82,7 +82,9 @@ pub(super) fn select_clock(window: &SettingsWindow, settings: &[ClockSettings], 
         window.set_selected_index(index.max(0));
         window.set_editor_label(clock.label.clone().into());
         window.set_editor_time_zone(clock.time_zone.clone().into());
-        window.set_selected_time_zone_index(visible_time_zone_index(window, &clock.time_zone));
+        window.set_time_zone_search("".into());
+        apply_time_zone_filter(window, &time_zone_options(Utc::now()), "");
+        window.set_color_picker_open(false);
         window.set_editor_color(clock.color.clone().into());
         window.set_editor_preview_color(parse_color(&clock.color));
         window.set_editor_is_main(clock.is_main);
@@ -129,14 +131,10 @@ pub(super) fn apply_time_zone_filter(
     window: &SettingsWindow,
     time_zones: &[TimeZoneOption],
     query: &str,
-) {
+) -> Option<String> {
     let filtered = filter_time_zone_options(time_zones, query);
     let selected_time_zone = window.get_editor_time_zone().to_string();
-    let selected_index = filtered
-        .iter()
-        .position(|time_zone| time_zone.id == selected_time_zone)
-        .map(|index| index as i32)
-        .unwrap_or(-1);
+    let selected_index = filtered_time_zone_index(&filtered, &selected_time_zone);
     window.set_time_zone_ids(ModelRc::new(VecModel::from(
         filtered
             .iter()
@@ -158,6 +156,19 @@ pub(super) fn apply_time_zone_filter(
         }
         .into(),
     );
+    filtered
+        .get(selected_index as usize)
+        .filter(|option| option.id != selected_time_zone)
+        .map(|option| option.id.clone())
+}
+
+fn filtered_time_zone_index(filtered: &[&TimeZoneOption], active_zone: &str) -> i32 {
+    filtered
+        .iter()
+        .position(|option| option.id == active_zone)
+        .or_else(|| (!filtered.is_empty()).then_some(0))
+        .map(|index| index as i32)
+        .unwrap_or(-1)
 }
 
 pub(super) fn selected_time_zone_id(window: &SettingsWindow, index: i32) -> Option<String> {
@@ -168,15 +179,6 @@ pub(super) fn selected_time_zone_id(window: &SettingsWindow, index: i32) -> Opti
         .get_time_zone_ids()
         .row_data(index as usize)
         .map(|time_zone| time_zone.to_string())
-}
-
-fn visible_time_zone_index(window: &SettingsWindow, time_zone: &str) -> i32 {
-    window
-        .get_time_zone_ids()
-        .iter()
-        .position(|candidate| candidate.as_str() == time_zone)
-        .map(|index| index as i32)
-        .unwrap_or(-1)
 }
 
 pub(super) fn time_zone_display_name(time_zone: Tz, now: DateTime<Utc>) -> String {
@@ -250,6 +252,38 @@ mod tests {
 
     fn options() -> Vec<TimeZoneOption> {
         time_zone_options(Utc.with_ymd_and_hms(2026, 1, 15, 12, 0, 0).unwrap())
+    }
+
+    #[test]
+    fn clk_08b_filter_selects_japan_immediately_from_utc() {
+        let options = options();
+        let filtered = filter_time_zone_options(&options, "japa");
+        let index = filtered_time_zone_index(&filtered, "UTC");
+        assert_eq!(index, 0);
+        assert_eq!(filtered[index as usize].id, "Japan");
+        assert_eq!(filtered[index as usize].offset_seconds, 9 * 3600);
+    }
+
+    #[test]
+    fn clk_08b_multiple_matches_keep_active_zone_or_select_first() {
+        let options = options();
+        let filtered = filter_time_zone_options(&options, "america/");
+        let index = filtered_time_zone_index(&filtered, "America/New_York");
+        assert_eq!(filtered[index as usize].id, "America/New_York");
+        assert_eq!(filtered_time_zone_index(&filtered, "UTC"), 0);
+        let empty = filter_time_zone_options(&options, "no-such-zone");
+        assert_eq!(filtered_time_zone_index(&empty, "America/New_York"), -1);
+    }
+
+    #[test]
+    fn clk_08d_full_list_preserves_each_clocks_configured_zone() {
+        let options = options();
+        let restored = filter_time_zone_options(&options, "");
+        assert_eq!(restored.len(), options.len());
+        for zone in ["UTC", "Japan", "America/New_York"] {
+            let index = filtered_time_zone_index(&restored, zone);
+            assert_eq!(restored[index as usize].id, zone);
+        }
     }
 
     #[test]

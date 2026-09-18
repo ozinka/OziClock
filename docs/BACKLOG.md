@@ -20,9 +20,9 @@ Priorities describe sequencing, not severity:
 ## Documentation Reconciliation
 
 - Tracking baseline: 2026-09-07; existing work has not been retrospectively reconciled by this checkpoint.
-- Last completed review: 2026-09-08.
-- Backlog IDs covered by the last review: BL-069, BL-070, BL-071.
-- Feature IDs reaching `Done` since the baseline or last review: BL-072.
+- Last completed review: 2026-09-18.
+- Backlog IDs covered by the last review: BL-072, BL-078, BL-079, BL-080, BL-081.
+- Feature IDs reaching `Done` since the baseline or last review: none.
 - Review cadence: after 3 completed features at a natural task boundary, no later than 5; follow `AI_DEVELOPMENT_WORKFLOW.md`.
 - Unresolved reconciliation follow-ups: none.
 
@@ -30,9 +30,6 @@ Priorities describe sequencing, not severity:
 
 | ID | Priority | Status | Area | Item | Next step |
 | --- | --- | --- | --- | --- | --- |
-| BL-078 | P1 | Ready | Clock settings | Apply the displayed time zone immediately after filtering | Fulfil CLK-08A and CLK-08B: when filtering changes the zone displayed in the picker, immediately apply it to the edited clock and update its zone in the left list, without an extra dropdown click or OK. Explicit mouse and keyboard selection must behave identically. Reproduce with a UTC clock and search `japa`: when the picker displays Japan (UTC+09:00), the clock must show UTC + 9 hours. Cover multiple matches, clearing the filter, and no matches; an empty result must retain the active zone. User confirmed on 2026-09-17 that the current picker shows Japan while the clock remains UTC until the result is explicitly clicked. |
-| BL-079 | P1 | Ready | Clock settings | Update the clock name live while typing | Fulfil CLK-08C: every edit in the Name field immediately updates both the selected row in the left clock list and the clock tile, without Enter, focus loss, or OK. Verify typing, deletion, and paste without changing another clock or the selected clock's time zone/color. |
-| BL-080 | P1 | Ready | Clock settings | Dismiss the color picker when switching clocks | Fulfil UI-03: the user reports that the palette remains visible after choosing a color and switching to another clock. Ensure it closes after color selection and cannot remain open for the previous clock when the selected clock changes. Verify that the chosen color stays on the original clock, the next clock is unchanged, and reopening the picker uses the newly selected clock's color. Consider a modal picker as an optional interaction alternative; modality is not an approved requirement. |
 | BL-073 | P1 | In Progress | Settings persistence | Make `settings.json` writes atomic | Fulfil SET-03 and the architecture persistence contract: serialize to a uniquely named temporary file in the target directory, flush its contents, atomically replace `settings.json`, and clean up the temporary file on failure. Preserve macOS, Windows, and Linux behavior; manual persistence/restart verification pending. |
 | BL-062 | P2 | Ready | Plan Year view | Hide zero-value summaries | Do not render `0 events` or `0 tasks` in Year month cards. Keep months with no entries visually clean while preserving navigation and current-month emphasis. |
 | BL-074 | P2 | Ready | Desktop maintainability | Extract Calendar window bindings from the desktop composition root | Move Calendar window lifecycle, callbacks, refresh scheduling, visibility/position coordination, and keyboard handling from `desktop/mod.rs` into `calendar_window_bindings.rs`. Retain platform placement in the composition root only where it depends on native window handles; preserve CAL-01–10 behavior. |
@@ -95,6 +92,10 @@ Priorities describe sequencing, not severity:
 | BL-019 | P3 | Candidate | Planner security | Add optional password-encrypted Planner storage | Define encrypted envelope versioning, audited crypto dependencies, unlock/lock policy, key rotation, encrypted backups/archives, and cloud merge behavior. |
 | BL-020 | P2 | Discovery | Planner windowing | Revisit adaptive Planner window sizes | Define a flicker-free, cross-platform transition between compact tools such as Stopwatch and full planning views; preserve user resizing and verify no temporary window disappearance on macOS. |
 
+## Clock Settings Verification — 2026-09-18
+
+BL-078 through BL-081: formatting, Clippy with warnings denied, all 87 automated workspace tests (one audio hardware test ignored), desktop debug build, and documentation checks pass. The macOS debug bundle launched through `scripts/launch-debug-macos.sh` outside the sandbox after sandboxed Launch Services reported `kLSNoExecutableErr`. Computer Use access to OziClock Debug was not approved; the user subsequently tested the debug build and reported that all four fixes worked on 2026-09-18. BL-078 through BL-081 are complete. Documentation reconciliation for these fixes and BL-072 confirms alignment with CLK-08A–D, UI-03, and the existing desktop adapter ownership; no architecture or ADR changes are needed.
+
 ## BL-013 Investigation — 2026-09-10
 
 Confirmed with isolated native AppKit and Slint probes on macOS 26.6.2 (25G83), primary display 5120 × 1440, backing scale 1, visible-frame top at screen y=31. Production Rust/Slint and user settings were not changed. The Slint probe linked the existing project libraries; the resolved dependency sources are Slint 1.17.1 and winit 0.30.13.
@@ -131,6 +132,10 @@ An item is `Ready` when:
 
 | ID | Completed | Item | Evidence |
 | --- | --- | --- | --- |
+| BL-081 | 2026-09-18 | Clear time-zone search when switching clocks | CLK-08D: clock selection resets the search, feedback, and full picker list without applying a fallback zone. Full-list selection tests pass; the user verified the debug build. |
+| BL-078 | 2026-09-18 | Apply the displayed time zone immediately after filtering | CLK-08A/B: keep the active zone when present, otherwise apply the first match immediately; empty results retain the active zone. UTC-to-Japan and multiple/no-match tests pass; the user verified the debug build. |
+| BL-079 | 2026-09-18 | Update the clock name live while typing | CLK-08C: Name edits pass the current text to Apply, and every Apply refreshes the left list and clock tiles. The user verified the debug build. |
+| BL-080 | 2026-09-18 | Dismiss the color picker after selection or switching clocks | UI-03: color-field selection, clock switching, and window focus loss dismiss the picker; hover does not alter color. The user verified the debug build. |
 | BL-072 | 2026-09 | Extract shared Planner date picker | Shared Reminder/Task/Event date-picker model, month anchor/navigation, editor-target routing, selection updates, and Monday-first six-week grid mapping moved from `desktop/mod.rs` into `desktop/planner_date_picker_bindings.rs`. REM-11 coverage verifies the 42-day grid and disabled past dates; workspace checks and tests pass, and the user manually verified the debug build. |
 | BL-071 | 2026-09 | Extract Plan navigation and refresh bindings | Plan model ownership, Week/Month/Year navigation, overview and week refresh, selection cleanup, and the periodic refresh timer moved to `desktop/planner_plan_bindings.rs`; only the reminder/event models and week anchor are returned to existing feature bindings, reducing `desktop/mod.rs` by 333 lines. Focused Plan and calendar navigation tests, formatting, Clippy, 82 automated workspace tests, desktop build, and macOS debug launch pass. Documentation reconciliation for BL-069 through BL-071 found no requirement, architecture, or ADR changes. |
 | BL-070 | 2026-09 | Extract stopwatch desktop bindings | Stopwatch runtime state, UI callbacks, lap-model refresh, persistence coordination, and display timer moved to `desktop/planner_stopwatch_bindings.rs`; monotonic elapsed-time calculation and restart interruption are preserved, reducing `desktop/mod.rs` by 231 lines. Focused stopwatch tests, formatting, Clippy, 82 automated workspace tests, desktop build, and macOS debug launch pass. |

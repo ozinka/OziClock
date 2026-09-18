@@ -116,6 +116,11 @@ jobs:
 
             ### Highlights
 
+            - Time-zone search resets when switching clocks without changing their configured zones.
+            - Filtering immediately applies the displayed time zone; an empty result preserves the active zone.
+            - Clock names update live in the clock list and tiles while typing.
+            - The color picker closes after color selection or switching clocks, and hovering no longer changes color.
+
             - Auxiliary windows, including Calendar, context menu, About, Settings, Planner and local attention cards, now paint immediately on their first open on macOS.
             - The main borderless clock window no longer allows manual edge resizing.
             - macOS borderless clock windows now keep their top-edge position when switching between compact and expanded modes.

@@ -190,7 +190,7 @@ export component SettingsWindow inherits Window {
 
         Rectangle {
             x: 286px; y: 207px; visible: root.selected-section == 1; width: 243px; height: 42px; border-radius: 6px; background: transparent;
-            LineEdit { x: 0px; y: 0px; width: parent.width; height: parent.height; text <=> root.editor-label; edited => { root.request-apply(); } }
+            LineEdit { x: 0px; y: 0px; width: parent.width; height: parent.height; text <=> root.editor-label; edited(value) => { root.editor-label = value; root.request-apply(); } }
         }
         Text { x: 286px; y: 275px; visible: root.selected-section == 1; text: "Time zone"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         Rectangle {
@@ -262,9 +262,9 @@ export component SettingsWindow inherits Window {
                 Rectangle { width: parent.width; height: parent.height; background: @linear-gradient(90deg, #ffffffff, #ffffff00); }
                 Rectangle { width: parent.width; height: parent.height; background: @linear-gradient(180deg, #00000000, #000000ff); }
                 Rectangle { x: root.picker-saturation / 100 * parent.width - 8px; y: (100 - root.picker-value) / 100 * parent.height - 8px; width: 16px; height: 16px; border-radius: 8px; border-width: 2px; border-color: white; background: transparent; }
-                TouchArea { moved => { root.request-picker-color(self.mouse-x / 1px, self.mouse-y / 1px); } clicked => { root.request-picker-color(self.mouse-x / 1px, self.mouse-y / 1px); } }
+                TouchArea { moved => { if self.pressed { root.request-picker-color(self.mouse-x / 1px, self.mouse-y / 1px); } } clicked => { root.request-picker-color(self.mouse-x / 1px, self.mouse-y / 1px); root.request-color-confirm(); } }
             }
-            Rectangle { x: 18px; y: 252px; width: 378px; height: 10px; border-radius: 5px; background: @linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); Rectangle { x: root.picker-hue / 360 * parent.width - 9px; y: -4px; width: 18px; height: 18px; border-radius: 9px; border-width: 2px; border-color: white; background: #3c81f6; } TouchArea { moved => { root.request-picker-hue(self.mouse-x / 1px); } clicked => { root.request-picker-hue(self.mouse-x / 1px); } } }
+            Rectangle { x: 18px; y: 252px; width: 378px; height: 10px; border-radius: 5px; background: @linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); Rectangle { x: root.picker-hue / 360 * parent.width - 9px; y: -4px; width: 18px; height: 18px; border-radius: 9px; border-width: 2px; border-color: white; background: #3c81f6; } TouchArea { moved => { if self.pressed { root.request-picker-hue(self.mouse-x / 1px); } } clicked => { root.request-picker-hue(self.mouse-x / 1px); } } }
             Text { x: 18px; y: 280px; text: root.picking-border-color ? root.border-color-value : root.editor-color; color: #dce0e7; font-size: 13px; }
             Text { x: 270px; y: 274px; width: 52px; height: 32px; text: "Cancel"; color: #c7ccd5; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-cancel(); } } }
             Rectangle { x: 328px; y: 274px; width: 68px; height: 32px; border-radius: 5px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "OK"; color: white; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-confirm(); } } } }
