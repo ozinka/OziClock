@@ -8,6 +8,7 @@ mod delivery_feedback;
 mod diagnostics;
 mod launch_at_login;
 mod planner_alarm_bindings;
+mod planner_appearance;
 mod planner_date_picker_bindings;
 mod planner_event_bindings;
 mod planner_inputs;
@@ -18,6 +19,7 @@ mod planner_stopwatch_bindings;
 mod planner_task_bindings;
 mod planner_timer_bindings;
 mod settings_bindings;
+mod settings_color_picker;
 #[cfg(target_os = "windows")]
 mod tray;
 mod window_drag;
@@ -177,13 +179,16 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let reminder_attention_window = ReminderAttentionWindow::new()?;
     let event_attention_window = EventAttentionWindow::new()?;
     let task_attention_window = TaskAttentionWindow::new()?;
-    let planner_accent = calendar_accent(&shared_settings.borrow()).brighter(0.4);
-    planner_window.set_accent(planner_accent);
-    alarm_attention_window.set_accent(planner_accent);
-    timer_attention_window.set_accent(planner_accent);
-    reminder_attention_window.set_accent(planner_accent);
-    event_attention_window.set_accent(planner_accent);
-    task_attention_window.set_accent(planner_accent);
+    planner_appearance::bind(
+        &settings_window,
+        &planner_window,
+        &alarm_attention_window,
+        &timer_attention_window,
+        &reminder_attention_window,
+        &event_attention_window,
+        &task_attention_window,
+        shared_settings.clone(),
+    );
     planner_window
         .set_corner_radius(shared_settings.borrow().corner_radius.clamp(0.0, 15.5) as f32);
     planner_window.set_task_count(open_task_count(&shared_settings.borrow()));
@@ -959,138 +964,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             editor.set_dragging_offset(0.0);
         }
     });
-    let hue = Rc::new(Cell::new(220.0_f32));
-    let saturation = Rc::new(Cell::new(70.0_f32));
-    let value = Rc::new(Cell::new(90.0_f32));
-    let pending_color = Rc::new(RefCell::new(String::new()));
-    let editor = settings_window.as_weak();
-    let pending_color_for_open = pending_color.clone();
-    let hue_for_open = hue.clone();
-    let saturation_for_open = saturation.clone();
-    let value_for_open = value.clone();
-    settings_window.on_request_open_color_picker(move || {
-        if let Some(editor) = editor.upgrade() {
-            editor.set_picking_border_color(false);
-            let color = editor.get_editor_color().to_string();
-            let (selected_hue, selected_saturation, selected_value) = color_to_hsv(&color);
-            *pending_color_for_open.borrow_mut() = color;
-            hue_for_open.set(selected_hue);
-            saturation_for_open.set(selected_saturation);
-            value_for_open.set(selected_value);
-            editor.set_picker_hue(selected_hue);
-            editor.set_picker_saturation(selected_saturation);
-            editor.set_picker_value(selected_value);
-            editor.set_picker_hue_color(hsv_color(selected_hue, 100.0, 100.0));
-            editor.set_color_picker_open(true);
-        }
-    });
-    let editor = settings_window.as_weak();
-    let pending_color_for_border_open = pending_color.clone();
-    let hue_for_border_open = hue.clone();
-    let saturation_for_border_open = saturation.clone();
-    let value_for_border_open = value.clone();
-    settings_window.on_request_open_border_color_picker(move || {
-        if let Some(editor) = editor.upgrade() {
-            editor.set_picking_border_color(true);
-            let color = editor.get_border_color_value().to_string();
-            let (selected_hue, selected_saturation, selected_value) = color_to_hsv(&color);
-            *pending_color_for_border_open.borrow_mut() = color;
-            hue_for_border_open.set(selected_hue);
-            saturation_for_border_open.set(selected_saturation);
-            value_for_border_open.set(selected_value);
-            editor.set_picker_hue(selected_hue);
-            editor.set_picker_saturation(selected_saturation);
-            editor.set_picker_value(selected_value);
-            editor.set_picker_hue_color(hsv_color(selected_hue, 100.0, 100.0));
-            editor.set_color_picker_open(true);
-        }
-    });
-    let editor = settings_window.as_weak();
-    settings_window.on_request_color_confirm(move || {
-        if let Some(editor) = editor.upgrade() {
-            editor.set_color_picker_open(false);
-        }
-    });
-    let editor = settings_window.as_weak();
-    let pending_color_for_cancel = pending_color.clone();
-    settings_window.on_request_color_cancel(move || {
-        if let Some(editor) = editor.upgrade() {
-            let color = pending_color_for_cancel.borrow().clone();
-            if editor.get_picking_border_color() {
-                editor.set_border_preview_color(parse_color(&color));
-                editor.set_border_color_value(color.clone().into());
-                editor.invoke_request_set_border_color(color.into());
-            } else {
-                editor.set_editor_preview_color(parse_color(&color));
-                editor.set_editor_color(color.into());
-                editor.invoke_request_apply();
-            }
-            editor.set_color_picker_open(false);
-        }
-    });
-    let editor = settings_window.as_weak();
-    settings_window.on_request_pick_color(move |color| {
-        if let Some(editor) = editor.upgrade() {
-            if editor.get_picking_border_color() {
-                editor.set_border_color_value(color.clone());
-                editor.set_border_preview_color(parse_color(&color));
-                editor.invoke_request_set_border_color(color);
-            } else {
-                editor.set_editor_color(color);
-                editor.set_editor_preview_color(parse_color(&editor.get_editor_color()));
-                editor.invoke_request_apply();
-            }
-            editor.set_color_picker_open(false);
-        }
-    });
-    let editor = settings_window.as_weak();
-    let hue_for_color = hue.clone();
-    let saturation_for_color = saturation.clone();
-    let value_for_color = value.clone();
-    settings_window.on_request_picker_color(move |x, y| {
-        if let Some(editor) = editor.upgrade() {
-            let s = (x / 378.0 * 100.0).clamp(0.0, 100.0);
-            let v = (100.0 - y / 180.0 * 100.0).clamp(0.0, 100.0);
-            saturation_for_color.set(s);
-            value_for_color.set(v);
-            editor.set_picker_saturation(s);
-            editor.set_picker_value(v);
-            let color = hsv_hex(hue_for_color.get(), s, v);
-            let preview = hsv_color(hue_for_color.get(), s, v);
-            if editor.get_picking_border_color() {
-                editor.set_border_color_value(color.clone().into());
-                editor.set_border_preview_color(preview);
-                editor.invoke_request_set_border_color(color.into());
-            } else {
-                editor.set_editor_color(color.into());
-                editor.set_editor_preview_color(preview);
-                editor.invoke_request_apply();
-            }
-        }
-    });
-    let editor = settings_window.as_weak();
-    let hue_for_hue = hue.clone();
-    let saturation_for_hue = saturation.clone();
-    let value_for_hue = value.clone();
-    settings_window.on_request_picker_hue(move |x| {
-        if let Some(editor) = editor.upgrade() {
-            let h = (x / 378.0 * 360.0).clamp(0.0, 360.0);
-            hue_for_hue.set(h);
-            editor.set_picker_hue(h);
-            editor.set_picker_hue_color(hsv_color(h, 100.0, 100.0));
-            let color = hsv_hex(h, saturation_for_hue.get(), value_for_hue.get());
-            let preview = hsv_color(h, saturation_for_hue.get(), value_for_hue.get());
-            if editor.get_picking_border_color() {
-                editor.set_border_color_value(color.clone().into());
-                editor.set_border_preview_color(preview);
-                editor.invoke_request_set_border_color(color.into());
-            } else {
-                editor.set_editor_color(color.into());
-                editor.set_editor_preview_color(preview);
-                editor.invoke_request_apply();
-            }
-        }
-    });
+    settings_color_picker::bind(&settings_window);
     let state = shared_settings.clone();
     let editor = settings_window.as_weak();
     let main_window = window.as_weak();
@@ -1888,6 +1762,8 @@ fn resize_main_window(window: &AppWindow, show_rulers: bool) {
     });
 }
 
+const CLOCK_AUXILIARY_WINDOW_GAP: i32 = 5;
+
 fn position_auxiliary_window_near_clock(window: &slint::Window, owner: &slint::Weak<AppWindow>) {
     let Some(owner) = owner.upgrade() else {
         return;
@@ -1911,8 +1787,9 @@ fn position_auxiliary_window_near_clock(window: &slint::Window, owner: &slint::W
             let below_owner = owner_position.y
                 + (clock_height * owner.get_clock_scale() * owner_native.scale_factor() as f32)
                     .round() as i32
-                + 8;
-            let above_owner = owner_position.y - settings_size.height as i32 - 8;
+                + CLOCK_AUXILIARY_WINDOW_GAP;
+            let above_owner =
+                owner_position.y - settings_size.height as i32 - CLOCK_AUXILIARY_WINDOW_GAP;
             let preferred_top = if below_owner <= maximum_top {
                 below_owner
             } else {
@@ -1986,8 +1863,8 @@ fn position_calendar_window(window: &slint::Window, owner: &slint::Weak<AppWindo
                 work_area.left,
                 (work_area.right - calendar_size.width as i32).max(work_area.left),
             );
-            let below = owner_position.y + owner_size.height as i32;
-            let above = owner_position.y - calendar_size.height as i32;
+            let below = owner_position.y + owner_size.height as i32 + CLOCK_AUXILIARY_WINDOW_GAP;
+            let above = owner_position.y - calendar_size.height as i32 - CLOCK_AUXILIARY_WINDOW_GAP;
             let top = if below + calendar_size.height as i32 <= work_area.bottom {
                 below
             } else {
@@ -2058,7 +1935,7 @@ fn refresh_auxiliary_accents(
 ) {
     let accent = calendar_accent(settings);
     if let Some(planner) = planner.upgrade() {
-        planner.set_accent(accent.brighter(0.4));
+        planner_appearance::refresh(&planner, settings);
     }
     if let Some(calendar) = calendar.upgrade() {
         calendar.set_accent(accent);

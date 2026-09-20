@@ -61,6 +61,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub planner: Planner,
     #[serde(default)]
+    pub planner_appearance: PlannerAppearance,
+    #[serde(default)]
     pub timer_draft_days: u16,
     #[serde(default)]
     pub timer_draft_hours: u8,
@@ -69,6 +71,37 @@ pub struct AppSettings {
     #[serde(default)]
     pub timer_draft_seconds: u8,
     pub clocks_settings: Vec<ClockSettings>,
+}
+
+/// Independent Planner appearance; missing fields preserve the pre-settings theme.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default, rename_all = "PascalCase")]
+pub struct PlannerAppearance {
+    pub light_theme: bool,
+    pub follow_main_clock: bool,
+    pub custom_accent: String,
+    pub use_accent_color: bool,
+    pub alarm_color: String,
+    pub timer_color: String,
+    pub reminder_color: String,
+    pub event_color: String,
+    pub task_color: String,
+}
+
+impl Default for PlannerAppearance {
+    fn default() -> Self {
+        Self {
+            light_theme: false,
+            follow_main_clock: true,
+            custom_accent: "#77D7CB".into(),
+            use_accent_color: true,
+            alarm_color: "#77D7CB".into(),
+            timer_color: "#77D7CB".into(),
+            reminder_color: "#77D7CB".into(),
+            event_color: "#B99655".into(),
+            task_color: "#547D78".into(),
+        }
+    }
 }
 
 fn default_schema_version() -> u32 {
@@ -322,6 +355,30 @@ pub fn prune_event_receipts(settings: &mut AppSettings, now: DateTime<Utc>) {
 mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn set_08_10_appearance_migration_and_round_trip() {
+        let mut settings: AppSettings = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
+        assert_eq!(settings.planner_appearance, PlannerAppearance::default());
+        let partial: PlannerAppearance = serde_json::from_str(r#"{"LightTheme":true}"#).unwrap();
+        assert!(partial.light_theme);
+        assert!(partial.follow_main_clock);
+        assert!(partial.use_accent_color);
+        settings.planner_appearance = PlannerAppearance {
+            light_theme: true,
+            follow_main_clock: false,
+            use_accent_color: false,
+            custom_accent: "#112233".into(),
+            alarm_color: "#223344".into(),
+            timer_color: "#334455".into(),
+            reminder_color: "#445566".into(),
+            event_color: "#556677".into(),
+            task_color: "#667788".into(),
+        };
+        let restored: AppSettings =
+            serde_json::from_str(&serde_json::to_string(&settings).unwrap()).unwrap();
+        assert_eq!(restored.planner_appearance, settings.planner_appearance);
+    }
 
     #[test]
     fn bundled_defaults_are_valid_and_have_a_main_clock() {

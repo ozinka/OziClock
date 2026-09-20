@@ -1,3 +1,4 @@
+import { CheckBox } from "std-widgets.slint";
 import { ClockTile } from "../../../ui/clock_tile.slint";
 import { DeleteIcon } from "delete_icon.slint";
 
@@ -49,9 +50,16 @@ export component SettingsWindow inherits Window {
     in-out property <bool> calendar-monday-first: true;
     in-out property <int> calendar-hour-range: 0;
     in-out property <int> alert-sound-duration-seconds: 20;
+    in-out property <bool> planner-light-theme;
+    in-out property <bool> planner-follow-main-clock: true;
+    in-out property <bool> planner-use-accent-color: true;
+    in property <[string]> planner-colors;
+    in property <[color]> planner-color-previews;
+    callback request-planner-option(int, bool);
+    callback request-planner-color(int, string);
     in-out property <string> status-message;
     in-out property <bool> color-picker-open: false;
-    in-out property <bool> picking-border-color: false;
+    in-out property <string> picker-color-value;
     in-out property <float> picker-hue: 220;
     in-out property <float> picker-saturation: 70;
     in-out property <float> picker-value: 90;
@@ -82,6 +90,7 @@ export component SettingsWindow inherits Window {
     callback request-drag-end();
     callback request-open-color-picker();
     callback request-open-border-color-picker();
+    callback request-open-planner-color-picker(int);
     callback request-pick-color(string);
     callback request-picker-color(float, float);
     callback request-picker-hue(float);
@@ -122,7 +131,7 @@ export component SettingsWindow inherits Window {
         Rectangle { x: 14px; y: 120px; width: 232px; height: 37px; border-radius: 6px; background: root.selected-section == 0 ? #31343c : #202126; Text { x: 10px; y: 9px; text: "General"; color: #d7d9de; font-family: "Carlito"; font-size: 14px; } TouchArea { clicked => { root.request-select-general(); } } }
         Rectangle { x: 14px; y: 163px; width: 232px; height: 37px; border-radius: 6px; background: root.selected-section == 2 ? #31343c : #202126; Text { x: 10px; y: 9px; text: "Calendar"; color: #d7d9de; font-family: "Carlito"; font-size: 14px; } TouchArea { clicked => { root.request-select-calendar(); } } }
         Rectangle { x: 14px; y: 206px; width: 232px; height: 37px; border-radius: 6px; background: root.selected-section == 3 ? #31343c : #202126; Text { x: 10px; y: 9px; text: "Planner"; color: #d7d9de; font-family: "Carlito"; font-size: 14px; } TouchArea { clicked => { root.request-select-planner(); } } }
-        Text { x: 28px; y: 260px; text: "CLOCKS"; color: #8f949e; font-family: "Carlito"; font-size: 11px; font-weight: 700; }
+        Rectangle { x: 28px; y: 269px; width: 204px; height: 1px; background: #33353c; }
 
         Rectangle {
             x: 14px;
@@ -236,10 +245,26 @@ export component SettingsWindow inherits Window {
         Text { x: 286px; y: 513px; visible: root.selected-section == 0; text: "Border and separator color"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         Rectangle { x: 286px; y: 533px; visible: root.selected-section == 0; width: 190px; height: 38px; border-radius: 6px; background: transparent; LineEdit { width: parent.width; height: parent.height; text <=> root.border-color-value; edited => { root.request-set-border-color(root.border-color-value); } } }
         Rectangle { x: 488px; y: 531px; visible: root.selected-section == 0; width: 42px; height: 42px; border-radius: 6px; border-width: 1px; border-color: #70747d; background: root.border-preview-color; TouchArea { clicked => { root.request-open-border-color-picker(); } } }
-        Text { x: 286px; y: 145px; visible: root.selected-section == 3; text: "Delivery feedback for Planner alerts"; color: #969aa4; font-family: "Carlito"; font-size: 13px; }
-        Text { x: 286px; y: 192px; visible: root.selected-section == 3; text: "Alert sound duration"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
-        ComboBox { x: 286px; y: 214px; visible: root.selected-section == 3; width: 240px; height: 40px; model: ["Off", "1 second", "5 seconds", "10 seconds", "20 seconds", "30 seconds"]; current-index: root.alert-sound-duration-seconds == 0 ? 0 : (root.alert-sound-duration-seconds == 1 ? 1 : (root.alert-sound-duration-seconds == 5 ? 2 : (root.alert-sound-duration-seconds == 10 ? 3 : (root.alert-sound-duration-seconds == 20 ? 4 : 5)))); selected => { root.alert-sound-duration-seconds = self.current-index == 0 ? 0 : (self.current-index == 1 ? 1 : (self.current-index == 2 ? 5 : (self.current-index == 3 ? 10 : (self.current-index == 4 ? 20 : 30)))); root.request-set-alert-sound-duration-seconds(root.alert-sound-duration-seconds); } }
-        Text { x: 286px; y: 272px; visible: root.selected-section == 3; width: 390px; text: "The chime repeats until the selected duration ends. Dismiss, Snooze and Restart stop it immediately."; color: #969aa4; font-family: "Carlito"; font-size: 13px; wrap: word-wrap; }
+        if root.selected-section == 3: Rectangle {
+            x: 286px; y: 145px; width: 390px; height: 402px;
+            Text { x: 0px; y: 0px; width: parent.width; height: 20px; text: "Appearance and alert feedback"; color: #969aa4; font-size: 13px; }
+            Text { x: 0px; y: 30px; width: 128px; height: 32px; text: "Theme"; color: #afb3bc; font-size: 13px; vertical-alignment: center; }
+            ComboBox { x: 140px; y: 30px; width: 250px; height: 32px; model: ["Light", "Dark"]; current-index: root.planner-light-theme ? 0 : 1; selected => { root.request-planner-option(0, self.current-index == 0); } }
+            Text { x: 0px; y: 70px; width: 128px; height: 32px; text: "Accent source"; color: #afb3bc; font-size: 13px; vertical-alignment: center; }
+            ComboBox { x: 140px; y: 70px; width: 250px; height: 32px; model: ["Main clock", "Custom"]; current-index: root.planner-follow-main-clock ? 0 : 1; selected => { root.request-planner-option(1, self.current-index == 0); } }
+            CheckBox { x: 0px; y: 154px; width: 390px; height: 30px; text: "Use accent color"; checked: root.planner-use-accent-color; toggled => { root.request-planner-option(2, self.checked); } }
+            for label[index] in ["Custom accent", "Alarms", "Timers", "Reminders", "Events", "Tasks"]: Rectangle {
+                x: 0px; y: index == 0 ? 110px : 156px + index * 37px; width: 390px; height: 32px;
+                private property <bool> editable: index == 0 ? !root.planner-follow-main-clock : !root.planner-use-accent-color;
+                Text { x: 0px; y: 0px; width: 128px; height: parent.height; font-size: 13px; text: label; color: parent.editable ? #afb3bc : #70747d; vertical-alignment: center; }
+                LineEdit { x: 140px; y: 0px; width: 208px; height: parent.height; enabled: parent.editable; text: root.planner-colors[index]; edited => { root.request-planner-color(index, self.text); } }
+                Rectangle { x: 358px; y: 0px; width: 32px; height: 32px; border-radius: 5px; background: root.planner-color-previews[index]; border-width: 1px; border-color: #70747d; TouchArea { enabled: index == 0 ? !root.planner-follow-main-clock : !root.planner-use-accent-color; accessible-role: button; accessible-label: "Choose " + label + " color"; clicked => { root.request-open-planner-color-picker(index); } } }
+            }
+            Text { x: 0px; y: 382px; width: 390px; height: 20px; text: "Click a swatch or enter #RRGGBB to choose a color."; color: #969aa4; font-size: 12px; }
+        }
+        Text { x: 286px; y: 593px; width: 390px; visible: root.selected-section == 3; text: root.status-message; color: #e58c8c; font-size: 12px; overflow: elide; }
+        Text { x: 286px; y: 566px; visible: root.selected-section == 3; text: "Alert sound"; color: #afb3bc; font-size: 13px; }
+        ComboBox { x: 426px; y: 558px; visible: root.selected-section == 3; width: 250px; height: 32px; model: ["Off", "1 second", "5 seconds", "10 seconds", "20 seconds", "30 seconds"]; current-index: root.alert-sound-duration-seconds == 0 ? 0 : (root.alert-sound-duration-seconds == 1 ? 1 : (root.alert-sound-duration-seconds == 5 ? 2 : (root.alert-sound-duration-seconds == 10 ? 3 : (root.alert-sound-duration-seconds == 20 ? 4 : 5)))); selected => { root.alert-sound-duration-seconds = self.current-index == 0 ? 0 : (self.current-index == 1 ? 1 : (self.current-index == 2 ? 5 : (self.current-index == 3 ? 10 : (self.current-index == 4 ? 20 : 30)))); root.request-set-alert-sound-duration-seconds(root.alert-sound-duration-seconds); } }
         Text { x: 286px; y: 145px; visible: root.selected-section == 2; text: "Calendar appearance and week layout"; color: #969aa4; font-family: "Carlito"; font-size: 13px; }
         Text { x: 286px; y: 192px; visible: root.selected-section == 2; text: "Theme"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         ComboBox { x: 286px; y: 214px; visible: root.selected-section == 2; width: 240px; height: 40px; model: ["Light", "Dark"]; current-index: root.calendar-light-theme ? 0 : 1; selected => { root.calendar-light-theme = self.current-index == 0; root.request-set-calendar-light-theme(root.calendar-light-theme); } }
@@ -265,7 +290,7 @@ export component SettingsWindow inherits Window {
                 TouchArea { moved => { if self.pressed { root.request-picker-color(self.mouse-x / 1px, self.mouse-y / 1px); } } clicked => { root.request-picker-color(self.mouse-x / 1px, self.mouse-y / 1px); root.request-color-confirm(); } }
             }
             Rectangle { x: 18px; y: 252px; width: 378px; height: 10px; border-radius: 5px; background: @linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); Rectangle { x: root.picker-hue / 360 * parent.width - 9px; y: -4px; width: 18px; height: 18px; border-radius: 9px; border-width: 2px; border-color: white; background: #3c81f6; } TouchArea { moved => { if self.pressed { root.request-picker-hue(self.mouse-x / 1px); } } clicked => { root.request-picker-hue(self.mouse-x / 1px); } } }
-            Text { x: 18px; y: 280px; text: root.picking-border-color ? root.border-color-value : root.editor-color; color: #dce0e7; font-size: 13px; }
+            Text { x: 18px; y: 280px; text: root.picker-color-value; color: #dce0e7; font-size: 13px; }
             Text { x: 270px; y: 274px; width: 52px; height: 32px; text: "Cancel"; color: #c7ccd5; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-cancel(); } } }
             Rectangle { x: 328px; y: 274px; width: 68px; height: 32px; border-radius: 5px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "OK"; color: white; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-confirm(); } } } }
             Text { x: 358px; y: 10px; width: 30px; height: 30px; text: "×"; color: #aeb3bd; font-size: 22px; horizontal-alignment: center; TouchArea { clicked => { root.color-picker-open = false; } } }

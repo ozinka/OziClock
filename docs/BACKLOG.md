@@ -22,7 +22,7 @@ Priorities describe sequencing, not severity:
 - Tracking baseline: 2026-09-07; existing work has not been retrospectively reconciled by this checkpoint.
 - Last completed review: 2026-09-18.
 - Backlog IDs covered by the last review: BL-072, BL-078, BL-079, BL-080, BL-081.
-- Feature IDs reaching `Done` since the baseline or last review: none.
+- Feature IDs reaching `Done` since the baseline or last review: BL-059.
 - Review cadence: after 3 completed features at a natural task boundary, no later than 5; follow `AI_DEVELOPMENT_WORKFLOW.md`.
 - Unresolved reconciliation follow-ups: none.
 
@@ -30,7 +30,7 @@ Priorities describe sequencing, not severity:
 
 | ID | Priority | Status | Area | Item | Next step |
 | --- | --- | --- | --- | --- | --- |
-| BL-083 | P3 | Candidate | Calendar window placement | Add visual spacing between the clock strip and Calendar | Position Calendar a few logical pixels farther from the clock strip so the two windows do not visually touch, while keeping Calendar within the active monitor work area. |
+| BL-083 | P3 | In Progress | Calendar window placement | Add visual spacing between the clock strip and Calendar | Calendar and Settings now use a five-logical-pixel gap from the clock strip while preserving below/above fallback and monitor-work-area constraints. Visual verification remains. |
 | BL-082 | P1 | Discovery | macOS stability | Diagnose unexpected termination after KVM switching or sleep with active alerts | Reported 2026-09-18: after switching back to the Mac and signing in, macOS reports that OziClock quit unexpectedly and offers to reopen it; alerts were active. The KVM switches the monitor, keyboard, and mouse. Sleep and alert playback on wake are suspected, not confirmed; locking alone is a less likely alternative reported by the user. Collect crash reports and distinguish KVM/display reconnection, explicit sleep/wake, and lock/unlock with and without active alerts and sound. See investigation scope below; related delivery recovery work: BL-042. |
 | BL-073 | P1 | In Progress | Settings persistence | Make `settings.json` writes atomic | Fulfil SET-03 and the architecture persistence contract: serialize to a uniquely named temporary file in the target directory, flush its contents, atomically replace `settings.json`, and clean up the temporary file on failure. Preserve macOS, Windows, and Linux behavior; manual persistence/restart verification pending. |
 | BL-062 | P2 | Ready | Plan Year view | Hide zero-value summaries | Do not render `0 events` or `0 tasks` in Year month cards. Keep months with no entries visually clean while preserving navigation and current-month emphasis. |
@@ -41,7 +41,6 @@ Priorities describe sequencing, not severity:
 
 | BL-061 | P2 | Discovery | Plan interaction | Review the selected-item context panel | Determine whether the Event/Reminder context panel and its Edit button add value now that double-click opens the shared editor. Preserve an accessible non-double-click editing path if the panel is removed. |
 | BL-060 | P1 | Candidate | Tasks | Extend completed-task history and discovery | Allow editing completed tasks, add title/status/date search, persist and display the actual completion timestamp, and define how reopening affects that timestamp. |
-| BL-059 | P1 | In Progress | Planner settings | Add independent Planner appearance and sound settings | Settings now has a Planner section with persisted alert-sound duration. Add Light/Dark theme selection and a choice of the main clock accent or a custom Planner accent; update open Planner/attention windows live and define defaults/migration. UI-09 centers and dims Settings clock-deletion confirmation in a 710-pixel-wide window with a 672-pixel minimum height; it preserves user-expanded height, while its close control and content divider follow the right edge. Visual verification remains. |
 | BL-058 | P3 | In Progress | Plan events | Add personal calendar events | EVT-01–12 establish typed validated mutations, Week rendering, selection, a shared timed/all-day editor, confirmed deletion, overlap lanes, recurrence, preset/Custom alert offsets, durable attention and restart recovery. Visual verification remains; Custom recurrence and per-occurrence exceptions stay later. |
 | BL-045 | P3 | Candidate | Project funding | Add a store-publication donation option to README | Choose a trusted donation platform and add a concise README section explaining that contributions can help cover publishing OziClock in application stores. State intended use transparently without promising a release date or store acceptance. |
 | BL-051 | P2 | In Progress | Tasks | Complete the local task lifecycle | TSK-01–10 implement validated creation, status views and counts, selection/edit/cancel, completion, reopen, archive, confirmed deletion, responsive scrolling and save-before-display persistence. Visual verification pending. |
@@ -141,6 +140,7 @@ An item is `Ready` when:
 
 | ID | Completed | Item | Evidence |
 | --- | --- | --- | --- |
+| BL-059 | 2026-09-20 | Add independent Planner appearance and sound settings | SET-08–10: independent Light/Dark theme, main-clock/custom accent, default-enabled accent override, retained colors for five alert types, and shared swatch picker with live preview and Cancel rollback. Theme and colors update Planner, attention windows, and Plan calendar elements; sound duration and UI-09 Settings geometry are preserved. Corrected label placement and Light-theme surface binding after user screenshots. Formatting, Clippy, 92 workspace tests, documentation checks, build, and macOS debug launch pass. User accepted the result and requested completion. |
 | BL-081 | 2026-09-18 | Clear time-zone search when switching clocks | CLK-08D: clock selection resets the search, feedback, and full picker list without applying a fallback zone. Full-list selection tests pass; the user verified the debug build. |
 | BL-078 | 2026-09-18 | Apply the displayed time zone immediately after filtering | CLK-08A/B: keep the active zone when present, otherwise apply the first match immediately; empty results retain the active zone. UTC-to-Japan and multiple/no-match tests pass; the user verified the debug build. |
 | BL-079 | 2026-09-18 | Update the clock name live while typing | CLK-08C: Name edits pass the current text to Apply, and every Apply refreshes the left list and clock tiles. The user verified the debug build. |
