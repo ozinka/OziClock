@@ -108,6 +108,7 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **ALM-17:** Each saved alarm card shows the latest persisted occurrence result: Delivered in the Planner accent or Missed in red. The latest result is selected by recorded UTC time and remains visible across restart. Alarms without receipts show no status. This is history feedback and does not replace On/Off.
 
 - **ALM-16:** The local alarm card offers Snooze 5 min and Dismiss. Snooze stores one replacement UTC deadline per alarm without changing its Once/Weekly rule; repeated snooze replaces that deadline. Snoozes survive restart, use the same five-minute delivery grace and receipt de-duplication, and may apply after Once has become Off. Snooze is committed before the attention card advances. Deleting an alarm deletes its pending snooze.
+- **ALM-16A:** Offer 5/10/15-minute Snooze presets and a validated Custom duration of 1–1440 minutes. The Custom field is 80 logical pixels wide; the complete row, including its `min` suffix, stays within the 360-pixel attention card while focused or unfocused.
 
 - **ALM-15:** While the local alarm-attention card exists, only its accent border pulses smoothly between one and three pixels every 450ms. The surface, text and controls remain stable and fully readable; dismissing the final queued alarm hides the card.
 

@@ -24,7 +24,7 @@ export component AlarmAttentionWindow inherits Window {
         HorizontalLayout { x: 18px; y: 75px; width: parent.width - 36px; height: 30px; spacing: 5px;
             Text { width: 48px; text: "Snooze"; color: PlannerPalette.secondary; font-size: 12px; vertical-alignment: center; }
             for minutes in ["5", "10", "15"]: Rectangle { width: 42px; border-radius: 5px; background: root.snooze-minutes == minutes ? root.accent : PlannerPalette.border; Text { width: parent.width; height: parent.height; text: minutes + "m"; color: root.snooze-minutes == minutes ? PlannerPalette.accent-foreground : PlannerPalette.text; font-size: 11px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.snooze-minutes = minutes; } } }
-            Rectangle { horizontal-stretch: 1; LineEdit { width: parent.width; height: parent.height; text <=> root.snooze-minutes; placeholder-text: "Custom"; input-type: InputType.number; horizontal-alignment: center; } }
+            LineEdit { min-width: 80px; max-width: 80px; text <=> root.snooze-minutes; placeholder-text: "Custom"; input-type: InputType.number; horizontal-alignment: center; }
             Text { width: 24px; text: "min"; color: PlannerPalette.muted; font-size: 11px; vertical-alignment: center; }
         }
         Rectangle { x: 18px; y: 116px; width: (parent.width - 44px) / 2; height: 34px; background: PlannerPalette.border; border-radius: 6px; Text { width: parent.width; height: parent.height; text: "Snooze"; color: PlannerPalette.text; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.request-snooze(root.snooze-minutes.to-float()); } } }
