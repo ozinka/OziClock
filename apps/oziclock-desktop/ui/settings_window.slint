@@ -15,8 +15,8 @@ export component SettingsWindow inherits Window {
     preferred-width: root.saved-window-width * 1px;
     preferred-height: root.saved-window-height * 1px;
     min-width: 710px;
-    min-height: 632px;
-    resize-border-width: 6px;
+    min-height: 672px;
+    max-width: 710px;
     background: transparent;
 
     in property <[ClockListItem]> clocks;
@@ -61,8 +61,8 @@ export component SettingsWindow inherits Window {
     in-out property <float> dragging-offset: 0;
     in-out property <bool> remove-confirmation-open: false;
     in-out property <string> remove-confirmation-label;
-    in-out property <float> saved-window-width: 760;
-    in-out property <float> saved-window-height: 700;
+    in-out property <float> saved-window-width: 710;
+    in-out property <float> saved-window-height: 672;
     callback request-close();
     callback request-window-drag();
     callback request-select(int);
@@ -182,7 +182,7 @@ export component SettingsWindow inherits Window {
             Rectangle { x: 216px; y: 12px; width: 10px; height: 13px; border-radius: 1px; border-width: 1px; border-color: #e06a6a; background: transparent; }
         }
 
-        Rectangle { x: 286px; y: 82px; width: 446px; height: 1px; background: #33353c; }
+        Rectangle { x: 286px; y: 82px; width: parent.width - 314px; height: 1px; background: #33353c; }
         Text { x: 286px; y: 107px; text: root.selected-section == 0 ? "General" : (root.selected-section == 2 ? "Calendar" : (root.selected-section == 3 ? "Planner" : "Edit clock")); color: #f2f3f5; font-family: "Carlito"; font-size: 21px; font-weight: 700; }
         Text { x: 286px; y: 139px; visible: root.selected-section == 1; text: root.status-message; color: #969aa4; font-family: "Carlito"; font-size: 13px; }
         Text { x: 286px; y: 145px; visible: root.selected-section == 0; text: "Application behavior"; color: #969aa4; font-family: "Carlito"; font-size: 13px; }
@@ -252,7 +252,7 @@ export component SettingsWindow inherits Window {
             Text { width: parent.width; height: parent.height; text: "OK"; color: #ffffff; font-family: "Carlito"; font-size: 14px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-save(); } } }
         }
         Text {
-            x: 702px; y: 22px; width: 30px; height: 30px; text: "×"; color: #aeb3bd; font-family: "Carlito"; font-size: 24px; horizontal-alignment: center; vertical-alignment: center;
+            x: parent.width - 58px; y: 22px; width: 30px; height: 30px; text: "×"; color: #aeb3bd; font-family: "Carlito"; font-size: 24px; horizontal-alignment: center; vertical-alignment: center;
             TouchArea { clicked => { root.request-close(); } }
         }
         Rectangle {

@@ -11,6 +11,8 @@ use std::{
 
 use rodio::{DeviceSinkBuilder, Player, buffer::SamplesBuffer, nz};
 
+use super::diagnostics;
+
 const SAMPLE_RATE: u32 = 48_000;
 const SIGNAL_SECONDS: f32 = 0.8;
 
@@ -24,15 +26,25 @@ pub(super) struct AlertSound {
 
 impl AlertSound {
     pub(super) fn new() -> Self {
-        let (sender, receiver) = mpsc::sync_channel(1);
+        let (sender, receiver) = mpsc::sync_channel::<SoundRequest>(1);
         let generation = Arc::new(AtomicU64::new(0));
         let worker_generation = generation.clone();
         match thread::Builder::new()
             .name("oziclock-audio".into())
             .spawn(move || {
                 while let Ok(request) = receiver.recv() {
+                    diagnostics::record(&format!(
+                        "audio-request-received duration-seconds={}",
+                        request
+                            .until
+                            .saturating_duration_since(Instant::now())
+                            .as_secs()
+                    ));
                     if let Err(error) = play_for(request, &worker_generation) {
+                        diagnostics::record(&format!("audio-request-failed error={error}"));
                         eprintln!("Alert sound unavailable: {error}");
+                    } else {
+                        diagnostics::record("audio-request-completed");
                     }
                 }
             }) {
@@ -53,6 +65,7 @@ impl AlertSound {
     pub(super) fn play_for_seconds(&self, seconds: u8) {
         if seconds == 0 {
             self.stop();
+            diagnostics::record("audio-request-cancelled sound-disabled");
             return;
         }
         if let Some(sender) = &self.sender {
@@ -64,9 +77,10 @@ impl AlertSound {
             match sender.try_send(request) {
                 Ok(()) => {}
                 Err(TrySendError::Disconnected(_)) => {
+                    diagnostics::record("audio-request-dropped worker-disconnected");
                     eprintln!("Alert audio worker disconnected");
                 }
-                Err(TrySendError::Full(_)) => {}
+                Err(TrySendError::Full(_)) => diagnostics::record("audio-request-coalesced"),
             }
         }
     }
@@ -118,7 +132,9 @@ fn play_for(request: SoundRequest, generation: &AtomicU64) -> Result<(), String>
 fn play_signal(request: SoundRequest, generation: &AtomicU64) -> Result<(), String> {
     // Reopen for each signal to pick up output-device changes and release the
     // audio device while idle. Keep both handles alive until playback completes.
+    diagnostics::record("audio-device-open-start");
     let mut device = DeviceSinkBuilder::open_default_sink().map_err(|error| error.to_string())?;
+    diagnostics::record("audio-device-opened");
     device.log_on_drop(false);
     let player = Player::connect_new(device.mixer());
     player.append(SamplesBuffer::new(

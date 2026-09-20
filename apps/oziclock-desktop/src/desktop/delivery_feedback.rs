@@ -1,6 +1,7 @@
-use super::alert_sound::AlertSound;
+use super::{alert_sound::AlertSound, diagnostics};
 
 pub(super) fn deliver(title: &str, body: &str, sound_seconds: u8, sound: &AlertSound) {
+    diagnostics::record(&format!("delivery-start sound-seconds={sound_seconds}"));
     if sound_seconds > 0 {
         sound.play_for_seconds(sound_seconds);
     }
@@ -10,6 +11,9 @@ pub(super) fn deliver(title: &str, body: &str, sound_seconds: u8, sound: &AlertS
         .appname("OziClock")
         .show()
     {
+        diagnostics::record(&format!("native-notification-failed error={error}"));
         eprintln!("Native notification unavailable: {error}");
+    } else {
+        diagnostics::record("native-notification-requested");
     }
 }

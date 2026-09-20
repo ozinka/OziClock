@@ -33,9 +33,11 @@ pub(super) fn open_settings_window(
     );
 }
 
+const SETTINGS_WINDOW_WIDTH: f64 = 710.0;
+const SETTINGS_WINDOW_HEIGHT: f64 = 672.0;
+
 pub(super) fn restore_settings_window_size(window: &SettingsWindow, settings: &AppSettings) {
-    let width = settings.settings_window_width.max(710.0);
-    let height = settings.settings_window_height.max(700.0);
+    let (width, height) = settings_window_size(settings.settings_window_height);
     window.set_saved_window_width(width as f32);
     window.set_saved_window_height(height as f32);
     let _ = window.window().with_winit_window(|native| {
@@ -52,11 +54,16 @@ pub(super) fn persist_settings_window_size(window: &SettingsWindow, settings: &m
     let _ = window.window().with_winit_window(|native| {
         let scale_factor = native.scale_factor();
         let size = native.inner_size();
-        settings.settings_window_width = size.width as f64 / scale_factor;
-        settings.settings_window_height = size.height as f64 / scale_factor;
-        window.set_saved_window_width(settings.settings_window_width as f32);
-        window.set_saved_window_height(settings.settings_window_height as f32);
+        let (width, height) = settings_window_size(size.height as f64 / scale_factor);
+        settings.settings_window_width = width;
+        settings.settings_window_height = height;
+        window.set_saved_window_width(width as f32);
+        window.set_saved_window_height(height as f32);
     });
+}
+
+fn settings_window_size(height: f64) -> (f64, f64) {
+    (SETTINGS_WINDOW_WIDTH, height.max(SETTINGS_WINDOW_HEIGHT))
 }
 
 pub(super) fn main_clock_index(clocks: &[ClockSettings]) -> usize {
@@ -334,5 +341,11 @@ mod tests {
     #[test]
     fn unmatched_query_returns_no_results() {
         assert!(filter_time_zone_options(&options(), "not-a-real-time-zone").is_empty());
+    }
+
+    #[test]
+    fn ui_09_settings_window_width_is_fixed_and_height_has_a_safe_minimum() {
+        assert_eq!(settings_window_size(632.0), (710.0, 672.0));
+        assert_eq!(settings_window_size(860.0), (710.0, 860.0));
     }
 }

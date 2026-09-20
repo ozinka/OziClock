@@ -5,6 +5,7 @@ mod calendar_bindings;
 mod clock_refresh;
 mod colors;
 mod delivery_feedback;
+mod diagnostics;
 mod launch_at_login;
 mod planner_alarm_bindings;
 mod planner_date_picker_bindings;
@@ -67,6 +68,7 @@ use slint::{Model, ModelRc, Timer, VecModel};
 use windows_sys::Win32::Graphics::Gdi::{GetMonitorInfoW, MONITORINFO};
 
 pub(crate) fn run() -> Result<(), slint::PlatformError> {
+    diagnostics::initialize();
     let alert_sound = alert_sound::AlertSound::new();
     let mut settings = oziclock_storage::load_or_initialize().map_err(|error| {
         slint::PlatformError::Other(format!("could not load OziClock settings: {error}"))
@@ -1567,6 +1569,16 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let timer_attention_for_shutdown = timer_attention_window.as_weak();
     let reminder_attention_for_shutdown = reminder_attention_window.as_weak();
     window.window().on_winit_window_event(move |_, event| {
+        match event {
+            WindowEvent::Focused(focused) => {
+                diagnostics::record(&format!("main-window-focused={focused}"));
+            }
+            WindowEvent::Occluded(occluded) => {
+                diagnostics::record(&format!("main-window-occluded={occluded}"));
+            }
+            WindowEvent::Destroyed => diagnostics::record("main-window-destroyed"),
+            _ => {}
+        }
         if matches!(event, WindowEvent::Resized(_))
             && ruler_resize_pending_for_events.replace(false)
             && let Some(main_window) = main_window_for_attached_layout.upgrade()
@@ -1615,6 +1627,10 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     #[cfg(target_os = "windows")]
     let _system_tray = create_system_tray(window.as_weak(), shared_settings.borrow().top_most)?;
     window.run()
+}
+
+pub(crate) fn install_diagnostic_panic_hook() {
+    diagnostics::install_panic_hook();
 }
 
 fn save_state_before_exit(

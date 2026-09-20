@@ -141,7 +141,7 @@ Exact geometry, visual effects, Slint layering, and renderer acceptance criteria
 - **UI-04:** Dialogs must remain reachable by keyboard; Escape closes Settings, About, and the context menu, Enter accepts Settings and About, and focus indication must be visible.
 - **UI-05:** Context-menu and mouse shortcuts must have discoverable menu equivalents.
 - **UI-06:** Settings, About, and the custom context menu must take foreground focus above the ruler and slider windows whenever they are shown.
-- **UI-09:** Settings clock deletion opens a dimmed in-window modal centered on both axes. Its fixed 462 × 190 logical-pixel card remains fully within the 710 × 700 minimum Settings window, blocks clicks behind it, and allows explicit Cancel, Remove, or backdrop dismissal. Settings is resizable on Windows, macOS and Linux from a six-logical-pixel border; its width and height persist and restore within its minimum bounds.
+- **UI-09:** Settings clock deletion opens a dimmed in-window modal centered on both axes. Its fixed 462 × 190 logical-pixel card remains fully within the minimum 710 × 672 logical-pixel Settings window, blocks clicks behind it, and allows explicit Cancel, Remove, or backdrop dismissal. Settings has a fixed 710-pixel width and a vertically resizable height of at least 672 pixels; the height persists between launches.
 
 ## Calendar Panel
 

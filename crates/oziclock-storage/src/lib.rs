@@ -96,7 +96,7 @@ fn default_border_color() -> String {
 }
 
 fn default_settings_window_height() -> f64 {
-    632.0
+    672.0
 }
 
 fn default_calendar_light_theme() -> bool {
@@ -334,6 +334,7 @@ mod tests {
         assert_eq!(settings.border_color, "#000000");
         assert_eq!(settings.non_main_dimming, 0.0);
         assert_eq!(settings.alert_sound_duration_seconds, 20);
+        assert_eq!(settings.settings_window_height, 672.0);
     }
 
     #[test]
