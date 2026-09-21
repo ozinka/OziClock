@@ -61,7 +61,14 @@ export struct StopwatchLapData {
     slowest: bool,
 }
 
-component TimeSegmentField inherits Rectangle {
+component TimeSegmentField inherits TouchArea {
+    scroll-event(event) => {
+        if event.delta-y == 0px { return reject; }
+        input.focus();
+        root.selected-field();
+        root.request-adjust(event.delta-y > 0px ? 1 : -1);
+        return accept;
+    }
     in property <length> text-offset: 0px;
     in property <string> label;
     in-out property <string> value;

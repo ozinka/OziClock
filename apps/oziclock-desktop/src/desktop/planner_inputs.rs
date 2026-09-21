@@ -162,9 +162,13 @@ pub(super) fn adjust_timer_part(text: &str, part: i32, direction: i32) -> Option
     } else {
         parse_timer_part(text, part)?
     };
-    Some(
-        (i32::from(value) + direction.signum()).clamp(0, i32::from(timer_part_limit(part)?)) as u16,
-    )
+    let maximum = i32::from(timer_part_limit(part)?);
+    let adjusted = i32::from(value) + direction.signum();
+    Some(if part == 0 {
+        adjusted.clamp(0, maximum) as u16
+    } else {
+        adjusted.rem_euclid(maximum + 1) as u16
+    })
 }
 
 pub(super) fn store_timer_part(settings: &mut AppSettings, part: i32, value: u16) {
@@ -225,13 +229,27 @@ mod tests {
     }
 
     #[test]
-    fn tmr_01_tmr_02_adjustment_uses_current_text_and_stops_at_limits() {
-        assert_eq!(adjust_timer_part("17", 2, 1), Some(18));
+    fn ui_10_time_segments_wrap_in_both_directions() {
+        for (part, maximum) in [(1, 23), (2, 59), (3, 59)] {
+            assert_eq!(adjust_timer_part(&maximum.to_string(), part, 1), Some(0));
+            assert_eq!(adjust_timer_part("0", part, -1), Some(maximum));
+            assert_eq!(adjust_timer_part("17", part, 1), Some(18));
+            assert_eq!(adjust_timer_part("17", part, -1), Some(16));
+            assert_eq!(adjust_timer_part("17", part, 0), Some(17));
+        }
+    }
+
+    #[test]
+    fn tmr_02_days_clamp_and_adjustment_uses_current_valid_text() {
         assert_eq!(adjust_timer_part("0", 0, -1), Some(0));
-        assert_eq!(adjust_timer_part("23", 1, 1), Some(23));
-        assert_eq!(adjust_timer_part("59", 3, 1), Some(59));
+        assert_eq!(adjust_timer_part("999", 0, 1), Some(999));
+        assert_eq!(adjust_timer_part("998", 0, 1), Some(999));
         assert_eq!(adjust_timer_part("", 2, 1), Some(1));
+        assert_eq!(adjust_timer_part("", 2, -1), Some(59));
         assert_eq!(adjust_timer_part("invalid", 2, 1), None);
+        assert_eq!(adjust_timer_part("60", 2, 1), None);
+        assert_eq!(adjust_timer_part("24", 1, -1), None);
+        assert_eq!(adjust_timer_part("0", 4, 1), None);
     }
 
     #[test]
