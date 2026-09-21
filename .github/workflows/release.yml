@@ -116,6 +116,12 @@ jobs:
 
             ### Highlights
 
+            - Independent Planner Light/Dark themes, main-clock or custom accents, and per-type alert colors with a shared color picker.
+            - Mouse-wheel editing and bidirectional wrapping for segmented hours, minutes, and seconds.
+            - Fixed weekday headings and all-day events in Week view, with a smaller bottom inset.
+            - Aligned date-picker rows and drawn calendar icons in Event, Reminder, and Task editors.
+            - Corrected Settings label placement and compact custom Snooze input.
+
             - Time-zone search resets when switching clocks without changing their configured zones.
             - Filtering immediately applies the displayed time zone; an empty result preserves the active zone.
             - Clock names update live in the clock list and tiles while typing.
