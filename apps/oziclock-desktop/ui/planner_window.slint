@@ -292,7 +292,7 @@ export component PlannerWindow inherits Window {
                     }
                 }
                 if root.selected-section == 0 && root.selected-view == 1 : Rectangle { vertical-stretch: 1; border-radius: 8px; background: PlannerPalette.inset; border-width: 1px; border-color: PlannerPalette.border;
-                    HorizontalLayout { x: 12px; y: 8px; width: parent.width - 24px; height: 24px; for label in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]: Text { horizontal-stretch: 1; text: label; color: PlannerPalette.muted; font-size: 11px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } }
+                    HorizontalLayout { x: 12px; y: 8px; width: parent.width - 24px; height: 24px; for label[index] in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]: Text { horizontal-stretch: 1; text: label; color: index < 5 ? PlannerPalette.muted : #d96d74; font-size: 11px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } }
                     for day[index] in root.plan-month-days: Rectangle { private property <length> cell-width: (parent.width - 24px) / 7; private property <length> cell-height: (parent.height - 44px) / 6; x: 12px + Math.mod(index, 7) * self.cell-width; y: 36px + Math.floor(index / 7) * self.cell-height; width: self.cell-width - 3px; height: self.cell-height - 3px; border-radius: 5px; background: day.today ? PlannerPalette.inset : root.selected-plan-date == day.date ? PlannerPalette.selected : PlannerPalette.card; border-width: root.selected-plan-date == day.date ? 2px : 1px; border-color: root.selected-plan-date == day.date ? root.accent : PlannerPalette.border; opacity: day.in-month ? 1 : 0.45;
                         Text { x: 7px; y: 5px; text: day.label; color: day.today ? root.accent : PlannerPalette.text; font-size: 13px; font-weight: day.today ? 700 : 400; }
                         Text { x: 7px; y: 28px; width: parent.width - 14px; text: day.event-count > 0 ? day.event-count + " events" : ""; color: PlannerPalette.event-color; font-size: 10px; overflow: elide; }
@@ -303,8 +303,8 @@ export component PlannerWindow inherits Window {
                 if root.selected-section == 0 && root.selected-view == 2 : Rectangle { vertical-stretch: 1; border-radius: 8px; background: PlannerPalette.inset; border-width: 1px; border-color: PlannerPalette.border;
                     for month[index] in root.plan-year-months: Rectangle { private property <length> card-width: (parent.width - 34px) / 4; private property <length> card-height: (parent.height - 28px) / 3; x: 10px + Math.mod(index, 4) * (self.card-width + 4px); y: 10px + Math.floor(index / 4) * (self.card-height + 4px); width: self.card-width; height: self.card-height; border-radius: 7px; background: month.current ? PlannerPalette.inset : PlannerPalette.card; border-width: 1px; border-color: month.current ? root.accent : PlannerPalette.border;
                         Text { x: 10px; y: 10px; text: month.label; color: month.current ? root.accent : PlannerPalette.text; font-size: 15px; font-weight: 700; }
-                        Text { x: 10px; y: 40px; text: month.event-count + " events"; color: PlannerPalette.event-color; font-size: 12px; }
-                        Text { x: 10px; y: 60px; text: month.task-count + " tasks"; color: PlannerPalette.task-color; font-size: 12px; }
+                        if month.event-count > 0: Text { x: 10px; y: 40px; text: month.event-count + " events"; color: PlannerPalette.event-color; font-size: 12px; }
+                        if month.task-count > 0: Text { x: 10px; y: month.event-count > 0 ? 60px : 40px; text: month.task-count + " tasks"; color: PlannerPalette.task-color; font-size: 12px; }
                         TouchArea { double-clicked => { root.selected-view = 1; root.request-plan-week(month.month + 100); } }
                     }
                 }
