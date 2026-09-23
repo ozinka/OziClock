@@ -1,29 +1,23 @@
 import { Slider } from "std-widgets.slint";
 
 export component TimeSliderPanel inherits Rectangle {
-    in property <int> clock-count: 1;
     in property <[int]> hour-labels;
     in property <float> clock-scale: 1.0;
-    in property <float> corner-radius: 12;
+    in property <length> line-width: 1px;
     in-out property <float> time-step: 0;
     callback request-time-step(float);
-
-    width: (100px * root.clock-count + 1px) * root.clock-scale;
-    height: 69px * root.clock-scale;
 
     surface := Rectangle {
         width: parent.width;
         height: parent.height;
-        border-bottom-left-radius: root.corner-radius * 1px * root.clock-scale;
-        border-bottom-right-radius: root.corner-radius * 1px * root.clock-scale;
         clip: true;
         background: root.border-color;
 
         Rectangle {
-            x: 1px * root.clock-scale;
-            y: 1px * root.clock-scale;
-            width: parent.width - 2px * root.clock-scale;
-            height: parent.height - 2px * root.clock-scale;
+            x: root.line-width;
+            y: root.line-width;
+            width: parent.width - 2 * root.line-width;
+            height: parent.height - 2 * root.line-width;
             background: #383838;
             Slider {
                 x: 5px * root.clock-scale;

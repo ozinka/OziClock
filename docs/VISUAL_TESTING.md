@@ -14,3 +14,29 @@ Compare each capture against the current approved reference in `legacy/dotnet-wp
 ## Automation Boundary
 
 The project does not yet have a deterministic headless Slint screenshot renderer. Do not commit unreviewed images as golden baselines. The CI workflow runs formatting, linting, tests, and release builds on Windows, Linux, and macOS; visual golden-image automation will be added when a stable renderer harness is available.
+
+## Clock Frame Desktop Probe (MODE-06A)
+
+Run `cargo run -p oziclock-desktop --example clock_frame_gallery -- target/clock-frame`
+in a graphical desktop session. This uses the production AppWindow with fixed
+time, colors, and column data, without loading or saving user settings. It exits
+after eleven scenarios and fails on missing edges, opaque outer corners,
+unsnapped geometry, lost text area, or incorrect column-drag mapping. FemtoVG
+snapshots are taken after rendering and before the buffer swap.
+
+The optional second argument multiplies application scale, for example
+`cargo run -p oziclock-desktop --example clock_frame_gallery -- target/clock-frame-125 1.25`.
+Repeat at multipliers 1, 1.25, 1.5, and 2. The scenarios additionally cover 80%
+and 150% application scales, radius 0/12/15.5, one/three clocks, seconds off,
+inactive opacity, and compact/standard/extended modes.
+
+`SLINT_SCALE_FACTOR=2` also exercises high-DPI rendering without changing system
+settings. Fractional environment overrides on a 100% Windows monitor can produce
+a Winit window at the wrong physical size; the probe deliberately rejects that
+capture. Application-scale coverage is not a substitute for testing real 125%
+and 150% monitors, mixed-DPI movement, or macOS native opacity/shadows.
+
+Reviewed Windows references are in `tests/golden/clock-frame/windows/`, with
+capture details in its README. Review text clearance, joins, corners, and ruler
+alignment before replacing a baseline. Pixel assertions supplement that review;
+they do not compare font rasterization across operating systems.

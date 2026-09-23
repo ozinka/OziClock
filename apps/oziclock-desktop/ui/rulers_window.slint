@@ -1,3 +1,5 @@
+import { ClockStripLayout, ClockStripMetrics } from "../../../ui/clock_strip_layout.slint";
+
 export struct RulerColumnData {
     accent: color,
 }
@@ -10,6 +12,7 @@ export component RulersPanel inherits Rectangle {
     in-out property <float> focus-column-position: 0;
     in property <float> focus-progress: 0;
     in property <float> clock-scale: 1.0;
+    in property <ClockStripMetrics> metrics;
     in-out property <bool> lens-dragging: false;
     in-out property <bool> focus-dragging: false;
     in-out property <length> focus-drag-anchor: 0px;
@@ -18,8 +21,8 @@ export component RulersPanel inherits Rectangle {
     callback request-focus-column(int);
     callback request-focus-progress(float);
 
-    width: (100px * root.rulers.length + 1px) * root.clock-scale;
-    height: 463px * root.clock-scale;
+    property <length> focus-left: ClockStripLayout.boundary(root.metrics, root.focus-column-position);
+    property <length> focus-right: ClockStripLayout.boundary(root.metrics, root.focus-column-position + 1);
 
     Rectangle {
         width: parent.width;
@@ -28,8 +31,9 @@ export component RulersPanel inherits Rectangle {
         clip: true;
 
         for ruler[index] in root.rulers: Rectangle {
-            x: (1px + index * 100px) * root.clock-scale;
-            width: 99px * root.clock-scale;
+            property <length> column-end: ClockStripLayout.boundary(root.metrics, index + 1);
+            x: root.metrics.line-width + ClockStripLayout.boundary(root.metrics, index);
+            width: self.column-end - self.x;
             height: parent.height;
             background: ruler.accent;
 
@@ -48,9 +52,9 @@ export component RulersPanel inherits Rectangle {
                 background: #000000;
             }
             for hour[hour-index] in root.label-hours: Text {
-                x: 0px;
+                x: index == 0 ? root.metrics.end-padding : 0px;
                 y: (6px + hour-index * 18px) * root.clock-scale;
-                width: parent.width;
+                width: root.metrics.tile-width;
                 height: 18px * root.clock-scale;
                 text: root.format-label(index, hour);
                 color: #000000;
@@ -63,12 +67,12 @@ export component RulersPanel inherits Rectangle {
             TouchArea { clicked => { root.request-focus-column(index); } }
         }
 
-        Rectangle { x: 0px; y: 0px; width: root.focus-column-position * 100px * root.clock-scale; height: root.focus-progress * 433px * root.clock-scale; background: #00000090; }
-        Rectangle { x: (root.focus-column-position + 1) * 100px * root.clock-scale; y: 0px; width: parent.width; height: root.focus-progress * 433px * root.clock-scale; background: #00000090; }
-        Rectangle { x: 0px; y: root.focus-progress * 433px * root.clock-scale + 30px * root.clock-scale; width: root.focus-column-position * 100px * root.clock-scale; height: parent.height; background: #00000090; }
-        Rectangle { x: (root.focus-column-position + 1) * 100px * root.clock-scale; y: root.focus-progress * 433px * root.clock-scale + 30px * root.clock-scale; width: parent.width; height: parent.height; background: #00000090; }
-        Rectangle { x: root.focus-column-position * 100px * root.clock-scale; y: 0px; width: 2px * root.clock-scale; height: parent.height; background: #800000; }
-        Rectangle { x: (root.focus-column-position + 1) * 100px * root.clock-scale - 2px * root.clock-scale; y: 0px; width: 2px * root.clock-scale; height: parent.height; background: #800000; }
+        Rectangle { x: 0px; y: 0px; width: root.focus-left; height: root.focus-progress * 433px * root.clock-scale; background: #00000090; }
+        Rectangle { x: root.focus-right; y: 0px; width: parent.width - self.x; height: root.focus-progress * 433px * root.clock-scale; background: #00000090; }
+        Rectangle { x: 0px; y: root.focus-progress * 433px * root.clock-scale + 30px * root.clock-scale; width: root.focus-left; height: parent.height; background: #00000090; }
+        Rectangle { x: root.focus-right; y: root.focus-progress * 433px * root.clock-scale + 30px * root.clock-scale; width: parent.width - self.x; height: parent.height; background: #00000090; }
+        Rectangle { x: root.focus-left; y: 0px; width: 2 * root.metrics.line-width; height: parent.height; background: #800000; }
+        Rectangle { x: root.focus-right - 2 * root.metrics.line-width; y: 0px; width: 2 * root.metrics.line-width; height: parent.height; background: #800000; }
         lens := Rectangle {
             x: 0px;
             y: root.focus-progress * 433px * root.clock-scale;
@@ -78,8 +82,9 @@ export component RulersPanel inherits Rectangle {
             property <length> source-center: Math.max(15px * root.clock-scale, Math.min(447px * root.clock-scale, root.focus-progress * 433px * root.clock-scale + 15px * root.clock-scale));
 
             for ruler[index] in root.rulers: Rectangle {
-                x: (1px + index * 100px) * root.clock-scale;
-                width: 99px * root.clock-scale;
+                property <length> column-end: ClockStripLayout.boundary(root.metrics, index + 1);
+                x: root.metrics.line-width + ClockStripLayout.boundary(root.metrics, index);
+                width: self.column-end - self.x;
                 height: parent.height;
                 background: ruler.accent;
 
@@ -98,9 +103,9 @@ export component RulersPanel inherits Rectangle {
                     background: #000000;
                 }
                 for hour[hour-index] in root.label-hours: Text {
-                    x: 0px;
+                    x: index == 0 ? root.metrics.end-padding : 0px;
                     y: ((6px + hour-index * 18px) * root.clock-scale + 9px * root.clock-scale - lens.source-center) * 1.6 + 0.6px * root.clock-scale;
-                    width: parent.width;
+                    width: root.metrics.tile-width;
                     height: 28.8px * root.clock-scale;
                     text: root.format-label(index, hour);
                     color: #000000;
@@ -119,10 +124,18 @@ export component RulersPanel inherits Rectangle {
             Rectangle { x: 0px; y: 0px; width: parent.width; height: 1px; background: #111111; }
             Rectangle { x: 0px; y: parent.height - 1px; width: parent.width; height: 1px; background: #111111; }
         }
+        // Separators keep their configured color through focus dimming and the lens.
+        for ruler[index] in root.rulers: Rectangle {
+            visible: index > 0;
+            x: ClockStripLayout.boundary(root.metrics, index);
+            width: root.metrics.line-width;
+            height: parent.height;
+            background: root.border-color;
+        }
         TouchArea {
-            x: root.focus-column-position * 100px * root.clock-scale;
+            x: root.focus-left;
             y: 0px;
-            width: 100px * root.clock-scale;
+            width: root.focus-right - root.focus-left;
             height: parent.height;
             pointer-event(event) => {
                 if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
@@ -134,7 +147,7 @@ export component RulersPanel inherits Rectangle {
             }
             moved => {
                 if (root.focus-dragging) {
-                    root.focus-column-raw-position = Math.max(0, Math.min(root.rulers.length - 1, (self.mouse-x - root.focus-drag-anchor + root.focus-column-position * 100px * root.clock-scale) / (100px * root.clock-scale)));
+                    root.focus-column-raw-position = ClockStripLayout.position-at(root.metrics, self.mouse-x - root.focus-drag-anchor + root.focus-left);
                     root.focus-column-position = root.focus-column-raw-position - Math.round(root.focus-column-raw-position) < 0.05 && root.focus-column-raw-position - Math.round(root.focus-column-raw-position) > -0.05 ? Math.round(root.focus-column-raw-position) : root.focus-column-raw-position;
                     root.request-focus-column(Math.round(root.focus-column-position));
                 }
