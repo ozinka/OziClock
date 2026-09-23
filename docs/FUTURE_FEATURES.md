@@ -23,6 +23,10 @@ Actionable work, priority, and status are tracked in [BACKLOG.md](BACKLOG.md). W
 
 The approved prototype resolves the initial layout decisions: the calendar is a separately hosted frameless window attached to the whole strip, Month is the initial view, Week and Year are persistent modes, and adjacent-month dates remain visible with quiet styling. Locale-specific weekend definitions remain a possible later enhancement.
 
+### Calendar / Planner Discovery
+
+BL-088 was approved on 2026-09-23. Calendar and Planner keep separate window lifecycles, with Calendar serving as a fast, dismissible date lookup and Planner serving as the persistent working surface. Approved behavior is CAL-11–12 in `REQUIREMENTS.md`; implementation status is in `BACKLOG.md`. No ADR is required because this adds navigation and reuses existing Planner projections without changing architecture.
+
 ### Alarms
 
 - One-time or recurring local-time alarms.

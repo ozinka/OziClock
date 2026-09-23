@@ -261,52 +261,39 @@ the export or backup folders. Enabling encryption migrates a validated plaintext
 document only after creating a recovery backup and confirming that future
 archives will require the password.
 
-### Custom location and multi-device sync
+### Sync profile and multi-device synchronization
 
-A user may choose a custom folder, including a folder managed by the installed
-Google Drive or OneDrive desktop client. It has two explicit modes. **Backup
-export** writes complete Planner archives atomically to timestamped files for
-manual transfer and recovery. **Folder sync** is the initial multi-device mode:
-it uses that same provider-managed folder but never treats one shared JSON file
-as the live database.
+ADR 0005 and SET-11 define the first multi-device slice. A user chooses a
+folder managed by an installed Google Drive, OneDrive, Dropbox, or equivalent
+desktop client. OziClock creates one versioned `oziclock-sync.json` Sync
+profile there. It is a portable profile, not a copy of a device's complete
+`settings.json`: it contains only the user-selected Planner data, Clocks and
+Appearance groups. Each device retains its full local application document and
+a local-only `sync-state.json` holding its profile path, selected groups, last
+common revision and unresolved conflicts.
 
-Folder sync writes immutable, atomically-created encrypted-or-plain change
-records named by device ID and operation ID. Each device applies unseen records
-idempotently to its local Planner state, merges them by entity version and
-tombstone rules, then creates its own next record. Concurrent devices therefore
-add distinct files instead of overwriting a shared document; no cross-computer
-filesystem lock is required. The sync client may deliver records late, so
-OziClock scans on startup, after local changes, periodically, and through
-`Sync now`. Its UI distinguishes local save, folder scan, and the sync client's
-last observed remote change; it never promises instant delivery.
+The interface offers continuous bidirectional synchronization and previewed
+one-time Send to profile and Receive from profile actions. A device only reads
+or writes groups it enabled. It preserves unselected groups already in the
+profile so a Mac synchronizing Planner data and a Windows PC synchronizing
+Clocks do not erase each other's data. Local saves, scheduling, alert delivery
+and offline operation never wait for a profile read or write.
 
-Checkpoint compaction is a later optimization and may not remove immutable
-records until every known device has acknowledged them. Local recovery backups
-remain a separate rolling set and are never used as merge input.
+The profile carries stable entity IDs, per-field revisions and deletion
+tombstones. From the stored common revision, OziClock merges independent
+entities and independent field changes. Concurrent edits to the same field,
+and a delete competing with an edit, create a visible conflict with choices to
+keep the local value, keep the profile value, or retain both where that makes
+sense. A deletion stays tombstoned until every known participating device has
+observed it. Invalid, unavailable, or conflicting provider files do not alter
+the last valid local state and leave a recoverable sync status.
 
-Direct provider synchronization is a later opt-in feature behind the same
-`SyncStore` port. It uses an authenticated, app-owned remote document and a
-provider revision token, rather than assuming a local synchronized folder is a
-database. The local application document remains available offline and is the
-only store the scheduler reads while running.
-
-Each Planner entity has a stable ID, device ID, modification version, and a
-deletion tombstone. On sync the adapter reads the current remote revision,
-merges independently changed entities, and writes only if the remote revision
-is unchanged. On a competing write it reads again, merges, and retries. This
-avoids lost updates without relying on filesystem locks, which cloud-sync
-clients cannot make reliable across computers. Identical IDs merge by the most
-recent explicit field change; an irreconcilable concurrent edit is retained as
-a visible conflict copy for user review. Deletes win only when they are newer
-than the edited entity; tombstones are retained until every known device has
-acknowledged them.
-
-The first folder-sync slice provides `Sync now`, visible status, conflict
-review, and periodic folder scans. Direct OAuth provider sync, shared/team
-planners, and arbitrary editing of generated sync files are later work.
-Authentication tokens for that later direct-provider mode belong in the
-operating-system credential store, never in the Planner archive or settings
-JSON.
+The profile remains plain versioned JSON in the first slice so it is inspectable
+and simple to back up. Optional encrypted Planner storage must preserve the
+same profile synchronization guarantees. Direct provider synchronization is a
+later opt-in adapter using authenticated provider APIs and revision tokens; its
+credentials belong in the operating-system credential store, never in the
+profile or local settings JSON.
 
 ## Notification Policy
 
