@@ -30,7 +30,7 @@ Priorities describe sequencing, not severity:
 
 | ID | Priority | Status | Area | Item | Next step |
 | --- | --- | --- | --- | --- | --- |
-| BL-087 | P1 | In Progress | Clock outline | Unify the rounded outline and preserve edge-clock content | WIN-11, WIN-15, WIN-16, MODE-06A: implemented shared Slint frame, snapped geometry and outer-end padding; narrow FemtoVG capsule fix in ADR 0005. Windows debug and 55 rendering scenarios checked. macOS, real fractional-DPI monitors and final user visual acceptance remain pending. |
+| BL-087 | P1 | In Progress | Clock outline | Unify the rounded outline and preserve edge-clock content | WIN-11, WIN-15, WIN-16, MODE-06A: implemented shared Slint frame, snapped geometry and quarter-radius outer padding; narrow FemtoVG capsule fix in ADR 0005. Windows debug and 55 rendering scenarios checked; user accepted the Windows appearance. macOS and real fractional-DPI monitors remain pending. |
 | BL-086 | P2 | In Progress | Plan Week layout | Keep weekday headings and all-day events visible while scrolling | PLN-09 and EVT-03: move weekday headings and all-day events outside the timeline viewport, align their columns, and derive scroll height from 24 fixed-height hours plus an 18-pixel bottom inset. Preserve event interactions, hour selection and current-time positions. Formatting, Clippy, all 93 workspace tests and documentation checks pass; visually verify fixed headings/all-day events, timed-item alignment, resize behavior and the reduced bottom inset in the debug build. |
 | BL-085 | P2 | In Progress | Planner date picker | Align calendar dates and replace missing calendar glyphs | REM-11: use a whole row index for the shared six-week grid and center dates under weekday headings; reuse the drawn Plan calendar icon in all Reminder/Task/Event date buttons. Other Calendar and Plan grids already use whole row indices. Formatting, Clippy, all 93 workspace tests (including the shared date-picker model) and documentation checks pass. Visual recheck of six aligned rows and calendar icons in Event/Reminder/Task editors remains pending. |
 | BL-084 | P2 | In Progress | Planner time editors | Add mouse-wheel adjustment and cyclic time segments | UI-10, ALM-01, TMR-01–02: shared Alarm/Timer/Reminder segments accept wheel input; hours wrap 23 ↔ 0 and minutes/seconds wrap 59 ↔ 0 across wheel, keyboard and buttons, without carrying. Days remain bounded. Focused boundary tests, formatting, Clippy, all 93 workspace tests and documentation checks pass. macOS visual/runtime verification of wheel targeting, direct entry, Tab and arrow buttons remains pending. |
@@ -99,10 +99,22 @@ Priorities describe sequencing, not severity:
 
 ## BL-087 Implementation and Verification — 2026-09-24
 
+Padding refinement: the user accepted the Windows frame behavior and requested
+one quarter of the previous outer padding, still proportional to radius. At
+100% scale this gives 0/2/4 pixels per end for radii 0/8/15.5. The radius and
+outline thickness remain unchanged. The refinement passed formatting, Clippy,
+93 unit tests and all 55 rendering scenarios. Reference images were refreshed
+after reviewing edge-digit clearance and ruler alignment; the rebuilt Windows
+debug application was launched and visually inspected.
+
+The user then verified and accepted the reduced padding on Windows and requested
+release 2.2.1-beta.11. The existing tag-triggered workflow builds and publishes the
+beta; macOS and native fractional-DPI acceptance remain open.
+
 The user approved trying the shared-frame design on 2026-09-23. MODE-06A defines
 the selected thickness and padding policy. `ClockFrame` now owns the Slint border
 and rounded child clipping; shared metrics align clock, ruler, lens, slider and
-native window sizing. Both outer ends gain radius-sized padding without reducing
+native window sizing. Both outer ends gain quarter-radius padding without reducing
 the original text area. The former last-tile expansion and redundant slider
 rounding are removed.
 
@@ -111,7 +123,7 @@ rounding are removed.
 - Rejected experiments: a border-colored background alone did not repair the notch; software rendering failed frame/transparency checks. Skia's matching static-CRT archive returned 404, while source compilation required additional LLVM tools; a dynamic-CRT comparison build was not adopted. No renderer or portable-packaging switch was made.
 - Passed on Windows: formatting, workspace Clippy with warnings denied, 93 unit tests (one hardware-audio test ignored), desktop debug build, and 55 deterministic AppWindow rendering scenarios. The gallery checks physical window size, shared boundaries, preserved text width, drag inversion, all four border midpoints and antialiased transparent corners. Coverage: eleven cases at application-scale multipliers 1/1.25/1.5/2 and eleven at display-scale override 2. Reviewed references, including the failing pre-patch capsule, are in `tests/golden/clock-frame/windows/`.
 - The debug application was launched and its ordinary compact/standard modes, extended rulers and mode transitions were visually inspected. Real 125%/150% display DPI and monitor transitions remain unverified: fractional `SLINT_SCALE_FACTOR` overrides on the local 100% monitor can produce incorrect native sizes, which the gallery rejects. Application-scale coverage is not a substitute for native DPI integration.
-- Remaining acceptance: user review of the wider outer ends; macOS matched-settings screenshots with native opacity/shadow at full and inactive opacity; real fractional-DPI Windows monitors and mixed-DPI movement. Linux remains deferred as requested. Keep this item open until the relevant platform evidence is collected.
+- Remaining acceptance: macOS matched-settings screenshots with native opacity/shadow at full and inactive opacity; real fractional-DPI Windows monitors and mixed-DPI movement. The user accepted the reduced end padding on Windows. Linux remains deferred as requested. Keep this item open until the relevant platform evidence is collected.
 
 References: [Slint Rectangle](https://docs.slint.dev/latest/docs/slint/reference/elements/rectangle/), [logical and physical units](https://docs.slint.dev/latest/docs/slint/guide/language/coding/positioning-and-layouts/), and [renderer tradeoffs](https://docs.slint.dev/latest/docs/slint/guide/backends-and-renderers/backends_and_renderers/). Implementation observations above were checked against locally resolved Slint 1.17.1 sources.
 

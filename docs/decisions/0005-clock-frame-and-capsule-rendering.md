@@ -21,7 +21,9 @@ zero-length straight edges between adjacent Bezier curves.
 
 Use one `ClockFrame` with Slint border and rounded child clipping. Share snapped
 column metrics and boundary mapping between clocks, rulers, lens, and native
-window sizing. Add padding only at the two outer ends. Do not calculate separate
+window sizing. Add padding only at the two outer ends: one quarter of the scaled
+radius, rounded up to a physical pixel, following the user's Windows visual review.
+Do not calculate separate
 inner radii, layer edge masks, or reduce the requested maximum radius.
 
 Carry a narrowly patched Slint FemtoVG renderer alongside the existing patched

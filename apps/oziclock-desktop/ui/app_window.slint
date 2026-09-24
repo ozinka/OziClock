@@ -53,7 +53,7 @@ export component AppWindow inherits Window {
         count: root.clocks.length,
         tile-width: Math.round(99px * root.clock-scale / 1phx) * 1phx,
         line-width: Math.max(1, Math.round(1px * root.clock-scale / 1phx)) * 1phx,
-        end-padding: Math.ceil(root.corner-radius * 1px * root.clock-scale / 1phx) * 1phx,
+        end-padding: Math.ceil(root.corner-radius * 0.25px * root.clock-scale / 1phx) * 1phx,
     };
     pure callback format-label(int, int) -> string;
     callback request-focus-column(int);
