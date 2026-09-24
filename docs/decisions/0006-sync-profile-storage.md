@@ -1,4 +1,4 @@
-# ADR 0005: Versioned Sync Profile in a Provider-Managed Folder
+# ADR 0006: Versioned Sync Profile in a Provider-Managed Folder
 
 - Status: Accepted
 - Date: 2026-09-23

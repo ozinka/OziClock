@@ -1,6 +1,6 @@
 use super::{
     AppSettings, AppWindow, CalendarDate, CalendarState, CalendarWindow, calendar_local_now,
-    refresh_calendar_window, update_clock_tiles,
+    refresh_calendar_items, refresh_calendar_window, update_clock_tiles,
 };
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use slint::{ComponentHandle, Timer, TimerMode};
@@ -41,6 +41,7 @@ pub(super) fn schedule_clock_refresh(
                     .expect("current local date is valid");
                 let state = calendar_state_for_callback.borrow();
                 refresh_calendar_window(&calendar, &state, today, now);
+                refresh_calendar_items(&calendar, &state, today, &settings);
             }
             schedule_clock_refresh(
                 timer_for_callback.clone(),

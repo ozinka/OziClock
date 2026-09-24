@@ -263,7 +263,7 @@ archives will require the password.
 
 ### Sync profile and multi-device synchronization
 
-ADR 0005 and SET-11 define the first multi-device slice. A user chooses a
+ADR 0006 and SET-11 define the first multi-device slice. A user chooses a
 folder managed by an installed Google Drive, OneDrive, Dropbox, or equivalent
 desktop client. OziClock creates one versioned `oziclock-sync.json` Sync
 profile there. It is a portable profile, not a copy of a device's complete

@@ -140,6 +140,62 @@ pub(super) fn wire_plan_bindings(
         }
     });
 
+    let planner_for_calendar_date = planner_window.as_weak();
+    let settings_for_calendar_date = shared_settings.clone();
+    let days_for_calendar_date = day_model.clone();
+    let tasks_for_calendar_date = task_model.clone();
+    let reminders_for_calendar_date = reminder_model.clone();
+    let events_for_calendar_date = event_model.clone();
+    let all_day_events_for_calendar_date = all_day_event_model.clone();
+    let month_for_calendar_date = month_model.clone();
+    let year_for_calendar_date = year_model.clone();
+    let start_for_calendar_date = week_start.clone();
+    planner_window.on_request_show_plan_date(move |date_id| {
+        let Ok(date) = NaiveDate::parse_from_str(date_id.as_str(), "%Y-%m-%d") else {
+            return;
+        };
+        let Some(planner) = planner_for_calendar_date.upgrade() else {
+            return;
+        };
+        planner.set_selected_section(0);
+        if planner.get_selected_view() == 2 {
+            planner.set_selected_view(1);
+        }
+        let view = planner.get_selected_view();
+        let anchor = if view == 0 {
+            date - chrono::Duration::days(date.weekday().num_days_from_monday().into())
+        } else {
+            date.with_day(1).expect("month has a first day")
+        };
+        *start_for_calendar_date.borrow_mut() = anchor;
+        planner.set_selected_plan_date(date.format("%Y-%m-%d").to_string().into());
+        planner.set_selected_plan_hour(-1);
+        planner.set_selected_plan_reminder("".into());
+        planner.set_selected_plan_event("".into());
+        planner.set_selected_plan_task("".into());
+        planner.set_selected_plan_title("".into());
+        planner.set_selected_plan_time("".into());
+        if view == 0 {
+            refresh_plan_week(
+                &planner,
+                &days_for_calendar_date,
+                &tasks_for_calendar_date,
+                &reminders_for_calendar_date,
+                (&events_for_calendar_date, &all_day_events_for_calendar_date),
+                &settings_for_calendar_date.borrow(),
+                anchor,
+            );
+        } else {
+            refresh_plan_overview(
+                &planner,
+                &month_for_calendar_date,
+                &year_for_calendar_date,
+                &settings_for_calendar_date.borrow(),
+                anchor,
+            );
+        }
+    });
+
     schedule_plan_refresh(
         Rc::new(Timer::default()),
         planner_window.as_weak(),

@@ -142,6 +142,7 @@ export component PlannerWindow inherits Window {
     in property <int> current-plan-minute: -1;
     in property <string> current-plan-time: "";
     in-out property <length> plan-scroll-y: 0px;
+    callback request-show-plan-date(string);
     private property <length> plan-header-height: 68px;
     private property <length> plan-timeline-height: 24 * 60px;
     private property <length> plan-bottom-inset: 18px;

@@ -1,9 +1,47 @@
-use super::{CalendarDayData, CalendarMonthData, CalendarWindow};
-use chrono::{Datelike, NaiveDate, Timelike};
+use super::planner_models::{plan_event_rows, plan_task_rows};
+use super::{CalendarAgendaData, CalendarDayData, CalendarMonthData, CalendarWindow};
+use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Timelike};
+use chrono_tz::Tz;
 use oziclock_app::calendar::{
     CalendarDate, CalendarDay, month_grid, rolling_week_grid, shift_day, shift_month, shift_year,
 };
+use oziclock_storage::{AlarmSchedule, AppSettings, ReminderRecurrence, ReminderSchedule};
 use slint::{ModelRc, VecModel};
+
+#[derive(Clone, Copy)]
+enum CalendarItemKind {
+    Event,
+    Reminder,
+    Task,
+    Alarm,
+}
+
+impl CalendarItemKind {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Event => "Event",
+            Self::Reminder => "Reminder",
+            Self::Task => "Task",
+            Self::Alarm => "Alarm",
+        }
+    }
+
+    fn index(self) -> usize {
+        match self {
+            Self::Event => 0,
+            Self::Reminder => 1,
+            Self::Task => 2,
+            Self::Alarm => 3,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct CalendarItem {
+    kind: CalendarItemKind,
+    title: String,
+    time: String,
+}
 
 const MONTHS: [&str; 12] = [
     "January",
@@ -201,14 +239,7 @@ pub(super) fn refresh_calendar_window(
             .map(Into::into)
             .collect::<Vec<slint::SharedString>>(),
     )));
-    window.set_days(day_model(
-        month_grid(state.cursor.year, state.cursor.month, state.monday_first),
-        state,
-        today,
-    ));
     let week = rolling_week_grid(state.cursor);
-    window.set_week_days(day_model(week.clone(), state, today));
-    window.set_months(month_model(state, today));
 
     window.set_hour_labels(ModelRc::new(VecModel::from(
         (0..=WEEK_CONTENT_HOURS)
@@ -230,44 +261,272 @@ pub(super) fn refresh_calendar_window(
     }
 }
 
-fn month_model(state: &CalendarState, today: CalendarDate) -> ModelRc<CalendarMonthData> {
+pub(super) fn refresh_calendar_items(
+    window: &CalendarWindow,
+    state: &CalendarState,
+    today: CalendarDate,
+    settings: &AppSettings,
+) {
+    let colors = super::planner_appearance::calendar_indicator_colors(settings);
+    window.set_event_color(colors[0]);
+    window.set_reminder_color(colors[1]);
+    window.set_task_color(colors[2]);
+    window.set_alarm_color(colors[3]);
+    window.set_days(day_model_with_items(
+        month_grid(state.cursor.year, state.cursor.month, state.monday_first),
+        state,
+        today,
+        settings,
+    ));
+    window.set_week_days(day_model_with_items(
+        rolling_week_grid(state.cursor),
+        state,
+        today,
+        settings,
+    ));
+    window.set_months(month_model_with_items(state, today, settings));
+    let selected_items = calendar_items_for_date(settings, state.selected);
+    window.set_selected_items(ModelRc::new(VecModel::from(
+        selected_items
+            .into_iter()
+            .map(|item| CalendarAgendaData {
+                kind: item.kind.label().into(),
+                title: item.title.into(),
+                time: item.time.into(),
+                color: colors[item.kind.index()],
+            })
+            .collect::<Vec<_>>(),
+    )));
+}
+
+fn month_model_with_items(
+    state: &CalendarState,
+    today: CalendarDate,
+    settings: &AppSettings,
+) -> ModelRc<CalendarMonthData> {
     ModelRc::new(VecModel::from(
         (1..=12)
             .map(|month| CalendarMonthData {
                 name: MONTHS[month as usize - 1].into(),
                 current: today.year == state.cursor.year && today.month == month,
-                days: day_model(
+                days: day_model_with_items(
                     month_grid(state.cursor.year, month, state.monday_first),
                     state,
                     today,
+                    settings,
                 ),
             })
             .collect::<Vec<_>>(),
     ))
 }
 
-fn day_model(
+fn day_model_with_items(
     days: Vec<CalendarDay>,
     state: &CalendarState,
     today: CalendarDate,
+    settings: &AppSettings,
 ) -> ModelRc<CalendarDayData> {
     ModelRc::new(VecModel::from(
         days.into_iter()
-            .map(|day| CalendarDayData {
-                text: day.date.day.to_string().into(),
-                date_id: format!(
-                    "{:04}-{:02}-{:02}",
-                    day.date.year, day.date.month, day.date.day
-                )
-                .into(),
-                weekend: day.weekend,
-                muted: day.outside_month,
-                selected: day.date == state.selected,
-                today: day.date == today,
-                focused: day.date == state.week_focus,
+            .map(|day| {
+                let items = calendar_items_for_date(settings, day.date);
+                CalendarDayData {
+                    text: day.date.day.to_string().into(),
+                    date_id: format!(
+                        "{:04}-{:02}-{:02}",
+                        day.date.year, day.date.month, day.date.day
+                    )
+                    .into(),
+                    weekend: day.weekend,
+                    muted: day.outside_month,
+                    selected: day.date == state.selected,
+                    today: day.date == today,
+                    focused: day.date == state.week_focus,
+                    has_event: items
+                        .iter()
+                        .any(|item| matches!(item.kind, CalendarItemKind::Event)),
+                    has_reminder: items
+                        .iter()
+                        .any(|item| matches!(item.kind, CalendarItemKind::Reminder)),
+                    has_task: items
+                        .iter()
+                        .any(|item| matches!(item.kind, CalendarItemKind::Task)),
+                    has_alarm: items
+                        .iter()
+                        .any(|item| matches!(item.kind, CalendarItemKind::Alarm)),
+                }
             })
             .collect::<Vec<_>>(),
     ))
+}
+
+fn calendar_items_for_date(settings: &AppSettings, date: CalendarDate) -> Vec<CalendarItem> {
+    let target =
+        NaiveDate::from_ymd_opt(date.year, date.month, date.day).expect("calendar date is valid");
+    let week_start =
+        target - chrono::Duration::days(target.weekday().num_days_from_monday().into());
+    let target_id = target.format("%Y-%m-%d").to_string();
+    let (timed_events, all_day_events) = plan_event_rows(settings, week_start);
+    let mut items = timed_events
+        .into_iter()
+        .filter(|item| item.date.as_str() == target_id)
+        .map(|item| CalendarItem {
+            kind: CalendarItemKind::Event,
+            title: item.title.to_string(),
+            time: item.time.to_string(),
+        })
+        .collect::<Vec<_>>();
+    items.extend(
+        all_day_events
+            .into_iter()
+            .filter(|item| item.date.as_str() == target_id)
+            .map(|item| CalendarItem {
+                kind: CalendarItemKind::Event,
+                title: item.title.to_string(),
+                time: "All day".into(),
+            }),
+    );
+    items.extend(
+        plan_task_rows(settings, week_start)
+            .into_iter()
+            .filter(|item| item.date.as_str() == target_id)
+            .map(|item| CalendarItem {
+                kind: CalendarItemKind::Task,
+                title: item.title.to_string(),
+                time: item.time.to_string(),
+            }),
+    );
+    let zone = super::main_time_zone(settings)
+        .parse::<Tz>()
+        .unwrap_or(chrono_tz::UTC);
+    for reminder in settings
+        .planner
+        .reminders
+        .iter()
+        .filter(|item| item.enabled)
+    {
+        if let Some(time) = reminder_time_for_date(&reminder.schedule, target, zone) {
+            items.push(CalendarItem {
+                kind: CalendarItemKind::Reminder,
+                title: reminder.title.clone(),
+                time,
+            });
+        }
+    }
+    for alarm in settings.planner.alarms.iter().filter(|item| item.enabled) {
+        let matches = match &alarm.schedule {
+            AlarmSchedule::Once {
+                local_date,
+                local_time,
+            } => {
+                oziclock_app::reminder_time::resolve_local(local_date, local_time, &alarm.time_zone)
+                    .is_some_and(|instant| instant.with_timezone(&zone).date_naive() == target)
+            }
+            AlarmSchedule::Weekly {
+                local_time,
+                weekdays,
+            } => {
+                let alarm_zone = alarm.time_zone.parse::<Tz>().unwrap_or(chrono_tz::UTC);
+                let source = zone
+                    .from_local_datetime(&target.and_hms_opt(12, 0, 0).expect("valid noon"))
+                    .single()
+                    .map(|item| item.with_timezone(&alarm_zone));
+                source.is_some_and(|item| {
+                    weekdays.contains(&(item.weekday().num_days_from_monday() as u8))
+                        && oziclock_app::reminder_time::resolve_local(
+                            &item.date_naive().format("%Y-%m-%d").to_string(),
+                            local_time,
+                            &alarm.time_zone,
+                        )
+                        .is_some_and(|instant| instant.with_timezone(&zone).date_naive() == target)
+                })
+            }
+        };
+        if matches {
+            let time = match &alarm.schedule {
+                AlarmSchedule::Once { local_time, .. }
+                | AlarmSchedule::Weekly { local_time, .. } => local_time.clone(),
+            };
+            items.push(CalendarItem {
+                kind: CalendarItemKind::Alarm,
+                title: alarm.title.clone(),
+                time,
+            });
+        }
+    }
+    items.sort_by(|left, right| {
+        left.time
+            .cmp(&right.time)
+            .then(left.title.cmp(&right.title))
+    });
+    items
+}
+
+fn reminder_time_for_date(
+    schedule: &ReminderSchedule,
+    target: NaiveDate,
+    zone: Tz,
+) -> Option<String> {
+    match schedule {
+        ReminderSchedule::Absolute { at_utc, .. } => DateTime::parse_from_rfc3339(at_utc)
+            .ok()
+            .map(|value| value.with_timezone(&zone))
+            .filter(|value| value.date_naive() == target)
+            .map(|value| value.format("%H:%M").to_string()),
+        ReminderSchedule::ImportantDate { month, day } => (target.month() == u32::from(*month)
+            && target.day() == u32::from(*day))
+        .then(|| "All day".into()),
+        ReminderSchedule::Recurring {
+            recurrence,
+            local_time,
+            source_time_zone,
+            next_at_utc,
+        } => {
+            let source_zone = source_time_zone.parse::<Tz>().ok()?;
+            let anchor = DateTime::parse_from_rfc3339(next_at_utc)
+                .ok()?
+                .with_timezone(&source_zone)
+                .date_naive();
+            (-1..=1).find_map(|offset| {
+                let source_date = target.checked_add_signed(chrono::Duration::days(offset))?;
+                (source_date >= anchor && recurrence_matches_date(recurrence, source_date))
+                    .then_some(())?;
+                let due = oziclock_app::reminder_time::resolve_local(
+                    &source_date.format("%Y-%m-%d").to_string(),
+                    local_time,
+                    source_time_zone,
+                )?
+                .with_timezone(&zone);
+                (due.date_naive() == target).then(|| due.format("%H:%M").to_string())
+            })
+        }
+    }
+}
+
+fn recurrence_matches_date(recurrence: &ReminderRecurrence, date: NaiveDate) -> bool {
+    match recurrence {
+        ReminderRecurrence::Daily => true,
+        ReminderRecurrence::Weekly { weekdays } => {
+            weekdays.contains(&(date.weekday().num_days_from_monday() as u8))
+        }
+        ReminderRecurrence::Monthly { day } => {
+            date.day() == u32::from(*day).min(days_in_month(date.year(), date.month()))
+        }
+        ReminderRecurrence::Yearly { month, day } => {
+            date.month() == u32::from(*month)
+                && date.day() == u32::from(*day).min(days_in_month(date.year(), u32::from(*month)))
+        }
+    }
+}
+
+fn days_in_month(year: i32, month: u32) -> u32 {
+    let next = if month == 12 {
+        NaiveDate::from_ymd_opt(year + 1, 1, 1)
+    } else {
+        NaiveDate::from_ymd_opt(year, month + 1, 1)
+    }
+    .expect("valid next month");
+    (next - chrono::Duration::days(1)).day()
 }
 
 fn week_start(date: CalendarDate) -> CalendarDate {
@@ -313,5 +572,28 @@ mod tests {
         assert!(shifted);
         assert_eq!(state.cursor, CalendarDate::new(2026, 8, 31).unwrap());
         assert_eq!(adjusted, midnight_scroll + 24.0 * WEEK_HOUR_HEIGHT);
+    }
+
+    #[test]
+    fn cal_11_recurring_reminder_marks_its_local_calendar_day() {
+        let schedule = ReminderSchedule::Recurring {
+            recurrence: ReminderRecurrence::Weekly { weekdays: vec![0] },
+            local_time: "09:30".into(),
+            source_time_zone: "Europe/Kyiv".into(),
+            next_at_utc: "2026-09-07T06:30:00Z".into(),
+        };
+        let monday = NaiveDate::from_ymd_opt(2026, 9, 14).unwrap();
+        assert_eq!(
+            reminder_time_for_date(&schedule, monday, chrono_tz::Europe::Kyiv),
+            Some("09:30".into())
+        );
+        assert_eq!(
+            reminder_time_for_date(
+                &schedule,
+                monday + chrono::Duration::days(1),
+                chrono_tz::Europe::Kyiv
+            ),
+            None
+        );
     }
 }

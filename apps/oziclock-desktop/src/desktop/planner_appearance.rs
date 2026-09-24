@@ -26,6 +26,12 @@ fn type_colors(appearance: &PlannerAppearance, accent: slint::Color) -> [slint::
     ]
 }
 
+pub(super) fn calendar_indicator_colors(settings: &AppSettings) -> [slint::Color; 4] {
+    let accent = resolved_accent(&settings.planner_appearance, calendar_accent(settings));
+    let colors = type_colors(&settings.planner_appearance, accent);
+    [colors[3], colors[2], colors[4], colors[0]]
+}
+
 pub(super) fn refresh(planner: &PlannerWindow, settings: &AppSettings) {
     let accent = resolved_accent(&settings.planner_appearance, calendar_accent(settings));
     let colors = type_colors(&settings.planner_appearance, accent);
