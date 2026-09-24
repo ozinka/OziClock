@@ -84,6 +84,10 @@ Implement dimensions and colors as named design tokens rather than scattering co
 
 The desktop adapter owns one native `AppWindow` for the complete clock construction. Its shell composes reusable clock, ruler, and slider panels and resizes one clipped viewport for compact, standard, and extended modes. The ruler and slider components exchange a typed selected-time value rather than manipulating each other's widgets.
 
+### Shared Frame and Column Geometry
+
+MODE-06A refines the legacy width contract. `ClockFrame` uses Slint's border and child clipping; the slider does not round the same corners again. `ClockStripMetrics` contains the snapped 99-pixel content width, shared line thickness, clock count, and quarter-radius padding at both outer ends. These lengths are resolved against the current display scale in `AppWindow`. `ClockStripLayout` supplies the same column boundaries to clocks, rulers, the magnified lens, and the draggable column focus. The wider end columns retain the original text area; intermediate columns receive no extra padding. The window's total width includes both end fields, both outer borders, and the internal separators. Native resize requests read these Slint dimensions instead of repeating the old `count * 100 + 1` width calculation in Rust.
+
 ## Renderer Decision
 
 Prototype with the Slint **Winit + FemtoVG** renderer. It supports transforms required for vertical magnification and should provide smooth GPU-accelerated dragging. Skia is the fallback if text quality or platform compatibility is better in testing.

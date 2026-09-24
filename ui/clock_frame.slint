@@ -1,0 +1,6 @@
+export component ClockFrame inherits Rectangle {
+    // Slint clips children to the inner border, including its rounded corners.
+    background: self.border-color;
+    clip: true;
+    @children
+}

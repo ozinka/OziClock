@@ -1,4 +1,6 @@
 import { ClockTile } from "../../../ui/clock_tile.slint";
+import { ClockFrame } from "../../../ui/clock_frame.slint";
+import { ClockStripLayout, ClockStripMetrics } from "../../../ui/clock_strip_layout.slint";
 import { RulersPanel, RulerColumnData } from "rulers_window.slint";
 import { TimeSliderPanel } from "time_slider_window.slint";
 
@@ -44,7 +46,15 @@ export component AppWindow inherits Window {
     in-out property <float> focus-progress: 0;
     in-out property <float> time-step: 0;
     in-out property <length> menu-x: 0px;
-    property <length> visible-clock-height: 62px - 31px * root.compact-progress;
+    out property <length> clock-viewport-height: Math.round((62px - 31px * root.compact-progress) * root.clock-scale / 1phx) * 1phx;
+    out property <length> ruler-extension-height: Math.round(532px * root.clock-scale / 1phx) * 1phx;
+    property <length> ruler-height: Math.round(463px * root.clock-scale / 1phx) * 1phx;
+    out property <ClockStripMetrics> strip-metrics: {
+        count: root.clocks.length,
+        tile-width: Math.round(99px * root.clock-scale / 1phx) * 1phx,
+        line-width: Math.max(1, Math.round(1px * root.clock-scale / 1phx)) * 1phx,
+        end-padding: Math.ceil(root.corner-radius * 0.25px * root.clock-scale / 1phx) * 1phx,
+    };
     pure callback format-label(int, int) -> string;
     callback request-focus-column(int);
     callback request-focus-progress(float);
@@ -66,8 +76,8 @@ export component AppWindow inherits Window {
     title: product-name;
     no-frame: true;
     always-on-top: root.top-most;
-    property <length> window-width: (100px * root.clocks.length + 1px) * root.clock-scale;
-    property <length> window-height: (root.visible-clock-height + (root.show-rulers ? 532px : 0px)) * root.clock-scale;
+    out property <length> window-width: root.strip-metrics.line-width + ClockStripLayout.boundary(root.strip-metrics, root.clocks.length);
+    property <length> window-height: root.clock-viewport-height + (root.show-rulers ? root.ruler-extension-height : 0px);
     preferred-width: root.window-width;
     preferred-height: root.window-height;
     min-width: root.window-width;
@@ -76,27 +86,29 @@ export component AppWindow inherits Window {
     max-height: root.window-height;
     background: transparent;
 
-    content := Rectangle {
+    content := ClockFrame {
         width: parent.width;
         height: parent.height;
-        background: root.border-color;
+        border-color: root.border-color;
+        border-width: root.strip-metrics.line-width;
         border-radius: root.corner-radius * 1px * root.clock-scale;
-        clip: true;
         opacity: root.native-opacity ? 1 : root.effective-opacity;
 
         clock-strip := Rectangle {
-            y: -31px * root.compact-progress * root.clock-scale;
+            y: root.clock-viewport-height - self.height;
             width: parent.width;
-            height: 62px * root.clock-scale;
+            height: Math.round(62px * root.clock-scale / 1phx) * 1phx;
             background: root.border-color;
 
             for clock[index] in root.clocks: Rectangle {
-                x: (1px + index * 100px) * root.clock-scale;
-                y: 1px * root.clock-scale;
-                width: index == root.clocks.length - 1 ? parent.width - self.x : 99px * root.clock-scale;
-                height: 60px * root.clock-scale;
+                property <length> column-end: ClockStripLayout.boundary(root.strip-metrics, index + 1);
+                x: root.strip-metrics.line-width + ClockStripLayout.boundary(root.strip-metrics, index);
+                y: root.strip-metrics.line-width;
+                width: self.column-end - self.x;
+                height: parent.height - 2 * root.strip-metrics.line-width;
                 ClockTile {
                     width: parent.width;
+                    content-inset: index == 0 ? root.strip-metrics.end-padding : 0px;
                     label: clock.label;
                     month: clock.month;
                     day: clock.day;
@@ -155,7 +167,10 @@ export component AppWindow inherits Window {
         }
 
         RulersPanel {
-            y: root.visible-clock-height * root.clock-scale;
+            y: root.clock-viewport-height;
+            width: parent.width;
+            height: root.ruler-height;
+            metrics: root.strip-metrics;
             visible: root.show-rulers;
             rulers: root.rulers;
             tick-indices: root.tick-indices;
@@ -171,12 +186,13 @@ export component AppWindow inherits Window {
         }
 
         TimeSliderPanel {
-            y: (root.visible-clock-height + 463px) * root.clock-scale;
+            y: root.clock-viewport-height + root.ruler-height;
+            width: parent.width;
+            height: root.ruler-extension-height - root.ruler-height;
+            line-width: root.strip-metrics.line-width;
             visible: root.show-rulers;
-            clock-count: root.clocks.length;
             hour-labels: root.hour-labels;
             clock-scale: root.clock-scale;
-            corner-radius: root.corner-radius;
             border-color: root.border-color;
             time-step <=> root.time-step;
             request-time-step(value) => { root.request-time-step(value); }

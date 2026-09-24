@@ -1,0 +1,23 @@
+// All lengths are snapped once by the window, before adjacent columns share them.
+export struct ClockStripMetrics {
+    count: int,
+    tile-width: length,
+    line-width: length,
+    end-padding: length,
+}
+
+export global ClockStripLayout {
+    // Interpolate boundaries so the column focus can move through the wider ends.
+    public pure function boundary(metrics: ClockStripMetrics, position: float) -> length {
+        return position * (metrics.tile-width + metrics.line-width)
+            + Math.min(position, 1) * metrics.end-padding
+            + Math.max(0, position - metrics.count + 1) * metrics.end-padding;
+    }
+
+    public pure function position-at(metrics: ClockStripMetrics, offset: length) -> float {
+        return Math.max(0, Math.min(metrics.count - 1,
+            offset < metrics.tile-width + metrics.line-width + metrics.end-padding
+                ? offset / (metrics.tile-width + metrics.line-width + metrics.end-padding)
+                : (offset - metrics.end-padding) / (metrics.tile-width + metrics.line-width)));
+    }
+}

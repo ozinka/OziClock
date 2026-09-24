@@ -713,6 +713,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         state.borrow_mut().corner_radius = f64::from(corner_radius);
         if let Some(main_window) = main_window.upgrade() {
             main_window.set_corner_radius(corner_radius);
+            sync_main_window_size(&main_window);
         }
         if let Some(about_window) = about_for_corner_radius
             .borrow()
@@ -1707,7 +1708,7 @@ fn animate_compact_mode_frame(
     let compact_progress = start_progress + (target_progress - start_progress) * eased;
     if let Some(window) = window.upgrade() {
         window.set_compact_progress(compact_progress);
-        set_main_window_height_for_compact_progress(&window, compact_progress);
+        sync_main_window_size(&window);
     }
     if progress < 1.0 {
         Timer::single_shot(Duration::from_millis(16), move || {
@@ -1725,21 +1726,6 @@ fn animate_compact_mode_frame(
     }
 }
 
-fn set_main_window_height_for_compact_progress(window: &AppWindow, compact_progress: f32) {
-    let _ = window.window().with_winit_window(|native| {
-        let logical_clock_height = 62.0 - 31.0 * compact_progress;
-        let logical_height =
-            logical_clock_height + if window.get_show_rulers() { 532.0 } else { 0.0 };
-        let physical_height =
-            (logical_height * window.get_clock_scale() * native.scale_factor() as f32).round()
-                as u32;
-        let _ = native.request_inner_size(PhysicalSize::new(
-            native.inner_size().width,
-            physical_height,
-        ));
-    });
-}
-
 fn sync_main_window_size(window: &AppWindow) {
     resize_main_window(window, window.get_show_rulers());
 }
@@ -1747,17 +1733,15 @@ fn sync_main_window_size(window: &AppWindow) {
 fn resize_main_window(window: &AppWindow, show_rulers: bool) {
     let _ = window.window().with_winit_window(|native| {
         let system_scale = native.scale_factor() as f32;
-        let clock_scale = window.get_clock_scale();
-        let logical_width = 1.0 + 100.0 * window.get_clocks().row_count() as f32;
-        let clock_height = if window.get_compact_mode() {
-            31.0
-        } else {
-            62.0
-        };
-        let logical_height = clock_height + if show_rulers { 532.0 } else { 0.0 };
+        let logical_height = window.get_clock_viewport_height()
+            + if show_rulers {
+                window.get_ruler_extension_height()
+            } else {
+                0.0
+            };
         let _ = native.request_inner_size(PhysicalSize::new(
-            (logical_width * clock_scale * system_scale).round() as u32,
-            (logical_height * clock_scale * system_scale).round() as u32,
+            (window.get_window_width() * system_scale).round() as u32,
+            (logical_height * system_scale).round() as u32,
         ));
     });
 }

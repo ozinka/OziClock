@@ -112,9 +112,13 @@ jobs:
           body: |
             ## OziClock ${{ github.ref_name }}
 
-            This is a beta build for testing the new local-first Planner before the next stable release.
+            This beta includes refined clock framing and the local-first Planner before the next stable release.
 
             ### Highlights
+
+            - A shared rounded clock frame with consistent borders and aligned separators across compact, standard, and ruler modes.
+            - Fixed the missing right edge at maximum rounding with a targeted FemtoVG rendering correction.
+            - Reduced outer padding to one quarter of the corner radius: approximately 4 pixels per side at maximum rounding and 100% scale.
 
             - Independent Planner Light/Dark themes, main-clock or custom accents, and per-type alert colors with a shared color picker.
             - Mouse-wheel editing and bidirectional wrapping for segmented hours, minutes, and seconds.
@@ -138,6 +142,8 @@ jobs:
             - Cross-platform release archives for Windows x64, Linux x64, and macOS Apple Silicon.
 
             Please report beta issues with the operating system, exact steps, and a screenshot when possible.
+
+            Clock-frame changes were visually checked on Windows. macOS appearance and real fractional-DPI monitor transitions still need beta verification.
 
             ### Packaging
 

@@ -6,10 +6,11 @@ members = [
     "crates/oziclock-storage",
 ]
 resolver = "2"
-exclude = ["vendor/winit"]
+exclude = ["vendor/winit", "vendor/i-slint-renderer-femtovg"]
 
 [patch.crates-io]
 winit = { path = "vendor/winit" }
+i-slint-renderer-femtovg = { path = "vendor/i-slint-renderer-femtovg" }
 
 [workspace.package]
 edition = "2024"
