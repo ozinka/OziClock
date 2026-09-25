@@ -1,4 +1,4 @@
-import { PlannerPalette } from "../../../ui/planner_palette.slint";
+import { AppPalette } from "../../../ui/app_palette.slint";
 import { EventAttentionIcon } from "attention_icons.slint";
 
 export component EventAttentionWindow inherits Window {
@@ -13,13 +13,13 @@ export component EventAttentionWindow inherits Window {
     preferred-width: 380px; min-width: 380px; max-width: 380px;
     preferred-height: 126px; min-height: 126px; max-height: 126px;
     background: transparent;
-    Rectangle { width: parent.width; height: parent.height; background: PlannerPalette.surface; border-color: root.accent; border-width: root.pulse ? 3px : 1px; border-radius: 10px;
+    Rectangle { width: parent.width; height: parent.height; background: AppPalette.surface; border-color: root.accent; border-width: root.pulse ? 3px : 1px; border-radius: 10px;
         animate border-width { duration: 450ms; easing: ease-in-out; }
         EventAttentionIcon { x: 18px; y: 14px; accent: root.accent; }
-        Text { x: 80px; y: 15px; width: parent.width - 98px; height: 25px; text: root.event-title; color: PlannerPalette.heading; font-size: 18px; font-weight: 700; overflow: elide; }
+        Text { x: 80px; y: 15px; width: parent.width - 98px; height: 25px; text: root.event-title; color: AppPalette.heading; font-size: 18px; font-weight: 700; overflow: elide; }
         Text { x: 80px; y: 44px; width: parent.width - 98px; height: 22px; text: root.event-time; color: root.accent; font-size: 15px; overflow: elide; }
         Rectangle { x: 18px; y: 78px; width: parent.width - 36px; height: 34px; background: root.accent; border-radius: 6px;
-            Text { width: parent.width; height: parent.height; text: "Dismiss"; color: PlannerPalette.accent-foreground; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+            Text { width: parent.width; height: parent.height; text: "Dismiss"; color: AppPalette.accent-foreground; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
             TouchArea { clicked => { root.request-dismiss(); } }
         }
     }

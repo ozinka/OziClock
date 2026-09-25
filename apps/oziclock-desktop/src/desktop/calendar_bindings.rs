@@ -105,7 +105,6 @@ pub(super) struct CalendarState {
     pub(super) week_focus: CalendarDate,
     pub(super) selected: CalendarDate,
     pub(super) monday_first: bool,
-    pub(super) light_theme: bool,
 }
 
 impl CalendarState {
@@ -116,7 +115,6 @@ impl CalendarState {
             week_focus: today,
             selected: today,
             monday_first: true,
-            light_theme: true,
         }
     }
 
@@ -190,7 +188,6 @@ pub(super) fn refresh_calendar_window(
     local_now: chrono::NaiveDateTime,
 ) {
     window.set_view(state.view.index());
-    window.set_light_theme(state.light_theme);
     window.set_heading(match state.view {
         CalendarView::Year => state.cursor.year.to_string().into(),
         CalendarView::Week => {

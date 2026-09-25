@@ -1,0 +1,34 @@
+import { Palette } from "std-widgets.slint";
+
+export global AppPalette {
+    public function apply-theme() {
+        Palette.color-scheme = light ? ColorScheme.light : ColorScheme.dark;
+    }
+    in-out property <bool> light: true;
+    out property <color> surface: light ? #f5f6f8 : #1a1c21;
+    out property <color> sidebar: light ? #e9ecf0 : #1a1c21;
+    out property <color> card: light ? #ffffff : #25282f;
+    out property <color> inset: light ? #e5e9ef : #1f2227;
+    out property <color> border: light ? #bdc5d0 : #3a3e46;
+    out property <color> text: light ? #242933 : #f1f3f5;
+    out property <color> heading: light ? #17202c : #f1f3f5;
+    out property <color> muted: light ? #5e6775 : #a1a8b3;
+    out property <color> secondary: light ? #465263 : #b9c0cb;
+    out property <color> disabled: light ? #6b7481 : #858d9a;
+    out property <color> selected: light ? #dbe3ed : #30343c;
+    out property <color> primary: #2465c8;
+    out property <color> link: light ? #225da8 : #9bc5ff;
+    out property <color> danger: light ? #ac3543 : #f0969f;
+    out property <color> danger-fill: #ac3543;
+    out property <color> success: light ? #246c42 : #8bd49f;
+    out property <color> positive: light ? #dcefe5 : #263a36;
+    out property <color> negative: light ? #f4dfe1 : #3b2b2e;
+    in-out property <color> accent: #77d7cb;
+    in-out property <color> accent-foreground: #082725;
+    in-out property <color> event-color: #b99655;
+    in-out property <color> event-color-foreground: #082725;
+    in-out property <color> reminder-color: #77d7cb;
+    in-out property <color> reminder-color-foreground: #082725;
+    in-out property <color> task-color: #547d78;
+    in-out property <color> task-color-foreground: #082725;
+}

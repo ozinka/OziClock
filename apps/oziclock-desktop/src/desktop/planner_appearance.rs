@@ -35,8 +35,8 @@ pub(super) fn calendar_indicator_colors(settings: &AppSettings) -> [slint::Color
 pub(super) fn refresh(planner: &PlannerWindow, settings: &AppSettings) {
     let accent = resolved_accent(&settings.planner_appearance, calendar_accent(settings));
     let colors = type_colors(&settings.planner_appearance, accent);
-    let palette = planner.global::<PlannerPalette>();
-    palette.set_light(settings.planner_appearance.light_theme);
+    let palette = planner.global::<AppPalette>();
+    palette.set_light(settings.application_light_theme);
     palette.invoke_apply_theme();
     palette.set_accent(accent);
     palette.set_accent_foreground(accent_foreground(accent));
@@ -48,7 +48,7 @@ pub(super) fn refresh(planner: &PlannerWindow, settings: &AppSettings) {
     palette.set_task_color_foreground(accent_foreground(colors[4]));
     planner.set_accent(accent);
     planner.invoke_appearance_changed(
-        settings.planner_appearance.light_theme,
+        settings.application_light_theme,
         colors[0],
         colors[1],
         colors[2],
@@ -58,7 +58,6 @@ pub(super) fn refresh(planner: &PlannerWindow, settings: &AppSettings) {
 }
 
 pub(super) fn refresh_editor(editor: &SettingsWindow, appearance: &PlannerAppearance) {
-    editor.set_planner_light_theme(appearance.light_theme);
     editor.set_planner_follow_main_clock(appearance.follow_main_clock);
     editor.set_planner_use_accent_color(appearance.use_accent_color);
     let values = [
@@ -119,7 +118,7 @@ pub(super) fn bind(
                 ($window:expr, $index:expr) => {
                     if let Some(window) = $window.upgrade() {
                         window.set_accent(colors[$index]);
-                        let palette = window.global::<PlannerPalette>();
+                        let palette = window.global::<AppPalette>();
                         palette.set_light(light);
                         palette.invoke_apply_theme();
                         palette.set_accent_foreground(accent_foreground(colors[$index]));
@@ -143,7 +142,6 @@ pub(super) fn bind(
         {
             let mut state = state.borrow_mut();
             match option {
-                0 => state.planner_appearance.light_theme = enabled,
                 1 => state.planner_appearance.follow_main_clock = enabled,
                 2 => state.planner_appearance.use_accent_color = enabled,
                 _ => return,

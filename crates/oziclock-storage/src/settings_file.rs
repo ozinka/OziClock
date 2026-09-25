@@ -7,7 +7,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const CURRENT_SCHEMA_VERSION: u32 = 2;
+const FIXED_LOCATION_SCHEMA_VERSION: u32 = 2;
+const CURRENT_SCHEMA_VERSION: u32 = 3;
 
 /// The local document's path is derived from the user environment, never from
 /// settings or the executable's location. Only migration inspects old locations.
@@ -92,14 +93,18 @@ fn load_at(
     legacy: &Path,
     bundle_legacy: Option<&Path>,
 ) -> Result<AppSettings, Box<dyn std::error::Error>> {
-    let existing = match read_settings(target) {
+    let mut existing = match read_settings(target) {
         Ok(settings) => Some(settings),
         Err(_) if !target.try_exists()? => None,
         Err(error) => return Err(error),
     };
-    if let Some(settings) = &existing
-        && settings.schema_version >= CURRENT_SCHEMA_VERSION
+    if let Some(settings) = &mut existing
+        && settings.schema_version >= FIXED_LOCATION_SCHEMA_VERSION
     {
+        if settings.schema_version < CURRENT_SCHEMA_VERSION {
+            settings.schema_version = CURRENT_SCHEMA_VERSION;
+            save_at(settings, target)?;
+        }
         return Ok(existing.unwrap());
     }
 
@@ -274,6 +279,31 @@ mod tests {
         assert_eq!(load_at(&target, &target, None).unwrap().opacity, 0.8);
         f.legacy("custom/settings.json", 0.2);
         assert_eq!(load_at(&target, &target, None).unwrap().opacity, 0.8);
+    }
+
+    #[test]
+    fn set_13_upgrading_theme_does_not_repeat_completed_location_migration() {
+        let f = Fixture::new();
+        let target = f.legacy("support/settings.json", 0.7);
+        let mut document: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&target).unwrap()).unwrap();
+        document["SchemaVersion"] = FIXED_LOCATION_SCHEMA_VERSION.into();
+        document
+            .as_object_mut()
+            .unwrap()
+            .remove("ApplicationLightTheme");
+        document["CalendarLightTheme"] = true.into();
+        fs::write(&target, serde_json::to_vec(&document).unwrap()).unwrap();
+        let custom = f.legacy("stale/settings.json", 0.2);
+        f.bootstrap(&target, custom.parent().unwrap());
+        let settings = load_at(&target, &target, None).unwrap();
+        assert_eq!(settings.opacity, 0.7);
+        assert!(settings.application_light_theme);
+        assert_eq!(settings.schema_version, CURRENT_SCHEMA_VERSION);
+        let saved: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(target).unwrap()).unwrap();
+        assert_eq!(saved["ApplicationLightTheme"], true);
+        assert!(saved.get("CalendarLightTheme").is_none());
     }
 
     #[test]

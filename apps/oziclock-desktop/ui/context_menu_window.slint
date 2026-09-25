@@ -1,3 +1,4 @@
+import { AppPalette } from "../../../ui/app_palette.slint";
 export component ContextMenuWindow inherits Window {
     title: "OziClock menu";
     no-frame: true;
@@ -22,13 +23,13 @@ export component ContextMenuWindow inherits Window {
         height: parent.height;
         border-radius: 7px;
         border-width: 1px;
-        border-color: #3b3e46;
-        background: #24262c;
+        border-color: AppPalette.border;
+        background: AppPalette.surface;
 
         Text {
             x: 15px; y: 10px; width: 186px; height: 34px;
             text: "Open Planner";
-            color: #f0f1f3;
+            color: AppPalette.text;
             font-family: "Carlito";
             font-size: 14px;
             vertical-alignment: center;
@@ -37,7 +38,7 @@ export component ContextMenuWindow inherits Window {
         Text {
             x: 15px; y: 45px; width: 186px; height: 34px;
             text: "Settings…";
-            color: #f0f1f3;
+            color: AppPalette.text;
             font-family: "Carlito";
             font-size: 14px;
             vertical-alignment: center;
@@ -46,7 +47,7 @@ export component ContextMenuWindow inherits Window {
         Text {
             x: 15px; y: 80px; width: 186px; height: 34px;
             text: root.show-rulers ? "Hide rulers" : "Show rulers";
-            color: #f0f1f3;
+            color: AppPalette.text;
             font-family: "Carlito";
             font-size: 14px;
             vertical-alignment: center;
@@ -55,17 +56,17 @@ export component ContextMenuWindow inherits Window {
         Text {
             x: 15px; y: 115px; width: 186px; height: 34px;
             text: "About OziClock";
-            color: #d4d7dd;
+            color: AppPalette.secondary;
             font-family: "Carlito";
             font-size: 14px;
             vertical-alignment: center;
             TouchArea { clicked => { root.request-open-about(); } }
         }
-        Rectangle { x: 12px; y: 158px; width: 192px; height: 1px; background: #3b3e46; }
+        Rectangle { x: 12px; y: 158px; width: 192px; height: 1px; background: AppPalette.border; }
         Text {
             x: 15px; y: 166px; width: 186px; height: 34px;
             text: "Exit";
-            color: #f09090;
+            color: AppPalette.danger;
             font-family: "Carlito";
             font-size: 14px;
             vertical-alignment: center;

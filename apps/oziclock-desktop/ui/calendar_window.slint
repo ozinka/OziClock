@@ -1,3 +1,4 @@
+import { AppPalette } from "../../../ui/app_palette.slint";
 export struct CalendarDayData {
     text: string,
     date-id: string,
@@ -25,13 +26,12 @@ component CalendarButton inherits Rectangle {
     in property <bool> active: false;
     in property <color> accent: #16877f;
     in property <color> foreground: #172027;
-    in property <bool> light-theme: true;
     callback clicked();
     border-radius: 6px;
     border-width: 1px;
-    border-color: root.active ? root.accent : (root.light-theme ? #d9dedb : #4a505a);
-    background: root.active ? root.accent : (root.light-theme ? #f2f4f2 : #252931);
-    Text { text: root.text; color: root.active ? root.foreground : (root.light-theme ? #18302f : #e2e5e9); font-family: "Carlito"; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
+    border-color: root.active ? root.accent : AppPalette.border;
+    background: root.active ? root.accent : AppPalette.card;
+    Text { text: root.text; color: root.active ? root.foreground : AppPalette.text; font-family: "Carlito"; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
     TouchArea { clicked => { root.clicked(); } }
 }
 
@@ -67,7 +67,6 @@ export component CalendarWindow inherits Window {
     in-out property <bool> show-tasks: true;
     in-out property <bool> show-alarms: true;
     in property <float> corner-radius: 12;
-    in property <bool> light-theme: true;
     in property <float> current-time-y: -1;
     in property <string> current-time-label;
     in-out property <length> week-scroll-y: 0px;
@@ -84,12 +83,12 @@ export component CalendarWindow inherits Window {
     callback request-toggle-indicator-filter(int);
     callback request-open-planner();
 
-    property <color> panel-bg: root.light-theme ? #ffffff : #1a1c21;
-    property <color> header-bg: root.light-theme ? #f8f9f7 : #1a1c21;
-    property <color> text-color: root.light-theme ? #18302f : #f1f3f5;
-    property <color> muted-color: root.light-theme ? #687572 : #7d838e;
-    property <color> line-color: root.light-theme ? #d9dedb : #3a3e46;
-    property <color> weekend-color: root.light-theme ? #b55058 : #e5a0a0;
+    property <color> panel-bg: AppPalette.surface;
+    property <color> header-bg: AppPalette.sidebar;
+    property <color> text-color: AppPalette.text;
+    property <color> muted-color: AppPalette.muted;
+    property <color> line-color: AppPalette.border;
+    property <color> weekend-color: AppPalette.danger;
     property <color> selection-color: root.accent;
     private property <length> agenda-y: root.view == 1 ? 600px : (root.view == 2 ? 540px : 455px);
 
@@ -106,13 +105,13 @@ export component CalendarWindow inherits Window {
         Text { x: 18px; y: 15px; text: "CALENDAR"; color: root.muted-color; font-family: "Carlito"; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
         Text { x: 18px; y: 33px; width: 420px; height: 34px; text: root.heading; color: root.text-color; font-family: "Carlito"; font-size: 21px; font-weight: 700; vertical-alignment: center; }
         TouchArea { x: 0px; y: 0px; width: 220px; height: 82px; pointer-event(event) => { if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) { root.request-window-drag(); } } }
-        CalendarButton { x: 448px; y: 25px; width: 38px; height: 34px; text: root.view == 2 ? "←" : "‹"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; clicked => { root.request-previous(); } }
-        CalendarButton { x: 492px; y: 25px; width: 66px; height: 34px; text: "Today"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; clicked => { root.request-today(); } }
-        CalendarButton { x: 564px; y: 25px; width: 38px; height: 34px; text: root.view == 2 ? "→" : "›"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; clicked => { root.request-next(); } }
+        CalendarButton { x: 448px; y: 25px; width: 38px; height: 34px; text: root.view == 2 ? "←" : "‹"; accent: root.accent; foreground: root.accent-foreground; clicked => { root.request-previous(); } }
+        CalendarButton { x: 492px; y: 25px; width: 66px; height: 34px; text: "Today"; accent: root.accent; foreground: root.accent-foreground; clicked => { root.request-today(); } }
+        CalendarButton { x: 564px; y: 25px; width: 38px; height: 34px; text: root.view == 2 ? "→" : "›"; accent: root.accent; foreground: root.accent-foreground; clicked => { root.request-next(); } }
 
-        CalendarButton { x: 18px; y: 99px; width: 62px; height: 34px; text: "Week"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; active: root.view == 1; clicked => { root.request-view(1); } }
-        CalendarButton { x: 86px; y: 99px; width: 68px; height: 34px; text: "Month"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; active: root.view == 0; clicked => { root.request-view(0); } }
-        CalendarButton { x: 160px; y: 99px; width: 58px; height: 34px; text: "Year"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; active: root.view == 2; clicked => { root.request-view(2); } }
+        CalendarButton { x: 18px; y: 99px; width: 62px; height: 34px; text: "Week"; accent: root.accent; foreground: root.accent-foreground; active: root.view == 1; clicked => { root.request-view(1); } }
+        CalendarButton { x: 86px; y: 99px; width: 68px; height: 34px; text: "Month"; accent: root.accent; foreground: root.accent-foreground; active: root.view == 0; clicked => { root.request-view(0); } }
+        CalendarButton { x: 160px; y: 99px; width: 58px; height: 34px; text: "Year"; accent: root.accent; foreground: root.accent-foreground; active: root.view == 2; clicked => { root.request-view(2); } }
         Rectangle { x: 510px; y: 104px; width: 24px; height: 24px; border-radius: 12px; background: root.show-events ? root.event-color : transparent; border-width: 1px; border-color: root.show-events ? root.event-color : root.line-color; Text { text: "EVT"; color: root.show-events ? root.accent-foreground : root.muted-color; font-family: "Carlito"; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.request-toggle-indicator-filter(0); } } }
         Rectangle { x: 539px; y: 104px; width: 24px; height: 24px; border-radius: 12px; background: root.show-reminders ? root.reminder-color : transparent; border-width: 1px; border-color: root.show-reminders ? root.reminder-color : root.line-color; Text { text: "REM"; color: root.show-reminders ? root.accent-foreground : root.muted-color; font-family: "Carlito"; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.request-toggle-indicator-filter(1); } } }
         Rectangle { x: 568px; y: 104px; width: 24px; height: 24px; border-radius: 12px; background: root.show-tasks ? root.task-color : transparent; border-width: 1px; border-color: root.show-tasks ? root.task-color : root.line-color; Text { text: "TSK"; color: root.show-tasks ? root.accent-foreground : root.muted-color; font-family: "Carlito"; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.request-toggle-indicator-filter(2); } } }
@@ -188,7 +187,7 @@ export component CalendarWindow inherits Window {
 
         Rectangle { x: 18px; y: root.agenda-y; width: 614px; height: 1px; background: root.line-color; }
         Text { x: 18px; y: root.agenda-y + 6px; width: 450px; height: 18px; text: root.selected-label; color: root.text-color; font-family: "Carlito"; font-size: 11px; font-weight: 700; vertical-alignment: center; }
-        CalendarButton { x: 502px; y: root.agenda-y + 23px; width: 130px; height: 27px; text: "Open in Planner"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; clicked => { root.request-open-planner(); } }
+        CalendarButton { x: 502px; y: root.agenda-y + 23px; width: 130px; height: 27px; text: "Open in Planner"; accent: root.accent; foreground: root.accent-foreground; clicked => { root.request-open-planner(); } }
         Text { x: 18px; y: root.agenda-y + 27px; width: 450px; height: 16px; visible: root.selected-items.length == 0; text: "No scheduled items"; color: root.muted-color; font-family: "Carlito"; font-size: 10px; vertical-alignment: center; }
         for item[index] in root.selected-items: Rectangle {
             x: 18px + Math.floor(index / 2) * 230px; y: root.agenda-y + 25px + Math.mod(index, 2) * 17px; width: 220px; height: 16px; visible: index < 4; background: transparent;

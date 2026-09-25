@@ -1,6 +1,7 @@
 slint::include_modules!();
 
 mod alert_sound;
+mod application_appearance;
 mod calendar_bindings;
 mod clock_refresh;
 mod colors;
@@ -158,7 +159,6 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.set_border_color_value(settings.border_color.clone().into());
     settings_window.set_border_preview_color(parse_color(&settings.border_color));
     settings_window.set_non_main_dimming(settings.non_main_dimming as f32);
-    settings_window.set_calendar_light_theme(settings.calendar_light_theme);
     settings_window.set_calendar_monday_first(settings.calendar_monday_first);
     settings_window.set_calendar_hour_range(i32::from(settings.calendar_hour_range.min(2)));
     settings_window.set_calendar_show_events(settings.calendar_show_events);
@@ -352,7 +352,6 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     )
     .expect("current local date is valid");
     let mut initial_calendar_state = CalendarState::new(initial_calendar_date);
-    initial_calendar_state.light_theme = shared_settings.borrow().calendar_light_theme;
     initial_calendar_state.monday_first = shared_settings.borrow().calendar_monday_first;
     let calendar_state = Rc::new(RefCell::new(initial_calendar_state));
     let accent = calendar_accent(&shared_settings.borrow());
@@ -619,6 +618,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 if let Some(planner) = planner_for_sync_receive.upgrade() {
                     planner_appearance::refresh(&planner, &settings);
                 }
+                editor.invoke_application_theme_changed();
                 apply_sync_state(&editor, &state);
                 editor.set_sync_status_visible(true);
                 editor.set_sync_status_is_error(false);
@@ -999,20 +999,6 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     });
     let state = shared_settings.clone();
     let calendar = calendar_window.as_weak();
-    let calendar_state_for_theme = calendar_state.clone();
-    settings_window.on_request_set_calendar_light_theme(move |light_theme| {
-        state.borrow_mut().calendar_light_theme = light_theme;
-        calendar_state_for_theme.borrow_mut().light_theme = light_theme;
-        if let Some(calendar) = calendar.upgrade() {
-            refresh_calendar_from_settings(
-                &calendar,
-                &calendar_state_for_theme.borrow(),
-                &state.borrow(),
-            );
-        }
-    });
-    let state = shared_settings.clone();
-    let calendar = calendar_window.as_weak();
     let calendar_state_for_week_start = calendar_state.clone();
     settings_window.on_request_set_calendar_monday_first(move |monday_first| {
         state.borrow_mut().calendar_monday_first = monday_first;
@@ -1213,7 +1199,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             match oziclock_storage::save(&state) {
                 Ok(()) => {
                     *saved.borrow_mut() = state.clone();
-                    editor.set_status_message("Saved beside the executable.".into())
+                    editor.set_status_message("Settings saved.".into())
                 }
                 Err(error) => editor.set_status_message(format!("Save failed: {error}").into()),
             };
@@ -1221,7 +1207,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             if let Some(main_window) = main_window.upgrade() {
                 update_clock_tiles(&main_window, &state.clocks_settings, state.show_seconds);
             }
-            if editor.get_status_message() == "Saved beside the executable." {
+            if editor.get_status_message() == "Settings saved." {
                 let _ = editor.hide();
                 set_main_window_modal(&main_window_for_save_modal, false);
             }
@@ -1588,6 +1574,19 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     });
 
     let about_window = AboutWindow::new()?;
+    application_appearance::bind(
+        &settings_window,
+        &calendar_window,
+        &planner_window,
+        &about_window,
+        &context_menu,
+        &alarm_attention_window,
+        &timer_attention_window,
+        &reminder_attention_window,
+        &event_attention_window,
+        &task_attention_window,
+        shared_settings.clone(),
+    );
     about_window.set_version(env!("CARGO_PKG_VERSION").into());
     about_window.set_corner_radius(shared_settings.borrow().corner_radius.clamp(0.0, 15.5) as f32);
     *about_window_for_radius.borrow_mut() = Some(about_window.as_weak());
@@ -2101,7 +2100,6 @@ fn open_calendar_window(
     {
         let settings = settings.borrow();
         let mut state = state.borrow_mut();
-        state.light_theme = settings.calendar_light_theme;
         state.monday_first = settings.calendar_monday_first;
     }
     let accent = calendar_accent(&settings.borrow());

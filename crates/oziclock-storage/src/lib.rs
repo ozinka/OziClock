@@ -54,6 +54,16 @@ struct PortablePlanner {
     reminders: Vec<Reminder>,
 }
 
+/// Older profiles omit ApplicationLightTheme and leave the receiver's theme intact.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct PortableAppearance {
+    #[serde(flatten)]
+    planner: PlannerAppearance,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    application_light_theme: Option<bool>,
+}
+
 /// The versioned document shared through a cloud-provider desktop folder.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -67,7 +77,7 @@ pub struct SyncProfile {
     #[serde(default)]
     clocks: Option<Vec<ClockSettings>>,
     #[serde(default)]
-    appearance: Option<PlannerAppearance>,
+    appearance: Option<PortableAppearance>,
 }
 
 /// A read-only summary shown before a one-time profile transfer.
@@ -120,8 +130,11 @@ pub struct AppSettings {
     pub border_color: String,
     #[serde(default)]
     pub non_main_dimming: f64,
-    #[serde(default = "default_calendar_light_theme")]
-    pub calendar_light_theme: bool,
+    #[serde(
+        default = "default_application_light_theme",
+        alias = "CalendarLightTheme"
+    )]
+    pub application_light_theme: bool,
     #[serde(default = "default_calendar_monday_first")]
     pub calendar_monday_first: bool,
     #[serde(default)]
@@ -155,11 +168,10 @@ pub struct AppSettings {
     pub clocks_settings: Vec<ClockSettings>,
 }
 
-/// Independent Planner appearance; missing fields preserve the pre-settings theme.
+/// Planner accent and type colors; the application owns the shared Light/Dark theme.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(default, rename_all = "PascalCase")]
 pub struct PlannerAppearance {
-    pub light_theme: bool,
     pub follow_main_clock: bool,
     pub custom_accent: String,
     pub use_accent_color: bool,
@@ -173,7 +185,6 @@ pub struct PlannerAppearance {
 impl Default for PlannerAppearance {
     fn default() -> Self {
         Self {
-            light_theme: false,
             follow_main_clock: true,
             custom_accent: "#77D7CB".into(),
             use_accent_color: true,
@@ -218,7 +229,7 @@ fn default_settings_window_height() -> f64 {
     672.0
 }
 
-fn default_calendar_light_theme() -> bool {
+fn default_application_light_theme() -> bool {
     true
 }
 
@@ -365,7 +376,10 @@ fn send_sync_profile_at(
         profile.clocks = Some(settings.clocks_settings.clone());
     }
     if state.groups.appearance {
-        profile.appearance = Some(settings.planner_appearance.clone());
+        profile.appearance = Some(PortableAppearance {
+            planner: settings.planner_appearance.clone(),
+            application_light_theme: Some(settings.application_light_theme),
+        });
     }
     profile.revision = profile.revision.saturating_add(1);
     write_atomically(
@@ -435,7 +449,10 @@ fn receive_sync_profile_at(
     if state.groups.appearance
         && let Some(appearance) = profile.appearance
     {
-        updated.planner_appearance = appearance;
+        updated.planner_appearance = appearance.planner;
+        if let Some(light) = appearance.application_light_theme {
+            updated.application_light_theme = light;
+        }
     }
     state.last_common_revision = Some(profile.revision);
     state.unresolved_conflict = None;
@@ -570,15 +587,84 @@ mod tests {
     };
 
     #[test]
+    fn set_13_migrates_calendar_theme_and_serializes_only_one_theme() {
+        for light in [false, true] {
+            let mut document: serde_json::Value = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
+            document
+                .as_object_mut()
+                .unwrap()
+                .remove("ApplicationLightTheme");
+            document["CalendarLightTheme"] = light.into();
+            document["PlannerAppearance"] = serde_json::json!({"LightTheme": !light});
+            let settings: AppSettings = serde_json::from_value(document).unwrap();
+            assert_eq!(settings.application_light_theme, light);
+            let saved = serde_json::to_value(&settings).unwrap();
+            assert_eq!(saved["ApplicationLightTheme"], light);
+            assert!(saved.get("CalendarLightTheme").is_none());
+            assert!(saved["PlannerAppearance"].get("LightTheme").is_none());
+        }
+    }
+
+    #[test]
+    fn set_13_missing_legacy_calendar_theme_uses_its_original_default() {
+        let mut document: serde_json::Value = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
+        document
+            .as_object_mut()
+            .unwrap()
+            .remove("ApplicationLightTheme");
+        let settings: AppSettings = serde_json::from_value(document).unwrap();
+        assert!(settings.application_light_theme);
+    }
+
+    #[test]
+    fn set_13_appearance_profile_round_trip_and_legacy_receive_preserve_theme_rules() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = env::temp_dir().join(format!("oziclock-theme-sync-{unique}"));
+        let profile_directory = root.join("profile");
+        fs::create_dir_all(&profile_directory).unwrap();
+        let local_path = root.join("local/settings.json");
+        let mut settings: AppSettings = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
+        settings.application_light_theme = false;
+        configure_sync_profile_at(
+            &mut settings,
+            &profile_directory,
+            SyncGroups {
+                appearance: true,
+                ..SyncGroups::default()
+            },
+            &local_path,
+        )
+        .unwrap();
+        send_sync_profile_at(&mut settings, &local_path).unwrap();
+        settings.application_light_theme = true;
+        receive_sync_profile_at(&mut settings, &local_path).unwrap();
+        assert!(!settings.application_light_theme);
+        let profile_path = sync_profile_path(&profile_directory);
+        let mut legacy: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&profile_path).unwrap()).unwrap();
+        legacy["Appearance"]
+            .as_object_mut()
+            .unwrap()
+            .remove("ApplicationLightTheme");
+        legacy["Appearance"]["LightTheme"] = false.into();
+        fs::write(profile_path, serde_json::to_vec(&legacy).unwrap()).unwrap();
+        settings.application_light_theme = true;
+        receive_sync_profile_at(&mut settings, &local_path).unwrap();
+        assert!(settings.application_light_theme);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn set_08_10_appearance_migration_and_round_trip() {
         let mut settings: AppSettings = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
         assert_eq!(settings.planner_appearance, PlannerAppearance::default());
         let partial: PlannerAppearance = serde_json::from_str(r#"{"LightTheme":true}"#).unwrap();
-        assert!(partial.light_theme);
         assert!(partial.follow_main_clock);
         assert!(partial.use_accent_color);
         settings.planner_appearance = PlannerAppearance {
-            light_theme: true,
             follow_main_clock: false,
             use_accent_color: false,
             custom_accent: "#112233".into(),
@@ -742,12 +828,15 @@ mod tests {
         let profile_directory = root.join("profile");
         fs::create_dir_all(&profile_directory).unwrap();
         let remote_appearance = PlannerAppearance {
-            light_theme: true,
+            custom_accent: "#112233".into(),
             ..PlannerAppearance::default()
         };
         let profile = SyncProfile {
             revision: 7,
-            appearance: Some(remote_appearance.clone()),
+            appearance: Some(PortableAppearance {
+                planner: remote_appearance.clone(),
+                application_light_theme: Some(false),
+            }),
             ..SyncProfile::default()
         };
         fs::write(
@@ -778,11 +867,12 @@ mod tests {
         assert_eq!(restored.sync, settings.sync);
         assert_eq!(restored.planner_appearance, remote_appearance);
         assert!(restored.show_seconds);
+        assert!(!restored.application_light_theme);
 
         // A later receive cannot update memory or revision if the local write fails.
         let blocked = root.join("blocked");
         fs::write(&blocked, "not a directory").unwrap();
-        settings.planner_appearance.light_theme = false;
+        settings.planner_appearance.custom_accent = "#334455".into();
         settings.sync.last_common_revision = Some(6);
         let before = serde_json::to_value(&settings).unwrap();
         assert!(receive_sync_profile_at(&mut settings, &blocked.join("settings.json")).is_err());

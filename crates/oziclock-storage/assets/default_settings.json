@@ -1,5 +1,5 @@
 {
-  "SchemaVersion": 2,
+  "SchemaVersion": 3,
   "Sync": {},
   "MainWndLeft": 120.0,
   "MainWndTop": 200.0,
@@ -15,7 +15,7 @@
   "SoftClockStyle": false,
   "BorderColor": "#000000",
   "NonMainDimming": 0.0,
-  "CalendarLightTheme": false,
+  "ApplicationLightTheme": false,
   "CalendarMondayFirst": true,
   "CalendarHourRange": 0,
   "AlertSoundDurationSeconds": 20,
