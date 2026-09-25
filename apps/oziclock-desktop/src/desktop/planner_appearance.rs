@@ -57,7 +57,7 @@ pub(super) fn refresh(planner: &PlannerWindow, settings: &AppSettings) {
     );
 }
 
-fn refresh_editor(editor: &SettingsWindow, appearance: &PlannerAppearance) {
+pub(super) fn refresh_editor(editor: &SettingsWindow, appearance: &PlannerAppearance) {
     editor.set_planner_light_theme(appearance.light_theme);
     editor.set_planner_follow_main_clock(appearance.follow_main_clock);
     editor.set_planner_use_accent_color(appearance.use_accent_color);

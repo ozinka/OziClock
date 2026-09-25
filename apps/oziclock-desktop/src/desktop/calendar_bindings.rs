@@ -272,6 +272,10 @@ pub(super) fn refresh_calendar_items(
     window.set_reminder_color(colors[1]);
     window.set_task_color(colors[2]);
     window.set_alarm_color(colors[3]);
+    window.set_show_events(settings.calendar_show_events);
+    window.set_show_reminders(settings.calendar_show_reminders);
+    window.set_show_tasks(settings.calendar_show_tasks);
+    window.set_show_alarms(settings.calendar_show_alarms);
     window.set_days(day_model_with_items(
         month_grid(state.cursor.year, state.cursor.month, state.monday_first),
         state,
@@ -342,18 +346,22 @@ fn day_model_with_items(
                     selected: day.date == state.selected,
                     today: day.date == today,
                     focused: day.date == state.week_focus,
-                    has_event: items
-                        .iter()
-                        .any(|item| matches!(item.kind, CalendarItemKind::Event)),
-                    has_reminder: items
-                        .iter()
-                        .any(|item| matches!(item.kind, CalendarItemKind::Reminder)),
-                    has_task: items
-                        .iter()
-                        .any(|item| matches!(item.kind, CalendarItemKind::Task)),
-                    has_alarm: items
-                        .iter()
-                        .any(|item| matches!(item.kind, CalendarItemKind::Alarm)),
+                    has_event: settings.calendar_show_events
+                        && items
+                            .iter()
+                            .any(|item| matches!(item.kind, CalendarItemKind::Event)),
+                    has_reminder: settings.calendar_show_reminders
+                        && items
+                            .iter()
+                            .any(|item| matches!(item.kind, CalendarItemKind::Reminder)),
+                    has_task: settings.calendar_show_tasks
+                        && items
+                            .iter()
+                            .any(|item| matches!(item.kind, CalendarItemKind::Task)),
+                    has_alarm: settings.calendar_show_alarms
+                        && items
+                            .iter()
+                            .any(|item| matches!(item.kind, CalendarItemKind::Alarm)),
                 }
             })
             .collect::<Vec<_>>(),

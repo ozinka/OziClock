@@ -160,9 +160,15 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.set_calendar_light_theme(settings.calendar_light_theme);
     settings_window.set_calendar_monday_first(settings.calendar_monday_first);
     settings_window.set_calendar_hour_range(i32::from(settings.calendar_hour_range.min(2)));
+    settings_window.set_calendar_show_events(settings.calendar_show_events);
+    settings_window.set_calendar_show_reminders(settings.calendar_show_reminders);
+    settings_window.set_calendar_show_tasks(settings.calendar_show_tasks);
+    settings_window.set_calendar_show_alarms(settings.calendar_show_alarms);
     settings_window.set_alert_sound_duration_seconds(i32::from(
         normalize_alert_sound_duration_seconds(settings.alert_sound_duration_seconds),
     ));
+    refresh_settings_location(&settings_window);
+    refresh_sync_profile(&settings_window);
     settings_window.set_opacity_percent((settings.opacity.clamp(0.02, 1.0) * 100.0) as f32);
     update_settings_preview(&settings_window, &settings.clocks_settings);
     select_clock(&settings_window, &settings.clocks_settings, 0);
@@ -424,6 +430,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let main_window_for_settings = window.as_weak();
     window.on_request_open_settings(move || {
         if let Some(settings_window) = weak_settings_window.upgrade() {
+            refresh_settings_location(&settings_window);
+            refresh_sync_profile(&settings_window);
             open_settings_window(
                 &settings_window,
                 &main_window_for_settings,
@@ -463,6 +471,214 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         if let Some(editor) = editor.upgrade() {
             editor.set_selected_section(0);
             editor.set_color_picker_open(false);
+        }
+    });
+    let editor = settings_window.as_weak();
+    settings_window.on_request_select_storage(move || {
+        if let Some(editor) = editor.upgrade() {
+            editor.set_selected_section(4);
+            editor.set_color_picker_open(false);
+            editor.set_status_message("".into());
+            editor.set_storage_status_is_error(false);
+            editor.set_sync_status_visible(false);
+            refresh_settings_location(&editor);
+        }
+    });
+    let editor = settings_window.as_weak();
+    settings_window.on_request_select_sync(move || {
+        if let Some(editor) = editor.upgrade() {
+            editor.set_selected_section(5);
+            editor.set_color_picker_open(false);
+            editor.set_status_message("".into());
+            editor.set_sync_status_is_error(false);
+            editor.set_sync_status_visible(true);
+            editor.set_sync_preview_action(0);
+            refresh_sync_profile(&editor);
+        }
+    });
+    let editor_for_sync_configuration = settings_window.as_weak();
+    settings_window.on_request_configure_sync(move || {
+        let Some(editor) = editor_for_sync_configuration.upgrade() else {
+            return;
+        };
+        let directory = std::path::PathBuf::from(editor.get_sync_directory().as_str());
+        let groups = oziclock_storage::SyncGroups {
+            planner: editor.get_sync_planner(),
+            clocks: editor.get_sync_clocks(),
+            appearance: editor.get_sync_appearance(),
+        };
+        match oziclock_storage::configure_sync_profile(&directory, groups) {
+            Ok(state) => {
+                apply_sync_state(&editor, &state);
+                editor.set_sync_status_visible(true);
+                editor.set_sync_status_is_error(false);
+                editor.set_sync_preview_action(0);
+                editor.set_status_message(
+                    "Sync profile saved. Preview a transfer before applying it.".into(),
+                );
+            }
+            Err(error) => {
+                editor.set_sync_status_visible(true);
+                editor.set_sync_status_is_error(true);
+                editor.set_status_message(format!("Sync profile failed: {error}").into());
+            }
+        }
+    });
+    let editor_for_sync_send_preview = settings_window.as_weak();
+    settings_window.on_request_preview_sync_send(move || {
+        let Some(editor) = editor_for_sync_send_preview.upgrade() else {
+            return;
+        };
+        match oziclock_storage::preview_send_sync_profile() {
+            Ok(preview) => {
+                editor.set_sync_status_visible(true);
+                editor.set_sync_status_is_error(false);
+                editor.set_sync_preview_action(1);
+                editor.set_status_message(sync_preview_message(&preview, true).into());
+            }
+            Err(error) => {
+                editor.set_sync_status_visible(true);
+                editor.set_sync_status_is_error(true);
+                editor.set_sync_preview_action(0);
+                editor.set_status_message(format!("Preview failed: {error}").into());
+            }
+        }
+    });
+    let editor_for_sync_receive_preview = settings_window.as_weak();
+    settings_window.on_request_preview_sync_receive(move || {
+        let Some(editor) = editor_for_sync_receive_preview.upgrade() else {
+            return;
+        };
+        match oziclock_storage::preview_receive_sync_profile() {
+            Ok(preview) if preview.profile_exists => {
+                editor.set_sync_status_visible(true);
+                editor.set_sync_status_is_error(false);
+                editor.set_sync_preview_action(2);
+                editor.set_status_message(sync_preview_message(&preview, false).into());
+            }
+            Ok(_) => {
+                editor.set_sync_status_visible(true);
+                editor.set_sync_status_is_error(true);
+                editor.set_sync_preview_action(0);
+                editor.set_status_message(
+                    "Preview failed: the sync profile does not exist yet.".into(),
+                );
+            }
+            Err(error) => {
+                editor.set_sync_status_visible(true);
+                editor.set_sync_status_is_error(true);
+                editor.set_sync_preview_action(0);
+                editor.set_status_message(format!("Preview failed: {error}").into());
+            }
+        }
+    });
+    let settings_for_sync_send = shared_settings.clone();
+    let editor_for_sync_send = settings_window.as_weak();
+    settings_window.on_request_send_sync(move || {
+        let Some(editor) = editor_for_sync_send.upgrade() else {
+            return;
+        };
+        match oziclock_storage::send_sync_profile(&settings_for_sync_send.borrow()) {
+            Ok(state) => {
+                apply_sync_state(&editor, &state);
+                editor.set_sync_status_visible(true);
+                editor.set_sync_status_is_error(false);
+                editor.set_sync_preview_action(0);
+                editor.set_status_message("Selected data was sent to the sync profile.".into());
+            }
+            Err(error) => {
+                editor.set_sync_status_visible(true);
+                editor.set_sync_status_is_error(true);
+                editor.set_status_message(format!("Send failed: {error}").into());
+            }
+        }
+    });
+    let settings_for_sync_receive = shared_settings.clone();
+    let editor_for_sync_receive = settings_window.as_weak();
+    let main_window_for_sync_receive = window.as_weak();
+    let planner_for_sync_receive = planner_window.as_weak();
+    settings_window.on_request_receive_sync(move || {
+        let Some(editor) = editor_for_sync_receive.upgrade() else {
+            return;
+        };
+        let result = {
+            let mut settings = settings_for_sync_receive.borrow_mut();
+            oziclock_storage::receive_sync_profile(&mut settings)
+                .map(|state| (state, settings.clone()))
+        };
+        match result {
+            Ok((state, settings)) => {
+                if let Some(main_window) = main_window_for_sync_receive.upgrade() {
+                    update_clock_tiles(
+                        &main_window,
+                        &settings.clocks_settings,
+                        settings.show_seconds,
+                    );
+                }
+                update_settings_preview(&editor, &settings.clocks_settings);
+                planner_appearance::refresh_editor(&editor, &settings.planner_appearance);
+                if let Some(planner) = planner_for_sync_receive.upgrade() {
+                    planner_appearance::refresh(&planner, &settings);
+                }
+                let _ = oziclock_storage::save(&settings);
+                apply_sync_state(&editor, &state);
+                editor.set_sync_status_visible(true);
+                editor.set_sync_status_is_error(false);
+                editor.set_sync_preview_action(0);
+                editor
+                    .set_status_message("Selected data was received from the sync profile.".into());
+            }
+            Err(error) => {
+                editor.set_sync_status_visible(true);
+                editor.set_sync_status_is_error(true);
+                editor.set_status_message(format!("Receive failed: {error}").into());
+            }
+        }
+    });
+    let settings_for_move_location = shared_settings.clone();
+    let editor_for_move_location = settings_window.as_weak();
+    settings_window.on_request_move_settings_directory(move || {
+        let Some(editor) = editor_for_move_location.upgrade() else {
+            return;
+        };
+        let directory = std::path::PathBuf::from(editor.get_settings_directory().as_str());
+        match oziclock_storage::move_settings_to_directory(
+            &settings_for_move_location.borrow(),
+            &directory,
+        ) {
+            Ok(location) => {
+                editor.set_settings_directory(location.directory.display().to_string().into());
+                editor.set_settings_uses_default(location.uses_default);
+                editor.set_storage_status_is_error(false);
+                editor.set_sync_status_visible(false);
+                editor.set_status_message("Settings moved successfully.".into());
+            }
+            Err(error) => {
+                editor.set_sync_status_visible(false);
+                editor.set_storage_status_is_error(true);
+                editor.set_status_message(format!("Move failed: {error}").into());
+            }
+        }
+    });
+    let settings_for_reset_location = shared_settings.clone();
+    let editor_for_reset_location = settings_window.as_weak();
+    settings_window.on_request_reset_settings_directory(move || {
+        let Some(editor) = editor_for_reset_location.upgrade() else {
+            return;
+        };
+        match oziclock_storage::reset_settings_location(&settings_for_reset_location.borrow()) {
+            Ok(location) => {
+                editor.set_settings_directory(location.directory.display().to_string().into());
+                editor.set_settings_uses_default(true);
+                editor.set_storage_status_is_error(false);
+                editor.set_sync_status_visible(false);
+                editor.set_status_message("Using the platform-default folder.".into());
+            }
+            Err(error) => {
+                editor.set_sync_status_visible(false);
+                editor.set_storage_status_is_error(true);
+                editor.set_status_message(format!("Reset failed: {error}").into());
+            }
         }
     });
     let editor = settings_window.as_weak();
@@ -862,6 +1078,33 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         state.borrow_mut().calendar_hour_range = hour_range.clamp(0, 2) as u8;
     });
     let state = shared_settings.clone();
+    let calendar = calendar_window.as_weak();
+    let calendar_state_for_indicators = calendar_state.clone();
+    let editor = settings_window.as_weak();
+    settings_window.on_request_set_calendar_indicator_filter(move |index, enabled| {
+        let mut settings = state.borrow_mut();
+        match index {
+            0 => settings.calendar_show_events = enabled,
+            1 => settings.calendar_show_reminders = enabled,
+            2 => settings.calendar_show_tasks = enabled,
+            3 => settings.calendar_show_alarms = enabled,
+            _ => return,
+        }
+        if let Some(editor) = editor.upgrade() {
+            editor.set_calendar_show_events(settings.calendar_show_events);
+            editor.set_calendar_show_reminders(settings.calendar_show_reminders);
+            editor.set_calendar_show_tasks(settings.calendar_show_tasks);
+            editor.set_calendar_show_alarms(settings.calendar_show_alarms);
+        }
+        if let Some(calendar) = calendar.upgrade() {
+            refresh_calendar_from_settings(
+                &calendar,
+                &calendar_state_for_indicators.borrow(),
+                &settings,
+            );
+        }
+    });
+    let state = shared_settings.clone();
     let sound_for_duration_change = alert_sound.clone();
     let editor = settings_window.as_weak();
     settings_window.on_request_set_alert_sound_duration_seconds(move |seconds| {
@@ -1179,21 +1422,30 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             });
         }
     });
-    let calendar_for_theme_toggle = calendar_window.as_weak();
-    let calendar_state_for_theme_toggle = calendar_state.clone();
-    let settings_for_theme_toggle = shared_settings.clone();
-    calendar_window.on_request_toggle_theme(move || {
-        let mut settings = settings_for_theme_toggle.borrow_mut();
-        settings.calendar_light_theme = !settings.calendar_light_theme;
-        let mut state = calendar_state_for_theme_toggle.borrow_mut();
-        state.light_theme = settings.calendar_light_theme;
-        if let Some(calendar) = calendar_for_theme_toggle.upgrade() {
-            calendar.set_light_theme(state.light_theme);
-            refresh_calendar_window(
+    let calendar_for_indicator_toggle = calendar_window.as_weak();
+    let calendar_state_for_indicator_toggle = calendar_state.clone();
+    let settings_for_indicator_toggle = shared_settings.clone();
+    let editor_for_indicator_toggle = settings_window.as_weak();
+    calendar_window.on_request_toggle_indicator_filter(move |index| {
+        let mut settings = settings_for_indicator_toggle.borrow_mut();
+        match index {
+            0 => settings.calendar_show_events = !settings.calendar_show_events,
+            1 => settings.calendar_show_reminders = !settings.calendar_show_reminders,
+            2 => settings.calendar_show_tasks = !settings.calendar_show_tasks,
+            3 => settings.calendar_show_alarms = !settings.calendar_show_alarms,
+            _ => return,
+        }
+        if let Some(editor) = editor_for_indicator_toggle.upgrade() {
+            editor.set_calendar_show_events(settings.calendar_show_events);
+            editor.set_calendar_show_reminders(settings.calendar_show_reminders);
+            editor.set_calendar_show_tasks(settings.calendar_show_tasks);
+            editor.set_calendar_show_alarms(settings.calendar_show_alarms);
+        }
+        if let Some(calendar) = calendar_for_indicator_toggle.upgrade() {
+            refresh_calendar_from_settings(
                 &calendar,
-                &state,
-                state.selected,
-                calendar_local_now(&settings),
+                &calendar_state_for_indicator_toggle.borrow(),
+                &settings,
             );
         }
     });
@@ -1571,6 +1823,78 @@ fn save_state_before_exit(
         persist_settings_window_size(&settings_window, &mut settings.borrow_mut());
     }
     let _ = oziclock_storage::save(&settings.borrow());
+}
+
+fn refresh_settings_location(settings_window: &SettingsWindow) {
+    match oziclock_storage::settings_location() {
+        Ok(location) => {
+            settings_window.set_settings_directory(location.directory.display().to_string().into());
+            settings_window.set_settings_uses_default(location.uses_default);
+        }
+        Err(error) => {
+            settings_window.set_storage_status_is_error(true);
+            settings_window.set_status_message(format!("Storage unavailable: {error}").into());
+        }
+    }
+}
+
+fn refresh_sync_profile(settings_window: &SettingsWindow) {
+    match oziclock_storage::load_sync_state() {
+        Ok(state) => apply_sync_state(settings_window, &state),
+        Err(error) => {
+            settings_window.set_sync_status_is_error(true);
+            settings_window.set_status_message(format!("Sync unavailable: {error}").into());
+        }
+    }
+}
+
+fn apply_sync_state(settings_window: &SettingsWindow, state: &oziclock_storage::SyncState) {
+    settings_window.set_sync_directory(
+        state
+            .profile_directory
+            .as_ref()
+            .map(|directory| directory.display().to_string())
+            .unwrap_or_default()
+            .into(),
+    );
+    settings_window.set_sync_planner(state.groups.planner);
+    settings_window.set_sync_clocks(state.groups.clocks);
+    settings_window.set_sync_appearance(state.groups.appearance);
+}
+
+fn sync_preview_message(preview: &oziclock_storage::SyncPreview, sending: bool) -> String {
+    let groups = sync_groups_description(if sending {
+        preview.selected_groups
+    } else {
+        oziclock_storage::SyncGroups {
+            planner: preview.selected_groups.planner && preview.available_groups.planner,
+            clocks: preview.selected_groups.clocks && preview.available_groups.clocks,
+            appearance: preview.selected_groups.appearance && preview.available_groups.appearance,
+        }
+    });
+    if sending {
+        format!("Preview: Send {groups}. Select Send now to write the profile.")
+    } else {
+        format!("Preview: Receive {groups}. Select Receive now to apply it locally.")
+    }
+}
+
+fn sync_groups_description(groups: oziclock_storage::SyncGroups) -> String {
+    let mut names = Vec::new();
+    if groups.planner {
+        names.push("Planner data");
+    }
+    if groups.clocks {
+        names.push("Clocks");
+    }
+    if groups.appearance {
+        names.push("Appearance");
+    }
+    if names.is_empty() {
+        "no selected groups".into()
+    } else {
+        names.join(", ")
+    }
 }
 
 fn open_about_window(about_window: &AboutWindow, main_window: &slint::Weak<AppWindow>) {

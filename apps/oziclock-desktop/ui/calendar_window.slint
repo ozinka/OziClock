@@ -62,6 +62,10 @@ export component CalendarWindow inherits Window {
     in property <color> reminder-color: #77d7cb;
     in property <color> task-color: #547d78;
     in property <color> alarm-color: #77d7cb;
+    in-out property <bool> show-events: true;
+    in-out property <bool> show-reminders: true;
+    in-out property <bool> show-tasks: true;
+    in-out property <bool> show-alarms: true;
     in property <float> corner-radius: 12;
     in property <bool> light-theme: true;
     in property <float> current-time-y: -1;
@@ -77,7 +81,7 @@ export component CalendarWindow inherits Window {
     callback request-select-date(string);
     callback request-select-month(int);
     callback request-week-scroll(float);
-    callback request-toggle-theme();
+    callback request-toggle-indicator-filter(int);
     callback request-open-planner();
 
     property <color> panel-bg: root.light-theme ? #ffffff : #1a1c21;
@@ -109,7 +113,10 @@ export component CalendarWindow inherits Window {
         CalendarButton { x: 18px; y: 99px; width: 62px; height: 34px; text: "Week"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; active: root.view == 1; clicked => { root.request-view(1); } }
         CalendarButton { x: 86px; y: 99px; width: 68px; height: 34px; text: "Month"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; active: root.view == 0; clicked => { root.request-view(0); } }
         CalendarButton { x: 160px; y: 99px; width: 58px; height: 34px; text: "Year"; accent: root.accent; foreground: root.accent-foreground; light-theme: root.light-theme; active: root.view == 2; clicked => { root.request-view(2); } }
-        Text { x: 590px; y: 99px; width: 34px; height: 34px; text: root.light-theme ? "☾" : "☀"; color: root.text-color; font-family: "Carlito"; font-size: 22px; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-toggle-theme(); } } }
+        Rectangle { x: 510px; y: 104px; width: 24px; height: 24px; border-radius: 12px; background: root.show-events ? root.event-color : transparent; border-width: 1px; border-color: root.show-events ? root.event-color : root.line-color; Text { text: "EVT"; color: root.show-events ? root.accent-foreground : root.muted-color; font-family: "Carlito"; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.request-toggle-indicator-filter(0); } } }
+        Rectangle { x: 539px; y: 104px; width: 24px; height: 24px; border-radius: 12px; background: root.show-reminders ? root.reminder-color : transparent; border-width: 1px; border-color: root.show-reminders ? root.reminder-color : root.line-color; Text { text: "REM"; color: root.show-reminders ? root.accent-foreground : root.muted-color; font-family: "Carlito"; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.request-toggle-indicator-filter(1); } } }
+        Rectangle { x: 568px; y: 104px; width: 24px; height: 24px; border-radius: 12px; background: root.show-tasks ? root.task-color : transparent; border-width: 1px; border-color: root.show-tasks ? root.task-color : root.line-color; Text { text: "TSK"; color: root.show-tasks ? root.accent-foreground : root.muted-color; font-family: "Carlito"; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.request-toggle-indicator-filter(2); } } }
+        Rectangle { x: 597px; y: 104px; width: 24px; height: 24px; border-radius: 12px; background: root.show-alarms ? root.alarm-color : transparent; border-width: 1px; border-color: root.show-alarms ? root.alarm-color : root.line-color; Text { text: "ALM"; color: root.show-alarms ? root.accent-foreground : root.muted-color; font-family: "Carlito"; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.request-toggle-indicator-filter(3); } } }
         // Month view
         Rectangle {
             x: 18px; y: 143px; width: 614px; height: 302px; visible: root.view == 0; background: transparent;
@@ -124,10 +131,10 @@ export component CalendarWindow inherits Window {
                 border-width: day.today ? 1px : 0px; border-color: root.selection-color;
                 background: day.selected ? root.selection-color : transparent;
                 Text { text: day.text; color: day.selected ? root.accent-foreground : (day.muted ? root.muted-color : (day.weekend ? root.weekend-color : root.text-color)); font-family: "Carlito"; font-size: 16px; font-weight: day.selected ? 700 : 400; horizontal-alignment: center; vertical-alignment: center; }
-                Rectangle { x: parent.width / 2 - 13px; y: 31px; width: 5px; height: 5px; border-radius: 3px; visible: day.has-event; background: root.event-color; }
-                Rectangle { x: parent.width / 2 - 4px; y: 31px; width: 5px; height: 5px; border-radius: 3px; visible: day.has-reminder; background: root.reminder-color; }
-                Rectangle { x: parent.width / 2 + 5px; y: 31px; width: 5px; height: 5px; border-radius: 3px; visible: day.has-task; background: root.task-color; }
-                Rectangle { x: parent.width / 2 + 14px; y: 31px; width: 5px; height: 5px; border-radius: 3px; visible: day.has-alarm; background: root.alarm-color; }
+                Rectangle { x: parent.width / 2 - 13px; y: 31px; width: 5.5px; height: 5.5px; border-radius: 3px; visible: day.has-event; background: root.event-color; }
+                Rectangle { x: parent.width / 2 - 4px; y: 31px; width: 5.5px; height: 5.5px; border-radius: 3px; visible: day.has-reminder; background: root.reminder-color; }
+                Rectangle { x: parent.width / 2 + 5px; y: 31px; width: 5.5px; height: 5.5px; border-radius: 3px; visible: day.has-task; background: root.task-color; }
+                Rectangle { x: parent.width / 2 + 14px; y: 31px; width: 5.5px; height: 5.5px; border-radius: 3px; visible: day.has-alarm; background: root.alarm-color; }
                 TouchArea {
                     clicked => { root.request-select-date(day.date-id); }
                 }
