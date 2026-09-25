@@ -3,7 +3,7 @@
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
-    env, fs,
+    fs,
     io::{self, Write},
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
@@ -18,21 +18,11 @@ pub use oziclock_domain::{
 
 const DEFAULT_SETTINGS: &str = include_str!("../assets/default_settings.json");
 const SETTINGS_FILE_NAME: &str = "settings.json";
-const LOCATION_BOOTSTRAP_FILE_NAME: &str = "settings-location.json";
 const SYNC_PROFILE_FILE_NAME: &str = "oziclock-sync.json";
-const SYNC_STATE_FILE_NAME: &str = "sync-state.json";
 static TEMPORARY_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SettingsLocation {
-    pub directory: PathBuf,
-    pub uses_default: bool,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct SettingsLocationBootstrap {
-    custom_directory: Option<PathBuf>,
-}
+mod settings_file;
+pub use settings_file::{load_or_initialize, settings_path};
 
 /// Portable data groups that a device can independently include in a profile.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -106,6 +96,8 @@ impl Default for SyncProfile {
 pub struct AppSettings {
     #[serde(default = "default_schema_version")]
     pub schema_version: u32,
+    #[serde(default)]
+    pub sync: SyncState,
     pub main_wnd_left: f64,
     pub main_wnd_top: f64,
     pub opacity: f64,
@@ -242,143 +234,21 @@ fn default_alert_sound_duration_seconds() -> u8 {
     20
 }
 
-#[cfg(target_os = "macos")]
-fn macos_application_support_directory() -> io::Result<PathBuf> {
-    let home = env::var_os("HOME").ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::NotFound,
-            "HOME is not set; cannot locate macOS Application Support",
-        )
-    })?;
-
-    Ok(PathBuf::from(home)
-        .join("Library")
-        .join("Application Support")
-        .join("OziClock"))
-}
-
-#[cfg(target_os = "macos")]
-fn legacy_macos_settings_path(executable: &std::path::Path) -> Option<PathBuf> {
-    executable
-        .ancestors()
-        .find(|path| path.extension().is_some_and(|extension| extension == "app"))
-        .and_then(|bundle| bundle.parent())
-        .map(|directory| directory.join("settings.json"))
-}
-
-#[cfg(any(target_os = "macos", test))]
-fn migrate_legacy_settings(
-    target: &std::path::Path,
-    legacy: Option<&std::path::Path>,
-) -> io::Result<bool> {
-    if target.exists() {
-        return Ok(false);
-    }
-
-    let Some(legacy) = legacy.filter(|path| path.is_file()) else {
-        return Ok(false);
-    };
-    let content = fs::read(legacy)?;
-    write_atomically(target, &content)?;
-    Ok(true)
-}
-
-/// Returns the platform-default settings path.
-fn default_settings_path() -> io::Result<PathBuf> {
-    #[cfg(target_os = "macos")]
-    {
-        Ok(macos_application_support_directory()?.join(SETTINGS_FILE_NAME))
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    let executable = env::current_exe()?;
-    #[cfg(not(target_os = "macos"))]
-    let directory = executable.parent().ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::NotFound,
-            "running executable has no parent directory",
-        )
-    })?;
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        Ok(directory.join(SETTINGS_FILE_NAME))
-    }
-}
-
-fn location_bootstrap_path(default_path: &Path) -> io::Result<PathBuf> {
-    let parent = default_path.parent().ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::NotFound,
-            "default settings path has no parent directory",
-        )
-    })?;
-    Ok(parent.join(LOCATION_BOOTSTRAP_FILE_NAME))
-}
-
-fn sync_state_path(default_path: &Path) -> io::Result<PathBuf> {
-    let parent = default_path.parent().ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::NotFound,
-            "default settings path has no parent directory",
-        )
-    })?;
-    Ok(parent.join(SYNC_STATE_FILE_NAME))
-}
-
 fn sync_profile_path(directory: &Path) -> PathBuf {
     directory.join(SYNC_PROFILE_FILE_NAME)
 }
 
-/// Loads the local-only configuration for the optional sync profile.
-pub fn load_sync_state() -> Result<SyncState, Box<dyn std::error::Error>> {
-    let default_path = default_settings_path()?;
-    load_sync_state_at(&default_path)
-}
-
-fn load_sync_state_at(default_path: &Path) -> Result<SyncState, Box<dyn std::error::Error>> {
-    let path = sync_state_path(default_path)?;
-    if !path.exists() {
-        return Ok(SyncState::default());
-    }
-    Ok(serde_json::from_str(&fs::read_to_string(path)?)?)
-}
-
-fn save_sync_state_at(
-    default_path: &Path,
-    state: &SyncState,
-) -> Result<(), Box<dyn std::error::Error>> {
-    write_atomically(
-        &sync_state_path(default_path)?,
-        serde_json::to_string_pretty(state)?.as_bytes(),
-    )?;
-    Ok(())
-}
-
-/// Selects a provider-managed folder and the portable groups this device owns.
+/// Saves this device's profile selection inside its local settings document.
 pub fn configure_sync_profile(
+    settings: &mut AppSettings,
     directory: &Path,
     groups: SyncGroups,
 ) -> Result<SyncState, Box<dyn std::error::Error>> {
-    let default_path = default_settings_path()?;
-    configure_sync_profile_at(directory, groups, &default_path)
+    configure_sync_profile_at(settings, directory, groups, &settings_path()?)
 }
 
-/// Summarizes a pending upload without modifying the profile or local settings.
-pub fn preview_send_sync_profile() -> Result<SyncPreview, Box<dyn std::error::Error>> {
-    let default_path = default_settings_path()?;
-    let state = load_sync_state_at(&default_path)?;
-    preview_sync_profile_at(&state)
-}
-
-/// Summarizes a pending download without modifying the profile or local settings.
-pub fn preview_receive_sync_profile() -> Result<SyncPreview, Box<dyn std::error::Error>> {
-    let default_path = default_settings_path()?;
-    let state = load_sync_state_at(&default_path)?;
-    preview_sync_profile_at(&state)
-}
-
-fn preview_sync_profile_at(state: &SyncState) -> Result<SyncPreview, Box<dyn std::error::Error>> {
+/// Summarizes a transfer without modifying the profile or local settings.
+pub fn preview_sync_profile(state: &SyncState) -> Result<SyncPreview, Box<dyn std::error::Error>> {
     let directory = state.profile_directory.as_deref().ok_or_else(|| {
         io::Error::new(
             io::ErrorKind::NotFound,
@@ -415,6 +285,7 @@ fn preview_sync_profile_at(state: &SyncState) -> Result<SyncPreview, Box<dyn std
 }
 
 fn configure_sync_profile_at(
+    settings: &mut AppSettings,
     directory: &Path,
     groups: SyncGroups,
     default_path: &Path,
@@ -443,24 +314,27 @@ fn configure_sync_profile_at(
         last_common_revision: None,
         unresolved_conflict: None,
     };
-    save_sync_state_at(default_path, &state)?;
+    let mut updated = settings.clone();
+    updated.sync = state.clone();
+    save_at(&updated, default_path)?;
+    *settings = updated;
     Ok(state)
 }
 
 /// Writes only this device's selected portable groups to its configured profile.
 /// Existing unselected groups remain intact for other devices.
-pub fn send_sync_profile(settings: &AppSettings) -> Result<SyncState, Box<dyn std::error::Error>> {
-    let default_path = default_settings_path()?;
-    let mut state = load_sync_state_at(&default_path)?;
-    send_sync_profile_at(settings, &mut state, &default_path)?;
-    Ok(state)
+pub fn send_sync_profile(
+    settings: &mut AppSettings,
+) -> Result<SyncState, Box<dyn std::error::Error>> {
+    send_sync_profile_at(settings, &settings_path()?)?;
+    Ok(settings.sync.clone())
 }
 
 fn send_sync_profile_at(
-    settings: &AppSettings,
-    state: &mut SyncState,
-    default_path: &Path,
+    settings: &mut AppSettings,
+    local_path: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let mut state = settings.sync.clone();
     let directory = state.profile_directory.as_deref().ok_or_else(|| {
         io::Error::new(
             io::ErrorKind::NotFound,
@@ -500,7 +374,11 @@ fn send_sync_profile_at(
     )?;
     state.last_common_revision = Some(profile.revision);
     state.unresolved_conflict = None;
-    save_sync_state_at(default_path, state)
+    let mut updated = settings.clone();
+    updated.sync = state;
+    save_at(&updated, local_path)?;
+    *settings = updated;
+    Ok(())
 }
 
 /// Applies only this device's selected portable groups from the configured profile.
@@ -508,17 +386,16 @@ fn send_sync_profile_at(
 pub fn receive_sync_profile(
     settings: &mut AppSettings,
 ) -> Result<SyncState, Box<dyn std::error::Error>> {
-    let default_path = default_settings_path()?;
-    let mut state = load_sync_state_at(&default_path)?;
-    receive_sync_profile_at(settings, &mut state, &default_path)?;
-    Ok(state)
+    receive_sync_profile_at(settings, &settings_path()?)?;
+    Ok(settings.sync.clone())
 }
 
 fn receive_sync_profile_at(
     settings: &mut AppSettings,
-    state: &mut SyncState,
-    default_path: &Path,
+    local_path: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let mut updated = settings.clone();
+    let mut state = settings.sync.clone();
     let directory = state.profile_directory.as_deref().ok_or_else(|| {
         io::Error::new(
             io::ErrorKind::NotFound,
@@ -535,9 +412,9 @@ fn receive_sync_profile_at(
     if state.groups.planner
         && let Some(planner) = profile.planner
     {
-        settings.planner.events = planner.events;
-        settings.planner.tasks = planner.tasks;
-        settings.planner.reminders = planner.reminders;
+        updated.planner.events = planner.events;
+        updated.planner.tasks = planner.tasks;
+        updated.planner.reminders = planner.reminders;
     }
     if state.groups.clocks
         && let Some(mut clocks) = profile.clocks
@@ -553,192 +430,29 @@ fn receive_sync_profile_at(
         for (index, clock) in clocks.iter_mut().enumerate() {
             clock.is_main = index == main_index;
         }
-        settings.clocks_settings = clocks;
+        updated.clocks_settings = clocks;
     }
     if state.groups.appearance
         && let Some(appearance) = profile.appearance
     {
-        settings.planner_appearance = appearance;
+        updated.planner_appearance = appearance;
     }
     state.last_common_revision = Some(profile.revision);
     state.unresolved_conflict = None;
-    save_sync_state_at(default_path, state)
-}
-
-fn custom_settings_directory(default_path: &Path) -> Option<PathBuf> {
-    let bootstrap_path = location_bootstrap_path(default_path).ok()?;
-    let content = fs::read_to_string(bootstrap_path).ok()?;
-    let bootstrap: SettingsLocationBootstrap = serde_json::from_str(&content).ok()?;
-    bootstrap
-        .custom_directory
-        .filter(|directory| directory.is_dir())
-}
-
-fn active_settings_path(default_path: &Path) -> PathBuf {
-    custom_settings_directory(default_path)
-        .map(|directory| directory.join(SETTINGS_FILE_NAME))
-        .filter(|path| path.is_file())
-        .unwrap_or_else(|| default_path.to_path_buf())
-}
-
-/// Returns the active settings path, falling back to the platform default when
-/// the custom folder or its document is unavailable.
-pub fn settings_path() -> io::Result<PathBuf> {
-    let default_path = default_settings_path()?;
-    Ok(active_settings_path(&default_path))
-}
-
-pub fn settings_location() -> io::Result<SettingsLocation> {
-    let default_path = default_settings_path()?;
-    let path = active_settings_path(&default_path);
-    let directory = path.parent().ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::NotFound,
-            "settings path has no parent directory",
-        )
-    })?;
-    Ok(SettingsLocation {
-        directory: directory.to_path_buf(),
-        uses_default: path == default_path,
-    })
-}
-
-/// Loads settings, creating the default JSON file on first launch.
-pub fn load_or_initialize() -> Result<AppSettings, Box<dyn std::error::Error>> {
-    let default_path = default_settings_path()?;
-    let path = active_settings_path(&default_path);
-
-    if path != default_path
-        && let Ok(content) = fs::read_to_string(&path)
-        && let Ok(settings) = serde_json::from_str(&content)
-    {
-        return Ok(settings);
-    }
-
-    load_or_initialize_at(&default_path)
-}
-
-fn load_or_initialize_at(path: &Path) -> Result<AppSettings, Box<dyn std::error::Error>> {
-    if !path.exists() {
-        #[cfg(target_os = "macos")]
-        migrate_legacy_settings(
-            path,
-            legacy_macos_settings_path(&env::current_exe()?).as_deref(),
-        )?;
-
-        if path.exists() {
-            let content = fs::read_to_string(path)?;
-            return Ok(serde_json::from_str(&content)?);
-        }
-
-        let parent = path.parent().ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::NotFound,
-                "settings path has no parent directory",
-            )
-        })?;
-        fs::create_dir_all(parent)?;
-        write_atomically(path, DEFAULT_SETTINGS.as_bytes())?;
-    }
-
-    let content = fs::read_to_string(path)?;
-    Ok(serde_json::from_str(&content)?)
-}
-
-/// Persists settings atomically at the configured settings path.
-pub fn save(settings: &AppSettings) -> Result<(), Box<dyn std::error::Error>> {
-    let content = serde_json::to_string_pretty(settings)?;
-    let default_path = default_settings_path()?;
-    let path = active_settings_path(&default_path);
-    if path != default_path {
-        match write_atomically(&path, content.as_bytes()) {
-            Ok(()) => return Ok(()),
-            Err(_) => {
-                write_atomically(&default_path, content.as_bytes())?;
-                write_location_bootstrap(&default_path, None)?;
-                return Ok(());
-            }
-        }
-    }
-    write_atomically(&path, content.as_bytes())?;
+    updated.sync = state;
+    save_at(&updated, local_path)?;
+    *settings = updated;
     Ok(())
 }
 
-/// Moves the complete local settings document into an existing empty folder.
-/// The platform-default document is updated first as a recovery copy; only a
-/// successful write of the custom document records the new active location.
-pub fn move_settings_to_directory(
-    settings: &AppSettings,
-    directory: &Path,
-) -> Result<SettingsLocation, Box<dyn std::error::Error>> {
-    let default_path = default_settings_path()?;
-    move_settings_to_directory_at(settings, directory, &default_path)
+/// Persists the single local settings document atomically at its fixed path.
+pub fn save(settings: &AppSettings) -> Result<(), Box<dyn std::error::Error>> {
+    save_at(settings, &settings_path()?)
 }
 
-fn move_settings_to_directory_at(
-    settings: &AppSettings,
-    directory: &Path,
-    default_path: &Path,
-) -> Result<SettingsLocation, Box<dyn std::error::Error>> {
-    if !directory.is_dir() {
-        return Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            "choose an existing folder for the settings file",
-        )
-        .into());
-    }
-    let target = directory.join(SETTINGS_FILE_NAME);
-    if target != default_path && target.exists() {
-        return Err(io::Error::new(
-            io::ErrorKind::AlreadyExists,
-            "the selected folder already contains settings.json",
-        )
-        .into());
-    }
-    let content = serde_json::to_string_pretty(settings)?;
-    write_atomically(default_path, content.as_bytes())?;
-    if target != default_path {
-        write_atomically(&target, content.as_bytes())?;
-        write_location_bootstrap(default_path, Some(directory))?;
-    } else {
-        write_location_bootstrap(default_path, None)?;
-    }
-    Ok(SettingsLocation {
-        directory: directory.to_path_buf(),
-        uses_default: target == default_path,
-    })
-}
-
-pub fn reset_settings_location(
-    settings: &AppSettings,
-) -> Result<SettingsLocation, Box<dyn std::error::Error>> {
-    let default_path = default_settings_path()?;
-    let content = serde_json::to_string_pretty(settings)?;
-    write_atomically(&default_path, content.as_bytes())?;
-    write_location_bootstrap(&default_path, None)?;
-    let directory = default_path.parent().ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::NotFound,
-            "settings path has no parent directory",
-        )
-    })?;
-    Ok(SettingsLocation {
-        directory: directory.to_path_buf(),
-        uses_default: true,
-    })
-}
-
-fn write_location_bootstrap(
-    default_path: &Path,
-    custom_directory: Option<&Path>,
-) -> io::Result<()> {
-    let bootstrap = SettingsLocationBootstrap {
-        custom_directory: custom_directory.map(Path::to_path_buf),
-    };
-    write_atomically(
-        &location_bootstrap_path(default_path)?,
-        serde_json::to_vec_pretty(&bootstrap)?.as_slice(),
-    )
+fn save_at(settings: &AppSettings, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    write_atomically(path, serde_json::to_string_pretty(settings)?.as_bytes())?;
+    Ok(())
 }
 
 fn write_atomically(path: &Path, content: &[u8]) -> io::Result<()> {
@@ -850,7 +564,10 @@ pub fn prune_event_receipts(settings: &mut AppSettings, now: DateTime<Utc>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::{
+        env,
+        time::{SystemTime, UNIX_EPOCH},
+    };
 
     #[test]
     fn set_08_10_appearance_migration_and_round_trip() {
@@ -951,81 +668,6 @@ mod tests {
     }
 
     #[test]
-    fn migrates_legacy_settings_without_overwriting_current_settings() {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root = env::temp_dir().join(format!("oziclock-storage-{unique}"));
-        let legacy = root.join("legacy/settings.json");
-        let target = root.join("current/settings.json");
-        fs::create_dir_all(legacy.parent().unwrap()).unwrap();
-        fs::write(&legacy, "legacy").unwrap();
-
-        assert!(migrate_legacy_settings(&target, Some(&legacy)).unwrap());
-        assert_eq!(fs::read_to_string(&target).unwrap(), "legacy");
-
-        fs::write(&legacy, "changed").unwrap();
-        assert!(!migrate_legacy_settings(&target, Some(&legacy)).unwrap());
-        assert_eq!(fs::read_to_string(&target).unwrap(), "legacy");
-
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn set_12_moves_settings_and_retains_the_default_recovery_copy() {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root = env::temp_dir().join(format!("oziclock-storage-location-{unique}"));
-        let default_path = root.join("default/settings.json");
-        let custom_directory = root.join("custom");
-        fs::create_dir_all(&custom_directory).unwrap();
-        let settings: AppSettings = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
-
-        let location =
-            move_settings_to_directory_at(&settings, &custom_directory, &default_path).unwrap();
-
-        assert_eq!(location.directory, custom_directory);
-        assert!(!location.uses_default);
-        assert!(default_path.is_file());
-        assert!(custom_directory.join(SETTINGS_FILE_NAME).is_file());
-        let bootstrap =
-            fs::read_to_string(location_bootstrap_path(&default_path).unwrap()).unwrap();
-        assert!(bootstrap.contains("custom"));
-
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn set_12_does_not_overwrite_an_existing_custom_document() {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root = env::temp_dir().join(format!("oziclock-storage-existing-{unique}"));
-        let default_path = root.join("default/settings.json");
-        let custom_directory = root.join("custom");
-        fs::create_dir_all(&custom_directory).unwrap();
-        let target = custom_directory.join(SETTINGS_FILE_NAME);
-        fs::write(&target, "keep this document").unwrap();
-        let settings: AppSettings = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
-
-        let error =
-            move_settings_to_directory_at(&settings, &custom_directory, &default_path).unwrap_err();
-
-        assert_eq!(
-            error.to_string(),
-            "the selected folder already contains settings.json"
-        );
-        assert_eq!(fs::read_to_string(target).unwrap(), "keep this document");
-        assert!(!default_path.exists());
-
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
     fn set_11_send_preserves_profile_groups_not_owned_by_this_device() {
         let unique = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1050,8 +692,9 @@ mod tests {
             serde_json::to_string(&existing_profile).unwrap(),
         )
         .unwrap();
-        let settings: AppSettings = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
-        let mut state = configure_sync_profile_at(
+        let mut settings: AppSettings = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
+        configure_sync_profile_at(
+            &mut settings,
             &profile_directory,
             SyncGroups {
                 planner: true,
@@ -1061,7 +704,7 @@ mod tests {
         )
         .unwrap();
 
-        send_sync_profile_at(&settings, &mut state, &default_path).unwrap();
+        send_sync_profile_at(&mut settings, &default_path).unwrap();
 
         let profile: SyncProfile = serde_json::from_str(
             &fs::read_to_string(sync_profile_path(&profile_directory)).unwrap(),
@@ -1069,7 +712,21 @@ mod tests {
         .unwrap();
         assert_eq!(profile.clocks, Some(remote_clocks));
         assert!(profile.planner.is_some());
-        assert_eq!(state.last_common_revision, Some(1));
+        assert_eq!(settings.sync.last_common_revision, Some(1));
+        let restored: AppSettings =
+            serde_json::from_str(&fs::read_to_string(&default_path).unwrap()).unwrap();
+        assert_eq!(restored.sync, settings.sync);
+        assert_eq!(
+            fs::read_dir(default_path.parent().unwrap())
+                .unwrap()
+                .count(),
+            1
+        );
+        let profile_json: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(sync_profile_path(&profile_directory)).unwrap(),
+        )
+        .unwrap();
+        assert!(profile_json.get("Sync").is_none());
 
         fs::remove_dir_all(root).unwrap();
     }
@@ -1100,7 +757,8 @@ mod tests {
         .unwrap();
         let mut settings: AppSettings = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
         settings.show_seconds = true;
-        let mut state = configure_sync_profile_at(
+        configure_sync_profile_at(
+            &mut settings,
             &profile_directory,
             SyncGroups {
                 appearance: true,
@@ -1110,11 +768,38 @@ mod tests {
         )
         .unwrap();
 
-        receive_sync_profile_at(&mut settings, &mut state, &default_path).unwrap();
+        receive_sync_profile_at(&mut settings, &default_path).unwrap();
 
         assert_eq!(settings.planner_appearance, remote_appearance);
         assert!(settings.show_seconds);
-        assert_eq!(state.last_common_revision, Some(7));
+        assert_eq!(settings.sync.last_common_revision, Some(7));
+        let restored: AppSettings =
+            serde_json::from_str(&fs::read_to_string(&default_path).unwrap()).unwrap();
+        assert_eq!(restored.sync, settings.sync);
+        assert_eq!(restored.planner_appearance, remote_appearance);
+        assert!(restored.show_seconds);
+
+        // A later receive cannot update memory or revision if the local write fails.
+        let blocked = root.join("blocked");
+        fs::write(&blocked, "not a directory").unwrap();
+        settings.planner_appearance.light_theme = false;
+        settings.sync.last_common_revision = Some(6);
+        let before = serde_json::to_value(&settings).unwrap();
+        assert!(receive_sync_profile_at(&mut settings, &blocked.join("settings.json")).is_err());
+        assert_eq!(serde_json::to_value(&settings).unwrap(), before);
+        assert!(
+            configure_sync_profile_at(
+                &mut settings,
+                &profile_directory,
+                SyncGroups {
+                    clocks: true,
+                    ..SyncGroups::default()
+                },
+                &blocked.join("settings.json")
+            )
+            .is_err()
+        );
+        assert_eq!(serde_json::to_value(&settings).unwrap(), before);
 
         fs::remove_dir_all(root).unwrap();
     }

@@ -36,6 +36,30 @@ pub(super) fn open_settings_window(
 const SETTINGS_WINDOW_WIDTH: f64 = 710.0;
 const SETTINGS_WINDOW_HEIGHT: f64 = 672.0;
 
+pub(super) fn bind_settings_window_resize(window: &SettingsWindow) {
+    #[cfg(target_os = "windows")]
+    {
+        use slint::winit_030::winit::window::ResizeDirection;
+
+        window.set_vertical_resize_handles(true);
+        let weak = window.as_weak();
+        window.on_request_vertical_resize(move |top_edge| {
+            if let Some(window) = weak.upgrade() {
+                let direction = if top_edge {
+                    ResizeDirection::North
+                } else {
+                    ResizeDirection::South
+                };
+                let _ = window.window().with_winit_window(|native| {
+                    let _ = native.drag_resize_window(direction);
+                });
+            }
+        });
+    }
+    #[cfg(not(target_os = "windows"))]
+    let _ = window;
+}
+
 pub(super) fn restore_settings_window_size(window: &SettingsWindow, settings: &AppSettings) {
     let (width, height) = settings_window_size(settings.settings_window_height);
     window.set_saved_window_width(width as f32);

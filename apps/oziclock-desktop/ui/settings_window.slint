@@ -54,9 +54,6 @@ export component SettingsWindow inherits Window {
     in-out property <bool> calendar-show-tasks: true;
     in-out property <bool> calendar-show-alarms: true;
     in-out property <int> alert-sound-duration-seconds: 20;
-    in-out property <string> settings-directory;
-    in property <bool> settings-uses-default: true;
-    in-out property <bool> storage-status-is-error: false;
     in-out property <string> sync-directory;
     in-out property <bool> sync-planner: true;
     in-out property <bool> sync-clocks: true;
@@ -85,16 +82,15 @@ export component SettingsWindow inherits Window {
     in-out property <string> remove-confirmation-label;
     in-out property <float> saved-window-width: 710;
     in-out property <float> saved-window-height: 672;
+    in property <bool> vertical-resize-handles: false;
+    callback request-vertical-resize(bool);
     callback request-close();
     callback request-window-drag();
     callback request-select(int);
     callback request-select-general();
     callback request-select-calendar();
     callback request-select-planner();
-    callback request-select-storage();
     callback request-select-sync();
-    callback request-move-settings-directory();
-    callback request-reset-settings-directory();
     callback request-configure-sync();
     callback request-preview-sync-send();
     callback request-preview-sync-receive();
@@ -155,7 +151,7 @@ export component SettingsWindow inherits Window {
         Rectangle { x: 14px; y: 95px; width: 232px; height: 37px; border-radius: 6px; background: root.selected-section == 0 ? #31343c : #202126; Text { x: 10px; y: 9px; text: "General"; color: #d7d9de; font-family: "Carlito"; font-size: 14px; } TouchArea { clicked => { root.request-select-general(); } } }
         Rectangle { x: 14px; y: 138px; width: 232px; height: 37px; border-radius: 6px; background: root.selected-section == 2 ? #31343c : #202126; Text { x: 10px; y: 9px; text: "Calendar"; color: #d7d9de; font-family: "Carlito"; font-size: 14px; } TouchArea { clicked => { root.request-select-calendar(); } } }
         Rectangle { x: 14px; y: 181px; width: 232px; height: 37px; border-radius: 6px; background: root.selected-section == 3 ? #31343c : #202126; Text { x: 10px; y: 9px; text: "Planner"; color: #d7d9de; font-family: "Carlito"; font-size: 14px; } TouchArea { clicked => { root.request-select-planner(); } } }
-        Rectangle { x: 14px; y: 224px; width: 232px; height: 37px; border-radius: 6px; background: root.selected-section == 4 ? #31343c : #202126; Text { x: 10px; y: 9px; text: "Storage"; color: #d7d9de; font-family: "Carlito"; font-size: 14px; } TouchArea { clicked => { root.request-select-storage(); } } }
+        Rectangle { x: 14px; y: 224px; width: 232px; height: 37px; border-radius: 6px; background: root.selected-section == 4 ? #31343c : #202126; Text { x: 10px; y: 9px; text: "Sync"; color: #d7d9de; font-family: "Carlito"; font-size: 14px; } TouchArea { clicked => { root.request-select-sync(); } } }
         Rectangle { x: 28px; y: 275px; width: 204px; height: 1px; background: #33353c; }
 
         Rectangle {
@@ -217,7 +213,7 @@ export component SettingsWindow inherits Window {
         }
 
         Rectangle { x: 286px; y: 82px; width: parent.width - 314px; height: 1px; background: #33353c; }
-        Text { x: 286px; y: 107px; text: root.selected-section == 0 ? "General" : (root.selected-section == 2 ? "Calendar" : (root.selected-section == 3 ? "Planner" : (root.selected-section == 4 ? "Storage" : (root.selected-section == 5 ? "Sync" : "Edit clock")))); color: #f2f3f5; font-family: "Carlito"; font-size: 21px; font-weight: 700; }
+        Text { x: 286px; y: 107px; text: root.selected-section == 0 ? "General" : (root.selected-section == 2 ? "Calendar" : (root.selected-section == 3 ? "Planner" : (root.selected-section == 4 ? "Sync" : "Edit clock"))); color: #f2f3f5; font-family: "Carlito"; font-size: 21px; font-weight: 700; }
         Text { x: 286px; y: 139px; visible: root.selected-section == 1; text: root.status-message; color: #969aa4; font-family: "Carlito"; font-size: 13px; }
         Text { x: 286px; y: 185px; visible: root.selected-section == 1; text: "Name"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
 
@@ -269,24 +265,17 @@ export component SettingsWindow inherits Window {
         Text { x: 286px; y: 474px; visible: root.selected-section == 0; text: "Border and separator color"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         Rectangle { x: 286px; y: 494px; visible: root.selected-section == 0; width: 190px; height: 38px; border-radius: 6px; background: transparent; LineEdit { width: parent.width; height: parent.height; text <=> root.border-color-value; edited => { root.request-set-border-color(root.border-color-value); } } }
         Rectangle { x: 488px; y: 492px; visible: root.selected-section == 0; width: 42px; height: 42px; border-radius: 6px; border-width: 1px; border-color: #70747d; background: root.border-preview-color; TouchArea { clicked => { root.request-open-border-color-picker(); } } }
-        Text { x: 286px; y: 151px; visible: root.selected-section == 4; text: "Settings folder"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
-        LineEdit { x: 286px; y: 173px; visible: root.selected-section == 4; width: 390px; height: 38px; text <=> root.settings-directory; placeholder-text: "Paste an existing folder path"; }
-        Rectangle { x: 286px; y: 225px; visible: root.selected-section == 4; width: 132px; height: 38px; border-radius: 6px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "Move data here"; color: white; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-move-settings-directory(); } } } }
-        Rectangle { x: 430px; y: 225px; visible: root.selected-section == 4; width: 132px; height: 38px; border-radius: 6px; background: #31343c; Text { width: parent.width; height: parent.height; text: "Use default"; color: #d7d9de; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { enabled: !root.settings-uses-default; clicked => { root.request-reset-settings-directory(); } } } }
-        Text { x: 286px; y: 280px; visible: root.selected-section == 4; width: 390px; height: 32px; text: "Moving keeps a recovery copy in the platform-default folder."; color: #969aa4; font-family: "Carlito"; font-size: 12px; wrap: word-wrap; }
-        Text { x: 286px; y: 326px; visible: root.selected-section == 4 && !root.sync-status-visible; width: 390px; text: root.status-message; color: root.storage-status-is-error ? #e58c8c : #79c88a; font-family: "Carlito"; font-size: 12px; overflow: elide; }
-        Rectangle { x: 286px; y: 366px; visible: root.selected-section == 4; width: 390px; height: 1px; background: #33353c; }
-        Text { x: 286px; y: 385px; visible: root.selected-section == 4; text: "Sync profile folder"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
-        LineEdit { x: 286px; y: 407px; visible: root.selected-section == 4; width: 390px; height: 38px; text <=> root.sync-directory; placeholder-text: "Paste a Google Drive, OneDrive, or Dropbox folder"; }
-        CheckBox { x: 286px; y: 459px; visible: root.selected-section == 4; text: "Planner data"; checked <=> root.sync-planner; }
-        CheckBox { x: 426px; y: 459px; visible: root.selected-section == 4; text: "Clocks"; checked <=> root.sync-clocks; }
-        CheckBox { x: 526px; y: 459px; visible: root.selected-section == 4; text: "Appearance"; checked <=> root.sync-appearance; }
-        Rectangle { x: 286px; y: 493px; visible: root.selected-section == 4; width: 164px; height: 38px; border-radius: 6px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "Save sync profile"; color: white; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-configure-sync(); } } } }
-        Rectangle { x: 462px; y: 493px; visible: root.selected-section == 4; width: 102px; height: 38px; border-radius: 6px; background: #31343c; Text { width: parent.width; height: parent.height; text: "Preview send"; color: #d7d9de; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-preview-sync-send(); } } } }
-        Rectangle { x: 574px; y: 493px; visible: root.selected-section == 4; width: 102px; height: 38px; border-radius: 6px; background: #31343c; Text { width: parent.width; height: parent.height; text: "Preview receive"; color: #d7d9de; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-preview-sync-receive(); } } } }
-        Text { x: 286px; y: 545px; visible: root.selected-section == 4 && root.sync-status-visible; width: 390px; height: 30px; text: root.status-message; color: root.sync-status-is-error ? #e58c8c : #79c88a; font-family: "Carlito"; font-size: 12px; wrap: word-wrap; }
-        Rectangle { x: 286px; y: 586px; visible: root.selected-section == 4 && root.sync-preview-action == 1; width: 132px; height: 38px; border-radius: 6px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "Send now"; color: white; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-send-sync(); } } } }
-        Rectangle { x: 286px; y: 586px; visible: root.selected-section == 4 && root.sync-preview-action == 2; width: 132px; height: 38px; border-radius: 6px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "Receive now"; color: white; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-receive-sync(); } } } }
+        Text { x: 286px; y: 151px; visible: root.selected-section == 4; text: "Sync profile folder"; color: #afb3bc; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
+        LineEdit { x: 286px; y: 173px; visible: root.selected-section == 4; width: 390px; height: 38px; text <=> root.sync-directory; placeholder-text: "Paste a Google Drive, OneDrive, or Dropbox folder"; }
+        CheckBox { x: 286px; y: 225px; visible: root.selected-section == 4; text: "Planner data"; checked <=> root.sync-planner; }
+        CheckBox { x: 426px; y: 225px; visible: root.selected-section == 4; text: "Clocks"; checked <=> root.sync-clocks; }
+        CheckBox { x: 526px; y: 225px; visible: root.selected-section == 4; text: "Appearance"; checked <=> root.sync-appearance; }
+        Rectangle { x: 286px; y: 269px; visible: root.selected-section == 4; width: 164px; height: 38px; border-radius: 6px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "Save sync profile"; color: white; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-configure-sync(); } } } }
+        Rectangle { x: 462px; y: 269px; visible: root.selected-section == 4; width: 102px; height: 38px; border-radius: 6px; background: #31343c; Text { width: parent.width; height: parent.height; text: "Preview send"; color: #d7d9de; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-preview-sync-send(); } } } }
+        Rectangle { x: 574px; y: 269px; visible: root.selected-section == 4; width: 102px; height: 38px; border-radius: 6px; background: #31343c; Text { width: parent.width; height: parent.height; text: "Preview receive"; color: #d7d9de; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-preview-sync-receive(); } } } }
+        Text { x: 286px; y: 321px; visible: root.selected-section == 4 && root.sync-status-visible; width: 390px; height: 48px; text: root.status-message; color: root.sync-status-is-error ? #e58c8c : #79c88a; font-family: "Carlito"; font-size: 12px; wrap: word-wrap; }
+        Rectangle { x: 286px; y: 379px; visible: root.selected-section == 4 && root.sync-preview-action == 1; width: 132px; height: 38px; border-radius: 6px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "Send now"; color: white; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-send-sync(); } } } }
+        Rectangle { x: 286px; y: 379px; visible: root.selected-section == 4 && root.sync-preview-action == 2; width: 132px; height: 38px; border-radius: 6px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "Receive now"; color: white; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-receive-sync(); } } } }
         if root.selected-section == 3: Rectangle {
             x: 286px; y: 145px; width: 390px; height: 402px;
             Text { x: 0px; y: 0px; width: 128px; height: 32px; text: "Theme"; color: #afb3bc; font-size: 13px; vertical-alignment: center; }
@@ -339,6 +328,28 @@ export component SettingsWindow inherits Window {
             Text { x: 270px; y: 274px; width: 52px; height: 32px; text: "Cancel"; color: #c7ccd5; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-cancel(); } } }
             Rectangle { x: 328px; y: 274px; width: 68px; height: 32px; border-radius: 5px; background: #3c81f6; Text { width: parent.width; height: parent.height; text: "OK"; color: white; font-size: 13px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-color-confirm(); } } } }
             Text { x: 358px; y: 10px; width: 30px; height: 30px; text: "×"; color: #aeb3bd; font-size: 22px; horizontal-alignment: center; TouchArea { clicked => { root.color-picker-open = false; } } }
+        }
+        // Windows frameless windows need explicit client-area resize targets.
+        // Keep these above header dragging and below the deletion modal.
+        if root.vertical-resize-handles : TouchArea {
+            x: root.corner-radius * 1px; y: 0px;
+            width: parent.width - 2 * root.corner-radius * 1px; height: 6px;
+            mouse-cursor: ns-resize;
+            pointer-event(event) => {
+                if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                    root.request-vertical-resize(true);
+                }
+            }
+        }
+        if root.vertical-resize-handles : TouchArea {
+            x: root.corner-radius * 1px; y: parent.height - self.height;
+            width: parent.width - 2 * root.corner-radius * 1px; height: 6px;
+            mouse-cursor: ns-resize;
+            pointer-event(event) => {
+                if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                    root.request-vertical-resize(false);
+                }
+            }
         }
         if root.remove-confirmation-open : Rectangle {
             width: parent.width; height: parent.height; background: #00000088;

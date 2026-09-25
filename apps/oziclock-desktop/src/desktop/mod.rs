@@ -115,6 +115,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     update_clock_tiles(&window, &settings.clocks_settings, settings.show_seconds);
 
     let settings_window = SettingsWindow::new()?;
+    settings_bindings::bind_settings_window_resize(&settings_window);
     let settings_for_keyboard = settings_window.as_weak();
     settings_window
         .window()
@@ -167,8 +168,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.set_alert_sound_duration_seconds(i32::from(
         normalize_alert_sound_duration_seconds(settings.alert_sound_duration_seconds),
     ));
-    refresh_settings_location(&settings_window);
-    refresh_sync_profile(&settings_window);
+    apply_sync_state(&settings_window, &settings.sync);
     settings_window.set_opacity_percent((settings.opacity.clamp(0.02, 1.0) * 100.0) as f32);
     update_settings_preview(&settings_window, &settings.clocks_settings);
     select_clock(&settings_window, &settings.clocks_settings, 0);
@@ -430,8 +430,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let main_window_for_settings = window.as_weak();
     window.on_request_open_settings(move || {
         if let Some(settings_window) = weak_settings_window.upgrade() {
-            refresh_settings_location(&settings_window);
-            refresh_sync_profile(&settings_window);
+            apply_sync_state(&settings_window, &settings_for_open.borrow().sync);
             open_settings_window(
                 &settings_window,
                 &main_window_for_settings,
@@ -474,29 +473,20 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         }
     });
     let editor = settings_window.as_weak();
-    settings_window.on_request_select_storage(move || {
-        if let Some(editor) = editor.upgrade() {
-            editor.set_selected_section(4);
-            editor.set_color_picker_open(false);
-            editor.set_status_message("".into());
-            editor.set_storage_status_is_error(false);
-            editor.set_sync_status_visible(false);
-            refresh_settings_location(&editor);
-        }
-    });
-    let editor = settings_window.as_weak();
+    let settings_for_sync_selection = shared_settings.clone();
     settings_window.on_request_select_sync(move || {
         if let Some(editor) = editor.upgrade() {
-            editor.set_selected_section(5);
+            editor.set_selected_section(4);
             editor.set_color_picker_open(false);
             editor.set_status_message("".into());
             editor.set_sync_status_is_error(false);
             editor.set_sync_status_visible(true);
             editor.set_sync_preview_action(0);
-            refresh_sync_profile(&editor);
+            apply_sync_state(&editor, &settings_for_sync_selection.borrow().sync);
         }
     });
     let editor_for_sync_configuration = settings_window.as_weak();
+    let settings_for_sync_configuration = shared_settings.clone();
     settings_window.on_request_configure_sync(move || {
         let Some(editor) = editor_for_sync_configuration.upgrade() else {
             return;
@@ -507,7 +497,11 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             clocks: editor.get_sync_clocks(),
             appearance: editor.get_sync_appearance(),
         };
-        match oziclock_storage::configure_sync_profile(&directory, groups) {
+        match oziclock_storage::configure_sync_profile(
+            &mut settings_for_sync_configuration.borrow_mut(),
+            &directory,
+            groups,
+        ) {
             Ok(state) => {
                 apply_sync_state(&editor, &state);
                 editor.set_sync_status_visible(true);
@@ -525,11 +519,13 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         }
     });
     let editor_for_sync_send_preview = settings_window.as_weak();
+    let settings_for_sync_send_preview = shared_settings.clone();
     settings_window.on_request_preview_sync_send(move || {
         let Some(editor) = editor_for_sync_send_preview.upgrade() else {
             return;
         };
-        match oziclock_storage::preview_send_sync_profile() {
+        match oziclock_storage::preview_sync_profile(&settings_for_sync_send_preview.borrow().sync)
+        {
             Ok(preview) => {
                 editor.set_sync_status_visible(true);
                 editor.set_sync_status_is_error(false);
@@ -545,11 +541,14 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         }
     });
     let editor_for_sync_receive_preview = settings_window.as_weak();
+    let settings_for_sync_receive_preview = shared_settings.clone();
     settings_window.on_request_preview_sync_receive(move || {
         let Some(editor) = editor_for_sync_receive_preview.upgrade() else {
             return;
         };
-        match oziclock_storage::preview_receive_sync_profile() {
+        match oziclock_storage::preview_sync_profile(
+            &settings_for_sync_receive_preview.borrow().sync,
+        ) {
             Ok(preview) if preview.profile_exists => {
                 editor.set_sync_status_visible(true);
                 editor.set_sync_status_is_error(false);
@@ -578,7 +577,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         let Some(editor) = editor_for_sync_send.upgrade() else {
             return;
         };
-        match oziclock_storage::send_sync_profile(&settings_for_sync_send.borrow()) {
+        match oziclock_storage::send_sync_profile(&mut settings_for_sync_send.borrow_mut()) {
             Ok(state) => {
                 apply_sync_state(&editor, &state);
                 editor.set_sync_status_visible(true);
@@ -620,7 +619,6 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 if let Some(planner) = planner_for_sync_receive.upgrade() {
                     planner_appearance::refresh(&planner, &settings);
                 }
-                let _ = oziclock_storage::save(&settings);
                 apply_sync_state(&editor, &state);
                 editor.set_sync_status_visible(true);
                 editor.set_sync_status_is_error(false);
@@ -632,52 +630,6 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
                 editor.set_sync_status_visible(true);
                 editor.set_sync_status_is_error(true);
                 editor.set_status_message(format!("Receive failed: {error}").into());
-            }
-        }
-    });
-    let settings_for_move_location = shared_settings.clone();
-    let editor_for_move_location = settings_window.as_weak();
-    settings_window.on_request_move_settings_directory(move || {
-        let Some(editor) = editor_for_move_location.upgrade() else {
-            return;
-        };
-        let directory = std::path::PathBuf::from(editor.get_settings_directory().as_str());
-        match oziclock_storage::move_settings_to_directory(
-            &settings_for_move_location.borrow(),
-            &directory,
-        ) {
-            Ok(location) => {
-                editor.set_settings_directory(location.directory.display().to_string().into());
-                editor.set_settings_uses_default(location.uses_default);
-                editor.set_storage_status_is_error(false);
-                editor.set_sync_status_visible(false);
-                editor.set_status_message("Settings moved successfully.".into());
-            }
-            Err(error) => {
-                editor.set_sync_status_visible(false);
-                editor.set_storage_status_is_error(true);
-                editor.set_status_message(format!("Move failed: {error}").into());
-            }
-        }
-    });
-    let settings_for_reset_location = shared_settings.clone();
-    let editor_for_reset_location = settings_window.as_weak();
-    settings_window.on_request_reset_settings_directory(move || {
-        let Some(editor) = editor_for_reset_location.upgrade() else {
-            return;
-        };
-        match oziclock_storage::reset_settings_location(&settings_for_reset_location.borrow()) {
-            Ok(location) => {
-                editor.set_settings_directory(location.directory.display().to_string().into());
-                editor.set_settings_uses_default(true);
-                editor.set_storage_status_is_error(false);
-                editor.set_sync_status_visible(false);
-                editor.set_status_message("Using the platform-default folder.".into());
-            }
-            Err(error) => {
-                editor.set_sync_status_visible(false);
-                editor.set_storage_status_is_error(true);
-                editor.set_status_message(format!("Reset failed: {error}").into());
             }
         }
     });
@@ -1823,29 +1775,6 @@ fn save_state_before_exit(
         persist_settings_window_size(&settings_window, &mut settings.borrow_mut());
     }
     let _ = oziclock_storage::save(&settings.borrow());
-}
-
-fn refresh_settings_location(settings_window: &SettingsWindow) {
-    match oziclock_storage::settings_location() {
-        Ok(location) => {
-            settings_window.set_settings_directory(location.directory.display().to_string().into());
-            settings_window.set_settings_uses_default(location.uses_default);
-        }
-        Err(error) => {
-            settings_window.set_storage_status_is_error(true);
-            settings_window.set_status_message(format!("Storage unavailable: {error}").into());
-        }
-    }
-}
-
-fn refresh_sync_profile(settings_window: &SettingsWindow) {
-    match oziclock_storage::load_sync_state() {
-        Ok(state) => apply_sync_state(settings_window, &state),
-        Err(error) => {
-            settings_window.set_sync_status_is_error(true);
-            settings_window.set_status_message(format!("Sync unavailable: {error}").into());
-        }
-    }
 }
 
 fn apply_sync_state(settings_window: &SettingsWindow, state: &oziclock_storage::SyncState) {

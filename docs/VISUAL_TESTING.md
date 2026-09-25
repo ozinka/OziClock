@@ -13,6 +13,14 @@ Compare each capture against the current approved reference in `legacy/dotnet-wp
 
 ## Automation Boundary
 
+Settings on Windows (UI-09 / BL-095): drag the top and bottom six-logical-pixel
+edges and verify a vertical resize cursor, fixed 710 logical-pixel width and a
+minimum height of 672. The bottom OK button and sidebar viewport follow the new
+height. Close/reopen Settings and restart the application to verify persisted
+height. Check header dragging, rounded corners, the color picker, and deletion
+modal blocking; the invisible resize targets must not change the window's
+appearance. Repeat at real 100%, 125%, 150% and 200% DPI when available.
+
 The project does not yet have a deterministic headless Slint screenshot renderer. Do not commit unreviewed images as golden baselines. The CI workflow runs formatting, linting, tests, and release builds on Windows, Linux, and macOS; visual golden-image automation will be added when a stable renderer harness is available.
 
 ## Clock Frame Desktop Probe (MODE-06A)

@@ -91,6 +91,8 @@ The main shell owns display modes and placement. Feature modules contribute view
 
 Persist one versioned application document using stable IDs and IANA time-zone names. Each feature owns its serializable settings section and migration function. Writes must be atomic. Runtime-only values such as window handles, active animation frames, and monotonic timestamps are never serialized.
 
+The storage adapter derives the fixed per-user path from the platform environment (SET-12), independently of the executable and document contents. Schema version 2 folds local Sync state into `settings.json` and marks completion of the legacy-location import. The old bootstrap and Sync sidecar are migration inputs only; ordinary loads and saves use one document. Profile receive saves the selected data and local revision together before updating in-memory/UI state. See ADR 0007.
+
 ## Testing Strategy
 
 - Domain unit tests cover DST, offset fractions, state transitions, recurrence, pause/resume, laps, and missed deadlines.

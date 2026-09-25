@@ -8,6 +8,7 @@
   - [macOS](#macos)
   - [Linux](#linux)
 - [Documentation](#documentation)
+- [Settings file](#settings-file)
 
 ## About
 
@@ -78,7 +79,7 @@ Download the current release from [GitHub Releases](https://github.com/ozinka/Oz
 ### Windows
 
 1. Download the Windows x64 archive from the latest release.
-2. Extract the archive to a folder where the application can keep its `settings.json` file.
+2. Extract the archive to a folder of your choice.
 3. Run `oziclock-desktop.exe`.
 
 No installation, .NET runtime, or Visual C++ Redistributable is required. To launch OziClock automatically after signing in, create a shortcut to `oziclock-desktop.exe` in the Windows Startup folder.
@@ -121,7 +122,21 @@ The repository also contains a Homebrew cask for use from a personal tap. See [H
    ./oziclock-desktop
    ```
 
-The application creates `settings.json` on first launch. It is stored beside the executable on Windows and Linux and under `~/Library/Application Support/OziClock` on macOS. A macOS settings file from an older release is migrated automatically if it is found beside `OziClock.app`.
+## Settings file
+
+OziClock keeps its settings and local Planner data in one `settings.json` file, created automatically on first launch:
+
+| Platform | Location |
+| --- | --- |
+| Windows | `%USERPROFILE%\.oziclock\settings.json`, usually `C:\Users\<username>\.oziclock\settings.json` |
+| Linux | `$XDG_CONFIG_HOME/oziclock/settings.json`, or `~/.config/oziclock/settings.json` when `XDG_CONFIG_HOME` is unset, empty, or relative |
+| macOS | `~/Library/Application Support/OziClock/settings.json` |
+
+The location is fixed for each user and independent of the executable. Settings does not offer a local-folder selector. Close OziClock before manually editing or restoring this file.
+
+On upgrade, OziClock imports the previous settings beside the executable on Windows/Linux, or from the previously selected custom folder. macOS also supports the older file beside `OziClock.app`. Run the new executable from the previous installation folder for automatic discovery; if it has already been moved, copy the old `settings.json` to the location above before starting. An existing document at the new Windows/Linux location takes priority. On macOS, the old default recovery copy is replaced by the active custom document during the one-time migration. Old source files are retained but no longer used after migration.
+
+**Settings → Sync** configures the optional shared `oziclock-sync.json` profile. Its folder and selected groups are stored in the local document's `Sync` section; older `sync-state.json` files are imported once. Changing the shared profile folder does not move local settings.
 
 The last legacy WPF/.NET release is [v1.0.10](https://github.com/ozinka/OziClock/releases/tag/v1.0.10). Its source is preserved in [`legacy/dotnet-wpf/`](legacy/dotnet-wpf/).
 

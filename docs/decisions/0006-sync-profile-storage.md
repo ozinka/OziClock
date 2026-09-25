@@ -27,8 +27,9 @@ enabled portable groups: Planner data, Clocks, and Appearance. It excludes
 device settings, system permissions, active timing/delivery state and all other
 local-only data.
 
-Each installation keeps a local-only `sync-state.json` with its profile path,
-enabled groups, last common revision and unresolved conflict state. The path is
+Each installation keeps a local-only `Sync` section in its fixed `settings.json`
+with its profile path, enabled groups, last common revision and unresolved conflict state.
+ADR 0007 replaces the original separate `sync-state.json` with this section. The path is
 not synchronized because it differs across operating systems. A device can
 continuously synchronize in both directions or issue previewed one-time Send
 to profile and Receive from profile actions.

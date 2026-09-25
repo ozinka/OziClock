@@ -268,9 +268,10 @@ folder managed by an installed Google Drive, OneDrive, Dropbox, or equivalent
 desktop client. OziClock creates one versioned `oziclock-sync.json` Sync
 profile there. It is a portable profile, not a copy of a device's complete
 `settings.json`: it contains only the user-selected Planner data, Clocks and
-Appearance groups. Each device retains its full local application document and
-a local-only `sync-state.json` holding its profile path, selected groups, last
-common revision and unresolved conflicts.
+Appearance groups. Each device retains its full local application document at
+the fixed SET-12 path. Its local-only `Sync` section holds the profile path,
+selected groups, last common revision and unresolved conflicts. ADR 0007 folds
+the former `sync-state.json` into this document during migration.
 
 The interface offers continuous bidirectional synchronization and previewed
 one-time Send to profile and Receive from profile actions. A device only reads
