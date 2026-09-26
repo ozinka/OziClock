@@ -175,6 +175,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.set_selected_section(0);
     initialize_ruler_content(&window, &settings);
     let shared_settings = Rc::new(RefCell::new(settings));
+    schedule_automatic_sync(Rc::new(Timer::default()), shared_settings.clone());
     if shared_settings.borrow().launch_at_login {
         let _ = launch_at_login::set_enabled(true);
     }
@@ -479,157 +480,195 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
             editor.set_color_picker_open(false);
             editor.set_status_message("".into());
             editor.set_sync_status_is_error(false);
-            editor.set_sync_status_visible(true);
-            editor.set_sync_preview_action(0);
+            editor.set_sync_status_visible(false);
             apply_sync_state(&editor, &settings_for_sync_selection.borrow().sync);
         }
     });
-    let editor_for_sync_configuration = settings_window.as_weak();
-    let settings_for_sync_configuration = shared_settings.clone();
-    settings_window.on_request_configure_sync(move || {
-        let Some(editor) = editor_for_sync_configuration.upgrade() else {
+    let editor_for_sync_folder = settings_window.as_weak();
+    let settings_for_sync_folder = shared_settings.clone();
+    settings_window.on_request_choose_sync_folder(move || {
+        let Some(editor) = editor_for_sync_folder.upgrade() else {
             return;
         };
-        let directory = std::path::PathBuf::from(editor.get_sync_directory().as_str());
+        if let Some(directory) = rfd::FileDialog::new().pick_folder() {
+            editor.set_sync_directory(directory.display().to_string().into());
+            let groups = oziclock_storage::SyncGroups {
+                planner: editor.get_sync_planner(),
+                clocks: editor.get_sync_clocks(),
+                appearance: editor.get_sync_appearance(),
+            };
+            match oziclock_storage::save_sync_draft(
+                &mut settings_for_sync_folder.borrow_mut(),
+                Some(directory),
+                groups,
+            ) {
+                Ok(state) => {
+                    apply_sync_state(&editor, &state);
+                    editor.set_sync_status_visible(false);
+                }
+                Err(error) => {
+                    editor.set_sync_status_visible(true);
+                    editor.set_sync_status_is_error(true);
+                    editor
+                        .set_status_message(format!("Could not save sync folder: {error}").into());
+                }
+            }
+        }
+    });
+    let editor_for_sync_draft = settings_window.as_weak();
+    let settings_for_sync_draft = shared_settings.clone();
+    settings_window.on_request_save_sync_draft(move || {
+        let Some(editor) = editor_for_sync_draft.upgrade() else {
+            return;
+        };
+        let directory = editor.get_sync_directory();
+        let directory =
+            (!directory.is_empty()).then(|| std::path::PathBuf::from(directory.as_str()));
         let groups = oziclock_storage::SyncGroups {
             planner: editor.get_sync_planner(),
             clocks: editor.get_sync_clocks(),
             appearance: editor.get_sync_appearance(),
         };
-        match oziclock_storage::configure_sync_profile(
-            &mut settings_for_sync_configuration.borrow_mut(),
-            &directory,
+        match oziclock_storage::save_sync_draft(
+            &mut settings_for_sync_draft.borrow_mut(),
+            directory,
             groups,
         ) {
-            Ok(state) => {
-                apply_sync_state(&editor, &state);
-                editor.set_sync_status_visible(true);
-                editor.set_sync_status_is_error(false);
-                editor.set_sync_preview_action(0);
-                editor.set_status_message(
-                    "Sync profile saved. Preview a transfer before applying it.".into(),
-                );
-            }
+            Ok(state) => apply_sync_state(&editor, &state),
             Err(error) => {
                 editor.set_sync_status_visible(true);
                 editor.set_sync_status_is_error(true);
-                editor.set_status_message(format!("Sync profile failed: {error}").into());
+                editor.set_status_message(format!("Could not save sync choices: {error}").into());
             }
         }
     });
-    let editor_for_sync_send_preview = settings_window.as_weak();
-    let settings_for_sync_send_preview = shared_settings.clone();
-    settings_window.on_request_preview_sync_send(move || {
-        let Some(editor) = editor_for_sync_send_preview.upgrade() else {
+    let editor_for_sync_automatic = settings_window.as_weak();
+    let settings_for_sync_automatic = shared_settings.clone();
+    settings_window.on_request_set_sync_automatic(move |enabled| {
+        let Some(editor) = editor_for_sync_automatic.upgrade() else {
             return;
         };
-        match oziclock_storage::preview_sync_profile(&settings_for_sync_send_preview.borrow().sync)
-        {
-            Ok(preview) => {
-                editor.set_sync_status_visible(true);
-                editor.set_sync_status_is_error(false);
-                editor.set_sync_preview_action(1);
-                editor.set_status_message(sync_preview_message(&preview, true).into());
-            }
-            Err(error) => {
-                editor.set_sync_status_visible(true);
-                editor.set_sync_status_is_error(true);
-                editor.set_sync_preview_action(0);
-                editor.set_status_message(format!("Preview failed: {error}").into());
-            }
-        }
-    });
-    let editor_for_sync_receive_preview = settings_window.as_weak();
-    let settings_for_sync_receive_preview = shared_settings.clone();
-    settings_window.on_request_preview_sync_receive(move || {
-        let Some(editor) = editor_for_sync_receive_preview.upgrade() else {
-            return;
-        };
-        match oziclock_storage::preview_sync_profile(
-            &settings_for_sync_receive_preview.borrow().sync,
+        match oziclock_storage::set_sync_automatic(
+            &mut settings_for_sync_automatic.borrow_mut(),
+            enabled,
         ) {
-            Ok(preview) if preview.profile_exists => {
-                editor.set_sync_status_visible(true);
-                editor.set_sync_status_is_error(false);
-                editor.set_sync_preview_action(2);
-                editor.set_status_message(sync_preview_message(&preview, false).into());
-            }
-            Ok(_) => {
-                editor.set_sync_status_visible(true);
-                editor.set_sync_status_is_error(true);
-                editor.set_sync_preview_action(0);
-                editor.set_status_message(
-                    "Preview failed: the sync profile does not exist yet.".into(),
-                );
-            }
-            Err(error) => {
-                editor.set_sync_status_visible(true);
-                editor.set_sync_status_is_error(true);
-                editor.set_sync_preview_action(0);
-                editor.set_status_message(format!("Preview failed: {error}").into());
-            }
-        }
-    });
-    let settings_for_sync_send = shared_settings.clone();
-    let editor_for_sync_send = settings_window.as_weak();
-    settings_window.on_request_send_sync(move || {
-        let Some(editor) = editor_for_sync_send.upgrade() else {
-            return;
-        };
-        match oziclock_storage::send_sync_profile(&mut settings_for_sync_send.borrow_mut()) {
             Ok(state) => {
                 apply_sync_state(&editor, &state);
                 editor.set_sync_status_visible(true);
                 editor.set_sync_status_is_error(false);
-                editor.set_sync_preview_action(0);
-                editor.set_status_message("Selected data was sent to the sync profile.".into());
+                editor.set_status_message(if enabled {
+                    "Automatic sync is on. OziClock checks this folder hourly.".into()
+                } else {
+                    "Automatic sync is off. Use Sync now when you want to update.".into()
+                });
             }
             Err(error) => {
                 editor.set_sync_status_visible(true);
                 editor.set_sync_status_is_error(true);
-                editor.set_status_message(format!("Send failed: {error}").into());
+                editor
+                    .set_status_message(format!("Could not update automatic sync: {error}").into());
             }
         }
     });
-    let settings_for_sync_receive = shared_settings.clone();
-    let editor_for_sync_receive = settings_window.as_weak();
-    let main_window_for_sync_receive = window.as_weak();
-    let planner_for_sync_receive = planner_window.as_weak();
-    settings_window.on_request_receive_sync(move || {
-        let Some(editor) = editor_for_sync_receive.upgrade() else {
+    let editor_for_sync_interval = settings_window.as_weak();
+    let settings_for_sync_interval = shared_settings.clone();
+    settings_window.on_request_set_sync_interval(move |value| {
+        let Some(editor) = editor_for_sync_interval.upgrade() else {
+            return;
+        };
+        let Ok(minutes) = value.trim().parse::<u32>() else {
+            editor.set_sync_status_visible(true);
+            editor.set_sync_status_is_error(true);
+            editor.set_status_message("Enter a positive whole number of minutes.".into());
+            return;
+        };
+        match oziclock_storage::set_sync_automatic_interval_minutes(
+            &mut settings_for_sync_interval.borrow_mut(),
+            minutes,
+        ) {
+            Ok(state) => {
+                apply_sync_state(&editor, &state);
+                editor.set_sync_status_visible(true);
+                editor.set_sync_status_is_error(false);
+                editor.set_status_message("Automatic sync interval was updated.".into());
+            }
+            Err(error) => {
+                editor.set_sync_status_visible(true);
+                editor.set_sync_status_is_error(true);
+                editor
+                    .set_status_message(format!("Could not update sync interval: {error}").into());
+            }
+        }
+    });
+    let editor_for_sync_now = settings_window.as_weak();
+    let settings_for_sync_now = shared_settings.clone();
+    let main_window_for_sync_now = window.as_weak();
+    let planner_for_sync_now = planner_window.as_weak();
+    settings_window.on_request_sync_now(move || {
+        let Some(editor) = editor_for_sync_now.upgrade() else {
             return;
         };
         let result = {
-            let mut settings = settings_for_sync_receive.borrow_mut();
-            oziclock_storage::receive_sync_profile(&mut settings)
-                .map(|state| (state, settings.clone()))
+            let mut settings = settings_for_sync_now.borrow_mut();
+            let directory = std::path::PathBuf::from(editor.get_sync_directory().as_str());
+            let groups = oziclock_storage::SyncGroups {
+                planner: editor.get_sync_planner(),
+                clocks: editor.get_sync_clocks(),
+                appearance: editor.get_sync_appearance(),
+            };
+            match oziclock_storage::configure_sync_profile(&mut settings, &directory, groups)
+                .and_then(|_| oziclock_storage::preview_sync_profile(&settings.sync))
+            {
+                Ok(preview)
+                    if preview.profile_exists
+                        && preview.profile_revision > settings.sync.last_common_revision =>
+                {
+                    oziclock_storage::receive_sync_profile(&mut settings).map(|state| {
+                        (
+                            state,
+                            settings.clone(),
+                            true,
+                            "Changes were received from the cloud folder.",
+                        )
+                    })
+                }
+                Ok(_) => oziclock_storage::send_sync_profile(&mut settings).map(|state| {
+                    (
+                        state,
+                        settings.clone(),
+                        false,
+                        "Selected data was sent to the cloud folder.",
+                    )
+                }),
+                Err(error) => Err(error),
+            }
         };
         match result {
-            Ok((state, settings)) => {
-                if let Some(main_window) = main_window_for_sync_receive.upgrade() {
-                    update_clock_tiles(
-                        &main_window,
-                        &settings.clocks_settings,
-                        settings.show_seconds,
-                    );
+            Ok((state, settings, received, message)) => {
+                if received {
+                    if let Some(main_window) = main_window_for_sync_now.upgrade() {
+                        update_clock_tiles(
+                            &main_window,
+                            &settings.clocks_settings,
+                            settings.show_seconds,
+                        );
+                    }
+                    update_settings_preview(&editor, &settings.clocks_settings);
+                    planner_appearance::refresh_editor(&editor, &settings.planner_appearance);
+                    if let Some(planner) = planner_for_sync_now.upgrade() {
+                        planner_appearance::refresh(&planner, &settings);
+                    }
+                    editor.invoke_application_theme_changed();
                 }
-                update_settings_preview(&editor, &settings.clocks_settings);
-                planner_appearance::refresh_editor(&editor, &settings.planner_appearance);
-                if let Some(planner) = planner_for_sync_receive.upgrade() {
-                    planner_appearance::refresh(&planner, &settings);
-                }
-                editor.invoke_application_theme_changed();
                 apply_sync_state(&editor, &state);
                 editor.set_sync_status_visible(true);
                 editor.set_sync_status_is_error(false);
-                editor.set_sync_preview_action(0);
-                editor
-                    .set_status_message("Selected data was received from the sync profile.".into());
+                editor.set_status_message(message.into());
             }
             Err(error) => {
                 editor.set_sync_status_visible(true);
                 editor.set_sync_status_is_error(true);
-                editor.set_status_message(format!("Receive failed: {error}").into());
+                editor.set_status_message(format!("Sync failed: {error}").into());
             }
         }
     });
@@ -1800,41 +1839,34 @@ fn apply_sync_state(settings_window: &SettingsWindow, state: &oziclock_storage::
     settings_window.set_sync_planner(state.groups.planner);
     settings_window.set_sync_clocks(state.groups.clocks);
     settings_window.set_sync_appearance(state.groups.appearance);
+    settings_window.set_sync_automatic(state.automatic_sync);
+    settings_window
+        .set_sync_interval_minutes(state.automatic_sync_interval_minutes.to_string().into());
 }
 
-fn sync_preview_message(preview: &oziclock_storage::SyncPreview, sending: bool) -> String {
-    let groups = sync_groups_description(if sending {
-        preview.selected_groups
-    } else {
-        oziclock_storage::SyncGroups {
-            planner: preview.selected_groups.planner && preview.available_groups.planner,
-            clocks: preview.selected_groups.clocks && preview.available_groups.clocks,
-            appearance: preview.selected_groups.appearance && preview.available_groups.appearance,
-        }
-    });
-    if sending {
-        format!("Preview: Send {groups}. Select Send now to write the profile.")
-    } else {
-        format!("Preview: Receive {groups}. Select Receive now to apply it locally.")
-    }
-}
-
-fn sync_groups_description(groups: oziclock_storage::SyncGroups) -> String {
-    let mut names = Vec::new();
-    if groups.planner {
-        names.push("Planner data");
-    }
-    if groups.clocks {
-        names.push("Clocks");
-    }
-    if groups.appearance {
-        names.push("Appearance");
-    }
-    if names.is_empty() {
-        "no selected groups".into()
-    } else {
-        names.join(", ")
-    }
+fn schedule_automatic_sync(timer: Rc<Timer>, settings: Rc<RefCell<AppSettings>>) {
+    let next_timer = timer.clone();
+    let interval_minutes = settings.borrow().sync.automatic_sync_interval_minutes;
+    timer.start(
+        slint::TimerMode::SingleShot,
+        Duration::from_secs(u64::from(interval_minutes) * 60),
+        move || {
+            let should_receive = {
+                let settings = settings.borrow();
+                settings.sync.automatic_sync
+                    && oziclock_storage::preview_sync_profile(&settings.sync)
+                        .map(|preview| {
+                            preview.profile_exists
+                                && preview.profile_revision > settings.sync.last_common_revision
+                        })
+                        .unwrap_or(false)
+            };
+            if should_receive {
+                let _ = oziclock_storage::receive_sync_profile(&mut settings.borrow_mut());
+            }
+            schedule_automatic_sync(next_timer.clone(), settings.clone());
+        },
+    );
 }
 
 fn open_about_window(about_window: &AboutWindow, main_window: &slint::Weak<AppWindow>) {

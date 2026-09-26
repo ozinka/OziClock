@@ -25,7 +25,7 @@ When code and documentation disagree, do not silently copy current behavior. Ide
 5. Add an ADR only for long-lived, cross-cutting, or difficult-to-reverse decisions.
 6. Implement the smallest vertical slice without bypassing module boundaries.
 7. Test domain behavior independently from UI and OS integration.
-8. Run formatting, linting, unit tests, golden tests, and relevant platform smoke tests.
+8. During iteration, run the cheapest focused check that can falsify the change; before handoff of the completed functional slice, run formatting, linting, unit tests, golden tests, and relevant platform smoke tests.
 9. Update requirements, design notes, and backlog status in the same change.
 
 New focused test names should begin with the normalized controlling requirement ID when practical, for example `alm_11_due_interval_is_half_open`. For criteria that require visual, hardware, or platform verification, record the exact pending or completed evidence in the backlog item rather than implying that an automated test covers it.
@@ -44,7 +44,7 @@ Maintain the `Documentation Reconciliation` checkpoint in `BACKLOG.md`: the last
 
 When the user requests an implementation, proceed immediately if the scope is clear. Ask for confirmation only when a choice would materially change product behavior, design, data, or external state. State the interpretation and present a single concise confirmation question.
 
-After every implementation change, run the required build and validation commands. If a build cannot overwrite the executable because the application is running, do not stop at a status report: ask the user to close the application and confirm continuation. The user reply `1` means “Ready, continue”; retry the build immediately without requesting further clarification.
+During an in-progress implementation, run focused checks appropriate to the modified boundary. Before handing off a completed functional slice, run the required full build and validation commands. If a requested build or launch cannot overwrite the executable because the application is running, do not stop at a status report: ask the user to close the application and confirm continuation. The user reply `1` means “Ready, continue”; retry immediately without requesting further clarification.
 
 ### Build and debug launch
 
@@ -54,7 +54,7 @@ After changes, run the required checks and build the Rust desktop application fr
 cargo build -p oziclock-desktop
 ```
 
-After every code change, launch the debug build for user verification. On macOS, run the following command from the repository root:
+Before handing off a completed functional slice, build the debug application. Do not automatically launch the debug build, control the application UI, or inspect screenshots: provide a concise manual verification checklist instead. Launch only when the user explicitly requests it. On macOS, a requested launch uses the following command from the repository root:
 
 ```bash
 sh scripts/launch-debug-macos.sh
@@ -68,7 +68,7 @@ Use the conversation language selected by the user for all messages to the user.
 
 A feature is complete only when its behavior is documented, module ownership is clear, failure and restart cases are handled, tests cover its acceptance criteria, UI matches design tokens, resource impact is measured when relevant, and no known platform limitation is hidden. Temporary shortcuts must be recorded explicitly; comments are not substitutes for tracked architectural decisions.
 
-Run `sh scripts/check-docs.sh` after changing requirements, backlog entries, ADRs, or AI-facing documentation. Documentation-only changes do not require building or launching the application. Source changes still require the build, validation, and debug-launch workflow above.
+Run `sh scripts/check-docs.sh` after changing requirements, backlog entries, ADRs, or AI-facing documentation. Documentation-only changes do not require building or launching the application. Source changes use the focused-check and completed-slice validation workflow above.
 
 ## Implementation Discipline
 

@@ -1,6 +1,6 @@
 [package]
 name = "oziclock-desktop"
-version = "2.2.1-beta.15"
+version = "2.2.1-beta.16"
 edition.workspace = true
 license.workspace = true
 
@@ -12,6 +12,7 @@ oziclock-storage = { path = "../../crates/oziclock-storage" }
 slint = { version = "1.17.1", default-features = false, features = ["backend-winit", "compat-1-2", "renderer-femtovg", "unstable-winit-030"] }
 webbrowser = "1.2.4"
 rodio = { version = "0.22.2", default-features = false, features = ["playback"] }
+rfd = "0.15"
 
 [build-dependencies]
 slint-build = "1.17.1"

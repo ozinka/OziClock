@@ -21,6 +21,10 @@ const SETTINGS_FILE_NAME: &str = "settings.json";
 const SYNC_PROFILE_FILE_NAME: &str = "oziclock-sync.json";
 static TEMPORARY_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
+const fn default_sync_interval_minutes() -> u32 {
+    30
+}
+
 mod settings_file;
 pub use settings_file::{load_or_initialize, settings_path};
 
@@ -34,16 +38,33 @@ pub struct SyncGroups {
 }
 
 /// Local-only state for a provider-managed sync profile.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SyncState {
     pub profile_directory: Option<PathBuf>,
     #[serde(default)]
     pub groups: SyncGroups,
     #[serde(default)]
+    pub automatic_sync: bool,
+    #[serde(default = "default_sync_interval_minutes")]
+    pub automatic_sync_interval_minutes: u32,
+    #[serde(default)]
     pub last_common_revision: Option<u64>,
     #[serde(default)]
     pub unresolved_conflict: Option<String>,
+}
+
+impl Default for SyncState {
+    fn default() -> Self {
+        Self {
+            profile_directory: None,
+            groups: SyncGroups::default(),
+            automatic_sync: false,
+            automatic_sync_interval_minutes: default_sync_interval_minutes(),
+            last_common_revision: None,
+            unresolved_conflict: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -258,6 +279,20 @@ pub fn configure_sync_profile(
     configure_sync_profile_at(settings, directory, groups, &settings_path()?)
 }
 
+/// Saves this device's Sync controls without creating or modifying the cloud profile.
+pub fn save_sync_draft(
+    settings: &mut AppSettings,
+    directory: Option<PathBuf>,
+    groups: SyncGroups,
+) -> Result<SyncState, Box<dyn std::error::Error>> {
+    let mut updated = settings.clone();
+    updated.sync.profile_directory = directory;
+    updated.sync.groups = groups;
+    save_at(&updated, &settings_path()?)?;
+    *settings = updated;
+    Ok(settings.sync.clone())
+}
+
 /// Summarizes a transfer without modifying the profile or local settings.
 pub fn preview_sync_profile(state: &SyncState) -> Result<SyncPreview, Box<dyn std::error::Error>> {
     let directory = state.profile_directory.as_deref().ok_or_else(|| {
@@ -316,20 +351,66 @@ fn configure_sync_profile_at(
         .into());
     }
     let profile_path = sync_profile_path(directory);
-    if profile_path.exists() {
+    let profile_exists = profile_path.exists();
+    if profile_exists {
         let _: SyncProfile = serde_json::from_str(&fs::read_to_string(profile_path)?)?;
     }
+    let same_profile = settings.sync.profile_directory.as_deref() == Some(directory)
+        && settings.sync.groups == groups;
     let state = SyncState {
         profile_directory: Some(directory.to_path_buf()),
         groups,
-        last_common_revision: None,
-        unresolved_conflict: None,
+        automatic_sync: settings.sync.automatic_sync,
+        automatic_sync_interval_minutes: settings.sync.automatic_sync_interval_minutes,
+        last_common_revision: same_profile
+            .then_some(settings.sync.last_common_revision)
+            .flatten(),
+        unresolved_conflict: same_profile
+            .then_some(settings.sync.unresolved_conflict.clone())
+            .flatten(),
     };
     let mut updated = settings.clone();
     updated.sync = state.clone();
-    save_at(&updated, default_path)?;
+    if profile_exists {
+        save_at(&updated, default_path)?;
+        *settings = updated;
+        Ok(state)
+    } else {
+        *settings = updated;
+        send_sync_profile_at(settings, default_path)?;
+        Ok(settings.sync.clone())
+    }
+}
+
+/// Persists whether this device should periodically receive profile changes.
+pub fn set_sync_automatic(
+    settings: &mut AppSettings,
+    enabled: bool,
+) -> Result<SyncState, Box<dyn std::error::Error>> {
+    let mut updated = settings.clone();
+    updated.sync.automatic_sync = enabled;
+    save(&updated)?;
     *settings = updated;
-    Ok(state)
+    Ok(settings.sync.clone())
+}
+
+/// Persists the positive interval used by automatic profile checks.
+pub fn set_sync_automatic_interval_minutes(
+    settings: &mut AppSettings,
+    minutes: u32,
+) -> Result<SyncState, Box<dyn std::error::Error>> {
+    if minutes == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "automatic sync interval must be at least one minute",
+        )
+        .into());
+    }
+    let mut updated = settings.clone();
+    updated.sync.automatic_sync_interval_minutes = minutes;
+    save(&updated)?;
+    *settings = updated;
+    Ok(settings.sync.clone())
 }
 
 /// Writes only this device's selected portable groups to its configured profile.
@@ -464,7 +545,14 @@ fn receive_sync_profile_at(
 
 /// Persists the single local settings document atomically at its fixed path.
 pub fn save(settings: &AppSettings) -> Result<(), Box<dyn std::error::Error>> {
-    save_at(settings, &settings_path()?)
+    let local_path = settings_path()?;
+    save_at(settings, &local_path)?;
+    if settings.sync.automatic_sync && settings.sync.profile_directory.is_some() {
+        // Cloud-folder failures must never turn a successful local save into a failure.
+        let mut profile_copy = settings.clone();
+        let _ = send_sync_profile_at(&mut profile_copy, &local_path);
+    }
+    Ok(())
 }
 
 fn save_at(settings: &AppSettings, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -691,6 +779,7 @@ mod tests {
         assert_eq!(settings.non_main_dimming, 0.0);
         assert_eq!(settings.alert_sound_duration_seconds, 20);
         assert_eq!(settings.settings_window_height, 672.0);
+        assert_eq!(settings.sync.automatic_sync_interval_minutes, 30);
     }
 
     #[test]
@@ -813,6 +902,40 @@ mod tests {
         )
         .unwrap();
         assert!(profile_json.get("Sync").is_none());
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn set_11_configuring_an_empty_folder_creates_the_first_profile_copy() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = env::temp_dir().join(format!("oziclock-sync-create-{unique}"));
+        let local_path = root.join("local/settings.json");
+        let profile_directory = root.join("profile");
+        fs::create_dir_all(&profile_directory).unwrap();
+        let mut settings: AppSettings = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
+
+        configure_sync_profile_at(
+            &mut settings,
+            &profile_directory,
+            SyncGroups {
+                clocks: true,
+                ..SyncGroups::default()
+            },
+            &local_path,
+        )
+        .unwrap();
+
+        let profile: SyncProfile = serde_json::from_str(
+            &fs::read_to_string(sync_profile_path(&profile_directory)).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(profile.clocks, Some(settings.clocks_settings.clone()));
+        assert_eq!(settings.sync.last_common_revision, Some(1));
+        assert!(local_path.is_file());
 
         fs::remove_dir_all(root).unwrap();
     }

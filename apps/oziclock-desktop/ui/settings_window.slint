@@ -2,6 +2,7 @@ import { AppPalette } from "../../../ui/app_palette.slint";
 import { CheckBox } from "std-widgets.slint";
 import { ClockTile } from "../../../ui/clock_tile.slint";
 import { DeleteIcon } from "delete_icon.slint";
+import { FolderIcon } from "folder_icon.slint";
 
 export struct ClockListItem {
     label: string,
@@ -61,7 +62,8 @@ export component SettingsWindow inherits Window {
     in-out property <bool> sync-planner: true;
     in-out property <bool> sync-clocks: true;
     in-out property <bool> sync-appearance: true;
-    in-out property <int> sync-preview-action: 0;
+    in-out property <bool> sync-automatic: false;
+    in-out property <string> sync-interval-minutes: "30";
     in-out property <bool> sync-status-is-error: false;
     in-out property <bool> sync-status-visible: false;
     in-out property <bool> planner-follow-main-clock: true;
@@ -93,11 +95,11 @@ export component SettingsWindow inherits Window {
     callback request-select-calendar();
     callback request-select-planner();
     callback request-select-sync();
-    callback request-configure-sync();
-    callback request-preview-sync-send();
-    callback request-preview-sync-receive();
-    callback request-send-sync();
-    callback request-receive-sync();
+    callback request-choose-sync-folder();
+    callback request-save-sync-draft();
+    callback request-set-sync-automatic(bool);
+    callback request-set-sync-interval(string);
+    callback request-sync-now();
     callback request-add();
     callback request-remove(int);
     callback request-confirm-remove();
@@ -266,17 +268,18 @@ export component SettingsWindow inherits Window {
         Text { x: 286px; y: 474px; visible: root.selected-section == 0; text: "Border and separator color"; color: AppPalette.secondary; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         Rectangle { x: 286px; y: 494px; visible: root.selected-section == 0; width: 190px; height: 38px; border-radius: 6px; background: transparent; LineEdit { width: parent.width; height: parent.height; text <=> root.border-color-value; edited => { root.request-set-border-color(root.border-color-value); } } }
         Rectangle { x: 488px; y: 492px; visible: root.selected-section == 0; width: 42px; height: 42px; border-radius: 6px; border-width: 1px; border-color: AppPalette.disabled; background: root.border-preview-color; TouchArea { clicked => { root.request-open-border-color-picker(); } } }
-        Text { x: 286px; y: 151px; visible: root.selected-section == 4; text: "Sync profile folder"; color: AppPalette.secondary; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
-        LineEdit { x: 286px; y: 173px; visible: root.selected-section == 4; width: 390px; height: 38px; text <=> root.sync-directory; placeholder-text: "Paste a Google Drive, OneDrive, or Dropbox folder"; }
-        CheckBox { x: 286px; y: 225px; visible: root.selected-section == 4; text: "Planner data"; checked <=> root.sync-planner; }
-        CheckBox { x: 426px; y: 225px; visible: root.selected-section == 4; text: "Clocks"; checked <=> root.sync-clocks; }
-        CheckBox { x: 526px; y: 225px; visible: root.selected-section == 4; text: "Appearance"; checked <=> root.sync-appearance; }
-        Rectangle { x: 286px; y: 269px; visible: root.selected-section == 4; width: 164px; height: 38px; border-radius: 6px; background: AppPalette.primary; Text { width: parent.width; height: parent.height; text: "Save sync profile"; color: white; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-configure-sync(); } } } }
-        Rectangle { x: 462px; y: 269px; visible: root.selected-section == 4; width: 102px; height: 38px; border-radius: 6px; background: AppPalette.selected; Text { width: parent.width; height: parent.height; text: "Preview send"; color: AppPalette.text; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-preview-sync-send(); } } } }
-        Rectangle { x: 574px; y: 269px; visible: root.selected-section == 4; width: 102px; height: 38px; border-radius: 6px; background: AppPalette.selected; Text { width: parent.width; height: parent.height; text: "Preview receive"; color: AppPalette.text; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-preview-sync-receive(); } } } }
-        Text { x: 286px; y: 321px; visible: root.selected-section == 4 && root.sync-status-visible; width: 390px; height: 48px; text: root.status-message; color: root.sync-status-is-error ? AppPalette.danger : AppPalette.success; font-family: "Carlito"; font-size: 12px; wrap: word-wrap; }
-        Rectangle { x: 286px; y: 379px; visible: root.selected-section == 4 && root.sync-preview-action == 1; width: 132px; height: 38px; border-radius: 6px; background: AppPalette.primary; Text { width: parent.width; height: parent.height; text: "Send now"; color: white; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-send-sync(); } } } }
-        Rectangle { x: 286px; y: 379px; visible: root.selected-section == 4 && root.sync-preview-action == 2; width: 132px; height: 38px; border-radius: 6px; background: AppPalette.primary; Text { width: parent.width; height: parent.height; text: "Receive now"; color: white; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-receive-sync(); } } } }
+        Text { x: 286px; y: 151px; visible: root.selected-section == 4; text: "Cloud folder"; color: AppPalette.secondary; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
+        LineEdit { x: 286px; y: 173px; visible: root.selected-section == 4; width: 340px; height: 38px; text <=> root.sync-directory; placeholder-text: "Google Drive, OneDrive, or Dropbox folder"; accepted => { root.request-save-sync-draft(); } }
+        Rectangle { x: 636px; y: 173px; visible: root.selected-section == 4; width: 40px; height: 38px; border-radius: 6px; background: AppPalette.selected; FolderIcon { x: 11px; y: 11px; icon-color: AppPalette.text; } TouchArea { accessible-role: button; accessible-label: "Choose sync folder"; clicked => { root.request-choose-sync-folder(); } } }
+        CheckBox { x: 286px; y: 225px; visible: root.selected-section == 4; text: "Planner data"; checked <=> root.sync-planner; toggled => { root.request-save-sync-draft(); } }
+        CheckBox { x: 426px; y: 225px; visible: root.selected-section == 4; text: "Clocks"; checked <=> root.sync-clocks; toggled => { root.request-save-sync-draft(); } }
+        CheckBox { x: 526px; y: 225px; visible: root.selected-section == 4; text: "Appearance"; checked <=> root.sync-appearance; toggled => { root.request-save-sync-draft(); } }
+        CheckBox { x: 286px; y: 269px; visible: root.selected-section == 4; text: "Sync automatically"; checked <=> root.sync-automatic; toggled => { root.request-set-sync-automatic(self.checked); } }
+        Text { x: 462px; y: 272px; visible: root.selected-section == 4; text: "Every"; color: AppPalette.secondary; font-family: "Carlito"; font-size: 12px; }
+        LineEdit { x: 502px; y: 264px; visible: root.selected-section == 4; width: 54px; height: 32px; text <=> root.sync-interval-minutes; input-type: InputType.number; horizontal-alignment: center; accepted => { root.request-set-sync-interval(self.text); } }
+        Text { x: 564px; y: 272px; visible: root.selected-section == 4; text: "minutes"; color: AppPalette.secondary; font-family: "Carlito"; font-size: 12px; }
+        Rectangle { x: 286px; y: 321px; visible: root.selected-section == 4; width: 164px; height: 38px; border-radius: 6px; background: AppPalette.primary; Text { width: parent.width; height: parent.height; text: "Sync now"; color: white; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; TouchArea { clicked => { root.request-sync-now(); } } } }
+        Text { x: 286px; y: 377px; visible: root.selected-section == 4 && root.sync-status-visible; width: 390px; height: 48px; text: root.status-message; color: root.sync-status-is-error ? AppPalette.danger : AppPalette.success; font-family: "Carlito"; font-size: 12px; wrap: word-wrap; }
         Text { x: 286px; y: 558px; visible: root.selected-section == 0; text: "Application theme"; color: AppPalette.secondary; font-family: "Carlito"; font-size: 13px; }
         ComboBox { x: 426px; y: 548px; visible: root.selected-section == 0; width: 250px; height: 38px; model: ["Light", "Dark"]; current-index: root.application-light-theme ? 0 : 1; selected => { root.request-set-application-light-theme(self.current-index == 0); } }
         if root.selected-section == 3: Rectangle {

@@ -112,20 +112,18 @@ jobs:
           body: |
             ## OziClock ${{ github.ref_name }}
 
-            This beta refines clock spacing, application themes, and quick access to Planner time tools.
+            This beta introduces the first simple cloud-folder Sync workflow.
 
             ### Highlights
 
-            - Reduced outer clock padding to one eighth of the corner radius: approximately 2 pixels per side at maximum rounding and 100% scale.
-            - Centered ruler and lens labels across the full padded width of each column, including single-clock layouts.
-            - Added Timer, Stopwatch, and Reminder context-menu shortcuts that open the corresponding Planner section while preserving an open modal draft.
-            - Added shared outline navigation icons to the context menu and Planner sidebar.
-            - Applied the shared Light/Dark application theme to the bottom ruler time slider.
-            - Improved main-clock emphasis in Settings with bold black text in Light theme and bold white text in Dark theme, including the dragged row.
+            - Added a Sync folder picker for Google Drive, OneDrive, Dropbox, and equivalent desktop-client folders.
+            - Choose Planner data, Clocks, and Appearance independently; a new folder receives its first `oziclock-sync.json` when Sync now runs.
+            - Added automatic best-effort publishing after local saves and configurable periodic checks for a newer profile, defaulting to 30 minutes.
+            - Simplified manual synchronization to one Sync now action.
 
             Please report beta issues with the operating system, exact steps, and a screenshot when possible.
 
-            Clock-frame changes were visually checked on Windows at application scales from 100% to 200%. Native display-scale 200%, real fractional-DPI monitor transitions, macOS/Linux appearance, and the new menu/theme interactions still need beta verification.
+            Sync is currently intended for a simple one-writer-at-a-time workflow: it does not yet show conflict choices or merge concurrent edits from two devices. Please verify the folder picker and automatic receive flow on Windows and macOS.
 
             ### Packaging
 
