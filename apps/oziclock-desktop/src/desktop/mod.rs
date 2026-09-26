@@ -1221,9 +1221,20 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let settings_for_planner_scroll = shared_settings.clone();
     let planner_scroll_initialized = Rc::new(Cell::new(false));
     let initialized_for_planner = planner_scroll_initialized.clone();
-    context_menu.on_request_open_planner(move || {
+    context_menu.on_request_open_planner(move |destination| {
         if let Some(menu) = menu_for_planner.upgrade() {
             let _ = menu.hide();
+        }
+        if let Some(planner) = planner_for_menu.upgrade() {
+            let section = match destination {
+                PlannerDestination::Current => None,
+                PlannerDestination::Timers => Some(2),
+                PlannerDestination::Stopwatch => Some(3),
+                PlannerDestination::Reminders => Some(4),
+            };
+            if let Some(section) = section {
+                planner.invoke_select_section(section);
+            }
         }
         if let Some(planner) = planner_for_menu.upgrade()
             && show_auxiliary_window(
@@ -1575,6 +1586,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
 
     let about_window = AboutWindow::new()?;
     application_appearance::bind(
+        &window,
         &settings_window,
         &calendar_window,
         &planner_window,

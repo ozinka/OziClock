@@ -1,18 +1,41 @@
 import { AppPalette } from "../../../ui/app_palette.slint";
+import { NavigationIcon, NavigationIconKind } from "navigation_icon.slint";
+
+export enum PlannerDestination { current, timers, stopwatch, reminders }
+
+component ContextMenuItem inherits Rectangle {
+    in property <string> label;
+    in property <NavigationIconKind> icon-kind;
+    in property <color> text-color: AppPalette.text;
+    callback activated();
+    x: 12px; width: 192px; height: 34px; background: transparent;
+    NavigationIcon { x: 3px; y: 7px; kind: root.icon-kind; icon-color: root.text-color; }
+    Text {
+        x: 34px; width: parent.width - self.x; height: parent.height;
+        text: root.label; color: root.text-color;
+        font-family: "Carlito"; font-size: 14px; vertical-alignment: center;
+    }
+    TouchArea {
+        accessible-role: button;
+        accessible-label: root.label;
+        clicked => { root.activated(); }
+    }
+}
+
 export component ContextMenuWindow inherits Window {
     title: "OziClock menu";
     no-frame: true;
     always-on-top: true;
     preferred-width: 216px;
-    preferred-height: 215px;
+    preferred-height: 336px;
     min-width: 216px;
-    min-height: 215px;
+    min-height: 336px;
     max-width: 216px;
-    max-height: 215px;
+    max-height: 336px;
     background: transparent;
 
     callback request-open-settings();
-    callback request-open-planner();
+    callback request-open-planner(PlannerDestination);
     callback request-toggle-rulers();
     callback request-open-about();
     callback request-exit();
@@ -26,51 +49,35 @@ export component ContextMenuWindow inherits Window {
         border-color: AppPalette.border;
         background: AppPalette.surface;
 
-        Text {
-            x: 15px; y: 10px; width: 186px; height: 34px;
-            text: "Open Planner";
-            color: AppPalette.text;
-            font-family: "Carlito";
-            font-size: 14px;
-            vertical-alignment: center;
-            TouchArea { clicked => { root.request-open-planner(); } }
+        ContextMenuItem {
+            y: 10px; label: "Open Planner"; icon-kind: NavigationIconKind.plan;
+            activated => { root.request-open-planner(PlannerDestination.current); }
         }
-        Text {
-            x: 15px; y: 45px; width: 186px; height: 34px;
-            text: "Settings…";
-            color: AppPalette.text;
-            font-family: "Carlito";
-            font-size: 14px;
-            vertical-alignment: center;
-            TouchArea { clicked => { root.request-open-settings(); } }
+        for entry-label[index] in ["Timer", "Stopwatch", "Reminder"]: ContextMenuItem {
+            y: 45px + index * 35px; label: entry-label;
+            icon-kind: index == 0 ? NavigationIconKind.timer : index == 1 ? NavigationIconKind.stopwatch : NavigationIconKind.reminder;
+            activated => { root.request-open-planner(index == 0 ? PlannerDestination.timers : index == 1 ? PlannerDestination.stopwatch : PlannerDestination.reminders); }
         }
-        Text {
-            x: 15px; y: 80px; width: 186px; height: 34px;
-            text: root.show-rulers ? "Hide rulers" : "Show rulers";
-            color: AppPalette.text;
-            font-family: "Carlito";
-            font-size: 14px;
-            vertical-alignment: center;
-            TouchArea { clicked => { root.request-toggle-rulers(); } }
+        Rectangle { x: 12px; y: 157px; width: 192px; height: 1px; background: AppPalette.border; }
+        ContextMenuItem {
+            y: 166px; label: "Settings…"; icon-kind: NavigationIconKind.settings;
+            activated => { root.request-open-settings(); }
         }
-        Text {
-            x: 15px; y: 115px; width: 186px; height: 34px;
-            text: "About OziClock";
-            color: AppPalette.secondary;
-            font-family: "Carlito";
-            font-size: 14px;
-            vertical-alignment: center;
-            TouchArea { clicked => { root.request-open-about(); } }
+        ContextMenuItem {
+            y: 201px; label: root.show-rulers ? "Hide rulers" : "Show rulers";
+            icon-kind: NavigationIconKind.rulers;
+            activated => { root.request-toggle-rulers(); }
         }
-        Rectangle { x: 12px; y: 158px; width: 192px; height: 1px; background: AppPalette.border; }
-        Text {
-            x: 15px; y: 166px; width: 186px; height: 34px;
-            text: "Exit";
-            color: AppPalette.danger;
-            font-family: "Carlito";
-            font-size: 14px;
-            vertical-alignment: center;
-            TouchArea { clicked => { root.request-exit(); } }
+        ContextMenuItem {
+            y: 236px; label: "About OziClock"; icon-kind: NavigationIconKind.about;
+            text-color: AppPalette.secondary;
+            activated => { root.request-open-about(); }
+        }
+        Rectangle { x: 12px; y: 279px; width: 192px; height: 1px; background: AppPalette.border; }
+        ContextMenuItem {
+            y: 287px; label: "Exit"; icon-kind: NavigationIconKind.exit;
+            text-color: AppPalette.danger;
+            activated => { root.request-exit(); }
         }
     }
 }

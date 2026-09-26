@@ -183,7 +183,7 @@ export component SettingsWindow inherits Window {
             background: root.selected-section == 1 && index == root.selected-index ? AppPalette.selected : AppPalette.sidebar;
             Text { x: 10px; y: 10px; width: 12px; height: 17px; text: "⠿"; color: AppPalette.muted; font-size: 16px; vertical-alignment: center; }
             Rectangle { x: 30px; y: 9px; width: 18px; height: 18px; border-radius: 5px; background: clock.accent; }
-            Text { x: 57px; y: 8px; width: 45px; height: 21px; text: clock.label; color: clock.is-main ? #ffffff : AppPalette.text; font-family: "Carlito"; font-size: 14px; font-weight: clock.is-main ? 700 : 500; vertical-alignment: center; }
+            Text { x: 57px; y: 8px; width: 45px; height: 21px; text: clock.label; color: clock.is-main ? AppPalette.emphasized-text : AppPalette.text; font-family: "Carlito"; font-size: 14px; font-weight: clock.is-main ? 700 : 500; vertical-alignment: center; }
             Text { x: 104px; y: 8px; width: 100px; height: 21px; text: clock.time-zone; color: AppPalette.muted; font-family: "Carlito"; font-size: 11px; overflow: elide; vertical-alignment: center; }
             DeleteIcon { x: 214px; y: 7px; }
         }
@@ -206,7 +206,7 @@ export component SettingsWindow inherits Window {
             background: AppPalette.selected;
             Text { x: 10px; y: 10px; width: 12px; height: 17px; text: "⠿"; color: AppPalette.muted; font-size: 16px; vertical-alignment: center; }
             Rectangle { x: 30px; y: 9px; width: 18px; height: 18px; border-radius: 5px; background: root.clocks[root.dragging-index].accent; }
-            Text { x: 57px; y: 8px; width: 45px; height: 21px; text: root.clocks[root.dragging-index].label; color: #ffffff; font-family: "Carlito"; font-size: 14px; font-weight: 700; vertical-alignment: center; }
+            Text { x: 57px; y: 8px; width: 45px; height: 21px; text: root.clocks[root.dragging-index].label; color: root.clocks[root.dragging-index].is-main ? AppPalette.emphasized-text : AppPalette.text; font-family: "Carlito"; font-size: 14px; font-weight: root.clocks[root.dragging-index].is-main ? 700 : 500; vertical-alignment: center; }
             Text { x: 104px; y: 8px; width: 100px; height: 21px; text: root.clocks[root.dragging-index].time-zone; color: AppPalette.muted; font-family: "Carlito"; font-size: 11px; overflow: elide; vertical-alignment: center; }
             Rectangle { x: 214px; y: 9px; width: 14px; height: 2px; border-radius: 1px; background: AppPalette.danger; }
             Rectangle { x: 218px; y: 7px; width: 6px; height: 2px; border-radius: 1px; background: AppPalette.danger; }

@@ -1,4 +1,5 @@
 import { Slider } from "std-widgets.slint";
+import { AppPalette } from "../../../ui/app_palette.slint";
 
 export component TimeSliderPanel inherits Rectangle {
     in property <[int]> hour-labels;
@@ -18,7 +19,7 @@ export component TimeSliderPanel inherits Rectangle {
             y: root.line-width;
             width: parent.width - 2 * root.line-width;
             height: parent.height - 2 * root.line-width;
-            background: #383838;
+            background: AppPalette.surface;
             Slider {
                 x: 5px * root.clock-scale;
                 y: 10px * root.clock-scale;
@@ -36,7 +37,7 @@ export component TimeSliderPanel inherits Rectangle {
                 width: 32px * root.clock-scale;
                 height: 20px * root.clock-scale;
                 text: hour;
-                color: #c7c3c3;
+                color: AppPalette.secondary;
                 font-size: 12px * root.clock-scale;
                 horizontal-alignment: center;
             }

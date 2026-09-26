@@ -28,7 +28,7 @@ The project does not yet have a deterministic headless Slint screenshot renderer
 Run `cargo run -p oziclock-desktop --example clock_frame_gallery -- target/clock-frame`
 in a graphical desktop session. This uses the production AppWindow with fixed
 time, colors, and column data, without loading or saving user settings. It exits
-after eleven scenarios and fails on missing edges, opaque outer corners,
+after thirteen scenarios and fails on missing edges, opaque outer corners,
 unsnapped geometry, lost text area, or incorrect column-drag mapping. FemtoVG
 snapshots are taken after rendering and before the buffer swap.
 
@@ -36,12 +36,17 @@ The optional second argument multiplies application scale, for example
 `cargo run -p oziclock-desktop --example clock_frame_gallery -- target/clock-frame-125 1.25`.
 Repeat at multipliers 1, 1.25, 1.5, and 2. The scenarios additionally cover 80%
 and 150% application scales, radius 0/12/15.5, one/three clocks, seconds off,
-inactive opacity, and compact/standard/extended modes.
+inactive opacity, and compact/standard/extended modes. The `capsule-extended`
+and `single-extended` cases cover centered ruler/lens labels at maximum radius
+with three columns and a single column padded at both ends.
 
 `SLINT_SCALE_FACTOR=2` also exercises high-DPI rendering without changing system
-settings. Fractional environment overrides on a 100% Windows monitor can produce
-a Winit window at the wrong physical size; the probe deliberately rejects that
-capture. Application-scale coverage is not a substitute for testing real 125%
+settings. Environment overrides on a 100% Windows monitor can produce a Winit
+window at the wrong physical size; the probe deliberately rejects that capture.
+This was previously observed with fractional overrides and also reproduced with
+override 2 on 2026-09-26 (native size 304 x 62 instead of 608 x 124). Retain the
+assertion and report that display-scale run as unverified. Application-scale
+coverage is not a substitute for testing real 125%
 and 150% monitors, mixed-DPI movement, or macOS native opacity/shadows.
 
 Reviewed Windows references are in `tests/golden/clock-frame/windows/`, with

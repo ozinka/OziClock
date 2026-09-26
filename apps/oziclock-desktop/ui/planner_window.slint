@@ -2,6 +2,7 @@ import { CalendarIcon } from "calendar_icon.slint";
 import { AppPalette } from "../../../ui/app_palette.slint";
 import { LineEdit, ScrollView } from "std-widgets.slint";
 import { DeleteIcon } from "delete_icon.slint";
+import { NavigationIcon, NavigationIconKind } from "navigation_icon.slint";
 
 export struct PlannerTaskData {
     id: string,
@@ -102,23 +103,30 @@ component TimeSegmentField inherits TouchArea {
     }
 }
 
-component SidebarSectionIcon inherits Rectangle {
+component SidebarSectionIcon inherits NavigationIcon {
     in property <int> section;
-    in property <color> icon-color;
-    width: 20px; height: 20px; background: transparent;
-    // Plan
-    if root.section == 0: CalendarIcon { x: 0px; y: 0px; icon-color: root.icon-color; }
-    // Alarm
-    if root.section == 1: Rectangle { x: 3px; y: 3px; width: 14px; height: 14px; border-radius: 7px; border-width: 1px; border-color: root.icon-color; background: transparent; Rectangle { x: 6px; y: 3px; width: 1px; height: 5px; background: root.icon-color; } Rectangle { x: 6px; y: 7px; width: 4px; height: 1px; background: root.icon-color; } }
-    // Timer and stopwatch share the attention clock silhouette.
-    if root.section == 2 || root.section == 3: Rectangle { x: 2px; y: 3px; width: 16px; height: 16px; border-radius: 8px; border-width: 1px; border-color: root.icon-color; background: transparent; Rectangle { x: 7px; y: -3px; width: 2px; height: 4px; background: root.icon-color; } Rectangle { x: 7px; y: 3px; width: 1px; height: 6px; background: root.icon-color; } Rectangle { x: 7px; y: 8px; width: 5px; height: 1px; background: root.icon-color; } }
-    // Reminder clipboard
-    if root.section == 4: Rectangle { x: 3px; y: 2px; width: 14px; height: 17px; border-radius: 2px; border-width: 1px; border-color: root.icon-color; background: transparent; Rectangle { x: 4px; y: -2px; width: 6px; height: 4px; border-radius: 2px; background: root.icon-color; } Rectangle { x: 4px; y: 6px; width: 7px; height: 1px; background: root.icon-color; } Rectangle { x: 4px; y: 10px; width: 7px; height: 1px; background: root.icon-color; } }
-    // Task
-    if root.section == 5: Rectangle { x: 2px; y: 2px; width: 16px; height: 16px; border-radius: 8px; border-width: 1px; border-color: root.icon-color; background: transparent; Text { width: parent.width; height: parent.height; text: "✓"; color: root.icon-color; font-size: 11px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; } }
+    kind: root.section == 0 ? NavigationIconKind.plan : root.section == 1 ? NavigationIconKind.alarm : root.section == 2 ? NavigationIconKind.timer : root.section == 3 ? NavigationIconKind.stopwatch : root.section == 4 ? NavigationIconKind.reminder : NavigationIconKind.task;
 }
 
 export component PlannerWindow inherits Window {
+    public function select-section(section: int) {
+        if root.editor-modal >= 0 || root.selected-section == section { return; }
+        if section == 1 { root.request-alarm-section-enter(); }
+        if section == 4 { root.request-reminder-section-enter(); }
+        if root.selected-section == 5 {
+            root.selected-task = "";
+            root.editing-task = "";
+            root.task-error = "";
+            root.task-draft = "";
+        }
+        if root.selected-section == 4 {
+            root.selected-reminder = "";
+            root.editing-reminder = "";
+            root.reminder-error = "";
+            root.reminder-title-draft = "Reminder";
+        }
+        root.selected-section = section;
+    }
     callback appearance-changed(bool, color, color, color, color, color);
     in-out property <int> editor-modal: -1;
     callback close-editor();
@@ -244,13 +252,13 @@ export component PlannerWindow inherits Window {
                 for label[index] in ["Plan", "Alarms", "Reminders", "Tasks"]: Rectangle { height: 34px; border-radius: 6px; private property <int> section: index < 2 ? index : index + 2; background: self.section == root.selected-section ? root.accent : transparent;
                     SidebarSectionIcon { x: 9px; y: 7px; section: parent.section; icon-color: parent.section == root.selected-section ? AppPalette.accent-foreground : AppPalette.muted; }
                     Text { x: 38px; width: parent.width - 46px; height: parent.height; text: label; vertical-alignment: center; color: parent.section == root.selected-section ? AppPalette.accent-foreground : AppPalette.secondary; font-family: "Carlito"; font-size: 14px; }
-                    TouchArea { clicked => { if parent.section == 1 && root.selected-section != 1 { root.request-alarm-section-enter(); } if parent.section == 4 && root.selected-section != 4 { root.request-reminder-section-enter(); } if root.selected-section == 5 && parent.section != 5 { root.selected-task = ""; root.editing-task = ""; root.task-error = ""; root.task-draft = ""; } if root.selected-section == 4 && parent.section != 4 { root.selected-reminder = ""; root.editing-reminder = ""; root.reminder-error = ""; root.reminder-title-draft = "Reminder"; } root.selected-section = parent.section; } }
+                    TouchArea { clicked => { root.select-section(parent.section); } }
                 }
                 Rectangle { height: 1px; background: AppPalette.border; }
                 for label[index] in ["Timers", "Stopwatch"]: Rectangle { height: 34px; border-radius: 6px; private property <int> section: index + 2; background: self.section == root.selected-section ? root.accent : transparent;
                     SidebarSectionIcon { x: 9px; y: 7px; section: parent.section; icon-color: parent.section == root.selected-section ? AppPalette.accent-foreground : AppPalette.muted; }
                     Text { x: 38px; width: parent.width - 46px; height: parent.height; text: label; vertical-alignment: center; color: parent.section == root.selected-section ? AppPalette.accent-foreground : AppPalette.secondary; font-family: "Carlito"; font-size: 14px; }
-                    TouchArea { clicked => { if root.selected-section == 5 { root.selected-task = ""; root.editing-task = ""; root.task-error = ""; root.task-draft = ""; } if root.selected-section == 4 { root.selected-reminder = ""; root.editing-reminder = ""; root.reminder-error = ""; root.reminder-title-draft = "Reminder"; } root.selected-section = parent.section; } }
+                    TouchArea { clicked => { root.select-section(parent.section); } }
                 }
                 Rectangle { vertical-stretch: 1; }
         }}

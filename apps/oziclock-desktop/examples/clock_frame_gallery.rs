@@ -69,6 +69,21 @@ fn cases() -> Vec<Case> {
             ..base
         },
         Case {
+            name: "capsule-extended",
+            compact: true,
+            rulers: true,
+            radius: 15.5,
+            ..base
+        },
+        Case {
+            name: "single-extended",
+            count: 1,
+            compact: true,
+            rulers: true,
+            radius: 15.5,
+            ..base
+        },
+        Case {
             name: "small",
             compact: true,
             scale: 0.8,

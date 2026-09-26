@@ -1,9 +1,10 @@
-//! Apply the single persisted theme to all auxiliary windows, including hidden ones.
+//! Apply the persisted theme to auxiliary windows and the clock's time slider.
 
 use super::*;
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn bind(
+    clock: &AppWindow,
     editor: &SettingsWindow,
     calendar: &CalendarWindow,
     planner: &PlannerWindow,
@@ -16,6 +17,7 @@ pub(super) fn bind(
     task: &TaskAttentionWindow,
     settings: Rc<RefCell<AppSettings>>,
 ) {
+    let clock = clock.as_weak();
     let editor_weak = editor.as_weak();
     let calendar = calendar.as_weak();
     let planner = planner.as_weak();
@@ -39,6 +41,7 @@ pub(super) fn bind(
                 }
             };
         }
+        apply!(clock);
         apply!(editor_weak);
         apply!(calendar);
         apply!(about);

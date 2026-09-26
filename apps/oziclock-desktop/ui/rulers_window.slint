@@ -52,9 +52,9 @@ export component RulersPanel inherits Rectangle {
                 background: #000000;
             }
             for hour[hour-index] in root.label-hours: Text {
-                x: index == 0 ? root.metrics.end-padding : 0px;
+                x: 0px;
                 y: (6px + hour-index * 18px) * root.clock-scale;
-                width: root.metrics.tile-width;
+                width: parent.width;
                 height: 18px * root.clock-scale;
                 text: root.format-label(index, hour);
                 color: #000000;
@@ -103,9 +103,9 @@ export component RulersPanel inherits Rectangle {
                     background: #000000;
                 }
                 for hour[hour-index] in root.label-hours: Text {
-                    x: index == 0 ? root.metrics.end-padding : 0px;
+                    x: 0px;
                     y: ((6px + hour-index * 18px) * root.clock-scale + 9px * root.clock-scale - lens.source-center) * 1.6 + 0.6px * root.clock-scale;
-                    width: root.metrics.tile-width;
+                    width: parent.width;
                     height: 28.8px * root.clock-scale;
                     text: root.format-label(index, hour);
                     color: #000000;

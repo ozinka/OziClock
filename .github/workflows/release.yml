@@ -112,38 +112,20 @@ jobs:
           body: |
             ## OziClock ${{ github.ref_name }}
 
-            This beta includes refined clock framing and the local-first Planner before the next stable release.
+            This beta refines clock spacing, application themes, and quick access to Planner time tools.
 
             ### Highlights
 
-            - A shared rounded clock frame with consistent borders and aligned separators across compact, standard, and ruler modes.
-            - Fixed the missing right edge at maximum rounding with a targeted FemtoVG rendering correction.
-            - Reduced outer padding to one quarter of the corner radius: approximately 4 pixels per side at maximum rounding and 100% scale.
-
-            - Independent Planner Light/Dark themes, main-clock or custom accents, and per-type alert colors with a shared color picker.
-            - Mouse-wheel editing and bidirectional wrapping for segmented hours, minutes, and seconds.
-            - Fixed weekday headings and all-day events in Week view, with a smaller bottom inset.
-            - Aligned date-picker rows and drawn calendar icons in Event, Reminder, and Task editors.
-            - Corrected Settings label placement and compact custom Snooze input.
-
-            - Time-zone search resets when switching clocks without changing their configured zones.
-            - Filtering immediately applies the displayed time zone; an empty result preserves the active zone.
-            - Clock names update live in the clock list and tiles while typing.
-            - The color picker closes after color selection or switching clocks, and hovering no longer changes color.
-
-            - Auxiliary windows, including Calendar, context menu, About, Settings, Planner and local attention cards, now paint immediately on their first open on macOS.
-            - The main borderless clock window no longer allows manual edge resizing.
-            - macOS borderless clock windows now keep their top-edge position when switching between compact and expanded modes.
-            - Local alarms with Once and Weekly schedules, missed/delivered status, Snooze and durable attention cards.
-            - Named countdown timers with pause, restart, reset, repeat and recovery after restart.
-            - Stopwatch with hundredths, laps, split analysis, undo and clear controls.
-            - Tasks and dated or recurring reminders with modal editors and local attention cards.
-            - Weekly Plan view with reminder markers and quick creation from a time cell.
-            - Cross-platform release archives for Windows x64, Linux x64, and macOS Apple Silicon.
+            - Reduced outer clock padding to one eighth of the corner radius: approximately 2 pixels per side at maximum rounding and 100% scale.
+            - Centered ruler and lens labels across the full padded width of each column, including single-clock layouts.
+            - Added Timer, Stopwatch, and Reminder context-menu shortcuts that open the corresponding Planner section while preserving an open modal draft.
+            - Added shared outline navigation icons to the context menu and Planner sidebar.
+            - Applied the shared Light/Dark application theme to the bottom ruler time slider.
+            - Improved main-clock emphasis in Settings with bold black text in Light theme and bold white text in Dark theme, including the dragged row.
 
             Please report beta issues with the operating system, exact steps, and a screenshot when possible.
 
-            Clock-frame changes were visually checked on Windows. macOS appearance and real fractional-DPI monitor transitions still need beta verification.
+            Clock-frame changes were visually checked on Windows at application scales from 100% to 200%. Native display-scale 200%, real fractional-DPI monitor transitions, macOS/Linux appearance, and the new menu/theme interactions still need beta verification.
 
             ### Packaging
 
@@ -151,5 +133,5 @@ jobs:
             - macOS archive contains `OziClock.app`, which opens directly from Finder without Terminal.
             - Carlito is embedded for consistent text metrics on Windows, macOS, and Linux.
 
-            `settings.json` is created beside the executable on Windows and Linux, or under `~/Library/Application Support/OziClock` on macOS. The Windows release is x64; macOS release is Apple Silicon.
+            `settings.json` is stored under `%USERPROFILE%\.oziclock` on Windows, `$XDG_CONFIG_HOME/oziclock` (default `~/.config/oziclock`) on Linux, or `~/Library/Application Support/OziClock` on macOS. Existing settings are imported from their legacy location on first upgrade. The Windows and Linux releases are x64; the macOS release is Apple Silicon.
           files: release-assets/*

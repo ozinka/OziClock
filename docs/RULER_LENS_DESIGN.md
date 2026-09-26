@@ -86,7 +86,13 @@ The desktop adapter owns one native `AppWindow` for the complete clock construct
 
 ### Shared Frame and Column Geometry
 
-MODE-06A refines the legacy width contract. `ClockFrame` uses Slint's border and child clipping; the slider does not round the same corners again. `ClockStripMetrics` contains the snapped 99-pixel content width, shared line thickness, clock count, and quarter-radius padding at both outer ends. These lengths are resolved against the current display scale in `AppWindow`. `ClockStripLayout` supplies the same column boundaries to clocks, rulers, the magnified lens, and the draggable column focus. The wider end columns retain the original text area; intermediate columns receive no extra padding. The window's total width includes both end fields, both outer borders, and the internal separators. Native resize requests read these Slint dimensions instead of repeating the old `count * 100 + 1` width calculation in Rust.
+RUL-07A refines the legacy slider colors: the bottom panel uses the shared
+application theme's surface and secondary text colors, and its standard Slint
+slider uses the same Light/Dark palette. Theme updates reach the main window
+even while rulers are hidden. Clock/ruler accents and the configured outer
+border remain independent.
+
+MODE-06A refines the legacy width contract. `ClockFrame` uses Slint's border and child clipping; the slider does not round the same corners again. `ClockStripMetrics` contains the snapped 99-pixel content width, shared line thickness, clock count, and eighth-radius padding at both outer ends. These lengths are resolved against the current display scale in `AppWindow`. `ClockStripLayout` supplies the same column boundaries to clocks, rulers, the magnified lens, and the draggable column focus. The wider end columns retain the original clock text area; intermediate columns receive no extra padding. Ruler and lens labels instead use the full column width, keeping equal space between labels and the left/right ticks. With two pixels of outer padding, labels move one pixel outward relative to the original text area; a single column remains centered with padding on both ends. The window's total width includes both end fields, both outer borders, and the internal separators. Native resize requests read these Slint dimensions instead of repeating the old `count * 100 + 1` width calculation in Rust.
 
 ## Renderer Decision
 
