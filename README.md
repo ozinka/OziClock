@@ -6,9 +6,10 @@
 - [Installation](#installation)
   - [Windows](#windows)
   - [macOS](#macos)
-  - [Linux](#linux)
+- [Linux](#linux)
 - [Documentation](#documentation)
 - [Settings file](#settings-file)
+- [License](#license)
 
 ## About
 
@@ -162,6 +163,17 @@ The last legacy WPF/.NET release is [v1.0.10](https://github.com/ozinka/OziClock
 - [Rust and Slint stack decision](docs/decisions/0002-rust-slint-stack.md)
 
 The Rust toolchain is required to build the active workspace. The legacy application can still be built from `legacy/dotnet-wpf/` with the .NET 9 SDK.
+
+## License
+
+The active Rust/Slint rewrite is source-available under the [MIT License with
+Commons Clause](LICENSE). You may use, modify, and redistribute it, including
+inside a commercial organization. You may not sell OziClock itself or a
+product or service whose value derives entirely or substantially from its
+functionality.
+
+The preserved [legacy WPF/.NET implementation](legacy/dotnet-wpf/) remains
+available under its separate [MIT License](legacy/dotnet-wpf/LICENSE).
 
 ## Build from Source
 

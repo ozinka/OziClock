@@ -14,7 +14,7 @@ i-slint-renderer-femtovg = { path = "vendor/i-slint-renderer-femtovg" }
 
 [workspace.package]
 edition = "2024"
-license = "MIT"
+license-file = "LICENSE"
 repository = "https://github.com/ozinka/OziClock"
 
 [profile.release]
