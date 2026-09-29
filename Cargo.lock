@@ -3874,7 +3874,7 @@ dependencies = [
 
 [[package]]
 name = "oziclock-desktop"
-version = "2.2.1-beta.16"
+version = "2.2.2-beta.1"
 dependencies = [
  "chrono",
  "chrono-tz",
@@ -3888,6 +3888,7 @@ dependencies = [
  "slint",
  "slint-build",
  "tray-icon",
+ "url",
  "webbrowser",
  "windows-sys 0.61.2",
 ]

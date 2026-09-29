@@ -33,6 +33,17 @@ pub(super) fn wire_reminder_bindings(
         &shared_settings.borrow(),
     )));
 
+    let queue_for_open_link = attention_queue.clone();
+    attention_window.on_request_open_link(move || {
+        let link = queue_for_open_link
+            .borrow()
+            .front()
+            .and_then(|item| first_web_link(&item.title));
+        if let Some(link) = link {
+            let _ = webbrowser::open(&link);
+        }
+    });
+
     let queue_for_reminder_dismiss = attention_queue.clone();
     let sound_for_reminder_dismiss = alert_sound.clone();
     let settings_for_reminder_dismiss = shared_settings.clone();
@@ -177,6 +188,20 @@ pub(super) fn wire_reminder_bindings(
                     &zone,
                 )
                 .expect("validated reminder date and time resolve"),
+                "First of month" => oziclock_app::reminder_time::recurring_schedule(
+                    ReminderRecurrence::MonthlyFirst,
+                    &date,
+                    &time,
+                    &zone,
+                )
+                .expect("validated reminder date and time resolve"),
+                "Last of month" => oziclock_app::reminder_time::recurring_schedule(
+                    ReminderRecurrence::MonthlyLast,
+                    &date,
+                    &time,
+                    &zone,
+                )
+                .expect("validated reminder date and time resolve"),
                 "Yearly" => {
                     let local = due.with_timezone(&zone.parse::<Tz>().expect("main zone is valid"));
                     oziclock_app::reminder_time::recurring_schedule(
@@ -310,6 +335,8 @@ pub(super) fn wire_reminder_bindings(
                     ReminderRecurrence::Daily => "Daily",
                     ReminderRecurrence::Weekly { .. } => "Weekly",
                     ReminderRecurrence::Monthly { .. } => "Monthly",
+                    ReminderRecurrence::MonthlyFirst => "First of month",
+                    ReminderRecurrence::MonthlyLast => "Last of month",
                     ReminderRecurrence::Yearly { .. } => "Yearly",
                 };
                 planner.set_reminder_recurrence(mode.into());
@@ -409,6 +436,20 @@ struct ReminderAttentionItem {
     title: String,
 }
 
+fn first_web_link(text: &str) -> Option<String> {
+    text.split_whitespace().find_map(|word| {
+        let start = [word.find("https://"), word.find("http://")]
+            .into_iter()
+            .flatten()
+            .min()?;
+        let candidate =
+            word[start..].trim_end_matches(['.', ',', ';', ':', '!', '?', ')', ']', '}']);
+        let parsed = url::Url::parse(candidate).ok()?;
+        (matches!(parsed.scheme(), "http" | "https") && parsed.host().is_some())
+            .then(|| candidate.to_owned())
+    })
+}
+
 fn pending_reminder_attention_items(settings: &AppSettings) -> VecDeque<ReminderAttentionItem> {
     oziclock_app::reminder_time::pending_attention(&settings.planner)
         .into_iter()
@@ -438,6 +479,7 @@ fn display_reminder_attention(
         let _ = window.hide();
         return;
     };
+    window.set_reminder_link(first_web_link(&item.title).unwrap_or_default().into());
     window.set_reminder_title(item.title.into());
     let _ = show_auxiliary_window(
         window.window(),
@@ -518,4 +560,24 @@ fn schedule_reminder_refresh(
             queue.clone(),
         );
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::first_web_link;
+
+    #[test]
+    fn rem_17_extracts_http_links_from_reminder_titles() {
+        assert_eq!(
+            first_web_link("Check (https://example.com/path?q=1)."),
+            Some("https://example.com/path?q=1".into())
+        );
+        assert_eq!(
+            first_web_link("Visit http://example.com, then continue"),
+            Some("http://example.com".into())
+        );
+        assert_eq!(first_web_link("No link here"), None);
+        assert_eq!(first_web_link("https://"), None);
+        assert_eq!(first_web_link("javascript:alert(1)"), None);
+    }
 }

@@ -20,6 +20,60 @@ pub fn due_utc(schedule: &ReminderSchedule) -> Option<DateTime<Utc>> {
     }
 }
 
+/// Project a saved reminder onto a date in its source time zone.
+pub fn occurrence_on_date(schedule: &ReminderSchedule, date: NaiveDate) -> Option<DateTime<Utc>> {
+    match schedule {
+        ReminderSchedule::Absolute {
+            source_time_zone, ..
+        } => {
+            let zone: Tz = source_time_zone.parse().ok()?;
+            let due = due_utc(schedule)?;
+            (due.with_timezone(&zone).date_naive() == date).then_some(due)
+        }
+        ReminderSchedule::Recurring {
+            recurrence,
+            local_time,
+            source_time_zone,
+            next_at_utc,
+        } => {
+            let zone: Tz = source_time_zone.parse().ok()?;
+            let next = DateTime::parse_from_rfc3339(next_at_utc)
+                .ok()?
+                .with_timezone(&Utc);
+            let anchor = next.with_timezone(&zone).date_naive();
+            if date < anchor || !recurrence_matches_date(recurrence, date) {
+                return None;
+            }
+            let due = resolve_local(
+                &date.format("%Y-%m-%d").to_string(),
+                local_time,
+                source_time_zone,
+            )?;
+            (due >= next).then_some(due)
+        }
+        ReminderSchedule::ImportantDate { .. } => None,
+    }
+}
+
+fn recurrence_matches_date(recurrence: &ReminderRecurrence, date: NaiveDate) -> bool {
+    match recurrence {
+        ReminderRecurrence::Daily => true,
+        ReminderRecurrence::Weekly { weekdays } => {
+            weekdays.contains(&(date.weekday().num_days_from_monday() as u8))
+        }
+        ReminderRecurrence::Monthly { day } => {
+            clamped_date(date.year(), date.month(), *day) == Some(date)
+        }
+        ReminderRecurrence::MonthlyFirst => date.day() == 1,
+        ReminderRecurrence::MonthlyLast => {
+            clamped_date(date.year(), date.month(), 31) == Some(date)
+        }
+        ReminderRecurrence::Yearly { month, day } => {
+            clamped_date(date.year(), u32::from(*month), *day) == Some(date)
+        }
+    }
+}
+
 pub fn recurring_schedule(
     recurrence: ReminderRecurrence,
     first_date: &str,
@@ -34,6 +88,23 @@ pub fn recurring_schedule(
                 .contains(&(date.weekday().num_days_from_monday() as u8))
                 .then_some(date)
         })?;
+    }
+    if matches!(
+        recurrence,
+        ReminderRecurrence::MonthlyFirst | ReminderRecurrence::MonthlyLast
+    ) {
+        let day = if matches!(recurrence, ReminderRecurrence::MonthlyFirst) {
+            1
+        } else {
+            31
+        };
+        let current = clamped_date(first_date.year(), first_date.month(), day)?;
+        first_date = if current >= first_date {
+            current
+        } else {
+            let next_month = first_date.with_day(1)?.checked_add_months(Months::new(1))?;
+            clamped_date(next_month.year(), next_month.month(), day)?
+        };
     }
     let first = resolve_local(&first_date.format("%Y-%m-%d").to_string(), time, zone)?;
     Some(ReminderSchedule::Recurring {
@@ -75,6 +146,18 @@ fn next_occurrence(schedule: &ReminderSchedule) -> Option<DateTime<Utc>> {
                 .with_day(1)?
                 .checked_add_months(Months::new(1))?;
             clamped_date(month.year(), month.month(), *day)?
+        }
+        ReminderRecurrence::MonthlyFirst | ReminderRecurrence::MonthlyLast => {
+            let month = current
+                .date_naive()
+                .with_day(1)?
+                .checked_add_months(Months::new(1))?;
+            let day = if matches!(recurrence, ReminderRecurrence::MonthlyFirst) {
+                1
+            } else {
+                31
+            };
+            clamped_date(month.year(), month.month(), day)?
         }
         ReminderRecurrence::Yearly { month, day } => {
             clamped_date(current.year() + 1, u32::from(*month), *day)?
@@ -236,6 +319,78 @@ mod tests {
         );
         assert!(resolve_local("invalid", "12:30", "UTC").is_none());
         assert!(resolve_local("2026-09-05", "25:00", "UTC").is_none());
+    }
+
+    #[test]
+    fn pln_02_monthly_projection_shows_later_month_and_clamps_day() {
+        let schedule = recurring_schedule(
+            ReminderRecurrence::Monthly { day: 31 },
+            "2026-01-31",
+            "10:00",
+            "Europe/Kyiv",
+        )
+        .unwrap();
+        let date = |month, day| NaiveDate::from_ymd_opt(2026, month, day).unwrap();
+        assert!(occurrence_on_date(&schedule, date(1, 30)).is_none());
+        assert_eq!(
+            occurrence_on_date(&schedule, date(2, 28))
+                .unwrap()
+                .to_rfc3339(),
+            "2026-02-28T08:00:00+00:00"
+        );
+        assert_eq!(
+            occurrence_on_date(&schedule, date(3, 31))
+                .unwrap()
+                .to_rfc3339(),
+            "2026-03-31T07:00:00+00:00"
+        );
+    }
+
+    #[test]
+    fn pln_02_projection_starts_at_saved_next_occurrence() {
+        let schedule =
+            recurring_schedule(ReminderRecurrence::Daily, "2026-09-05", "10:00", "UTC").unwrap();
+        let date = |day| NaiveDate::from_ymd_opt(2026, 9, day).unwrap();
+        assert!(occurrence_on_date(&schedule, date(4)).is_none());
+        assert!(occurrence_on_date(&schedule, date(5)).is_some());
+        assert!(occurrence_on_date(&schedule, date(6)).is_some());
+    }
+
+    #[test]
+    fn rem_16_first_and_last_day_follow_calendar_months() {
+        let first = recurring_schedule(
+            ReminderRecurrence::MonthlyFirst,
+            "2027-01-15",
+            "09:00",
+            "UTC",
+        )
+        .unwrap();
+        assert_eq!(
+            due_utc(&first).unwrap().date_naive().to_string(),
+            "2027-02-01"
+        );
+        assert_eq!(
+            next_occurrence(&first).unwrap().date_naive().to_string(),
+            "2027-03-01"
+        );
+
+        let last = recurring_schedule(
+            ReminderRecurrence::MonthlyLast,
+            "2027-01-15",
+            "09:00",
+            "UTC",
+        )
+        .unwrap();
+        assert_eq!(
+            due_utc(&last).unwrap().date_naive().to_string(),
+            "2027-01-31"
+        );
+        assert_eq!(
+            next_occurrence(&last).unwrap().date_naive().to_string(),
+            "2027-02-28"
+        );
+        assert!(occurrence_on_date(&last, NaiveDate::from_ymd_opt(2027, 3, 31).unwrap()).is_some());
+        assert!(occurrence_on_date(&last, NaiveDate::from_ymd_opt(2027, 3, 30).unwrap()).is_none());
     }
 
     #[test]

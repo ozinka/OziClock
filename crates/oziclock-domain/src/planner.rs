@@ -221,6 +221,8 @@ pub enum ReminderRecurrence {
     Daily,
     Weekly { weekdays: Vec<u8> },
     Monthly { day: u8 },
+    MonthlyFirst,
+    MonthlyLast,
     Yearly { month: u8, day: u8 },
 }
 

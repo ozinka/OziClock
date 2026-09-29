@@ -5,7 +5,7 @@ use chrono_tz::Tz;
 use oziclock_app::calendar::{
     CalendarDate, CalendarDay, month_grid, rolling_week_grid, shift_day, shift_month, shift_year,
 };
-use oziclock_storage::{AlarmSchedule, AppSettings, ReminderRecurrence, ReminderSchedule};
+use oziclock_storage::{AlarmSchedule, AppSettings, ReminderSchedule};
 use slint::{ModelRc, VecModel};
 
 #[derive(Clone, Copy)]
@@ -481,57 +481,13 @@ fn reminder_time_for_date(
         ReminderSchedule::ImportantDate { month, day } => (target.month() == u32::from(*month)
             && target.day() == u32::from(*day))
         .then(|| "All day".into()),
-        ReminderSchedule::Recurring {
-            recurrence,
-            local_time,
-            source_time_zone,
-            next_at_utc,
-        } => {
-            let source_zone = source_time_zone.parse::<Tz>().ok()?;
-            let anchor = DateTime::parse_from_rfc3339(next_at_utc)
-                .ok()?
-                .with_timezone(&source_zone)
-                .date_naive();
-            (-1..=1).find_map(|offset| {
-                let source_date = target.checked_add_signed(chrono::Duration::days(offset))?;
-                (source_date >= anchor && recurrence_matches_date(recurrence, source_date))
-                    .then_some(())?;
-                let due = oziclock_app::reminder_time::resolve_local(
-                    &source_date.format("%Y-%m-%d").to_string(),
-                    local_time,
-                    source_time_zone,
-                )?
+        ReminderSchedule::Recurring { .. } => (-1..=1).find_map(|offset| {
+            let source_date = target.checked_add_signed(chrono::Duration::days(offset))?;
+            let due = oziclock_app::reminder_time::occurrence_on_date(schedule, source_date)?
                 .with_timezone(&zone);
-                (due.date_naive() == target).then(|| due.format("%H:%M").to_string())
-            })
-        }
+            (due.date_naive() == target).then(|| due.format("%H:%M").to_string())
+        }),
     }
-}
-
-fn recurrence_matches_date(recurrence: &ReminderRecurrence, date: NaiveDate) -> bool {
-    match recurrence {
-        ReminderRecurrence::Daily => true,
-        ReminderRecurrence::Weekly { weekdays } => {
-            weekdays.contains(&(date.weekday().num_days_from_monday() as u8))
-        }
-        ReminderRecurrence::Monthly { day } => {
-            date.day() == u32::from(*day).min(days_in_month(date.year(), date.month()))
-        }
-        ReminderRecurrence::Yearly { month, day } => {
-            date.month() == u32::from(*month)
-                && date.day() == u32::from(*day).min(days_in_month(date.year(), u32::from(*month)))
-        }
-    }
-}
-
-fn days_in_month(year: i32, month: u32) -> u32 {
-    let next = if month == 12 {
-        NaiveDate::from_ymd_opt(year + 1, 1, 1)
-    } else {
-        NaiveDate::from_ymd_opt(year, month + 1, 1)
-    }
-    .expect("valid next month");
-    (next - chrono::Duration::days(1)).day()
 }
 
 fn week_start(date: CalendarDate) -> CalendarDate {
@@ -555,6 +511,7 @@ fn format_date(date: CalendarDate) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oziclock_storage::ReminderRecurrence;
 
     #[test]
     fn current_time_is_centered_in_the_twelve_hour_viewport() {

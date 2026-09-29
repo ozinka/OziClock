@@ -4,20 +4,26 @@ import { ReminderAttentionIcon } from "attention_icons.slint";
 export component ReminderAttentionWindow inherits Window {
     in property <color> accent: #77d7cb;
     in property <string> reminder-title: "Reminder";
+    in property <string> reminder-link: "";
     in-out property <bool> pulse: false;
     callback request-dismiss();
+    callback request-open-link();
     title: "OziClock Reminder";
     no-frame: true;
     always-on-top: true;
     preferred-width: 360px; min-width: 360px; max-width: 360px;
-    preferred-height: 126px; min-height: 126px; max-height: 126px;
+    preferred-height: root.reminder-link == "" ? 126px : 150px; min-height: root.reminder-link == "" ? 126px : 150px; max-height: root.reminder-link == "" ? 126px : 150px;
     background: transparent;
     Rectangle { width: parent.width; height: parent.height; background: AppPalette.surface; border-color: root.accent; border-width: root.pulse ? 3px : 1px; border-radius: 10px;
         animate border-width { duration: 450ms; easing: ease-in-out; }
         ReminderAttentionIcon { x: 18px; y: 14px; accent: root.accent; }
         Text { x: 80px; y: 15px; width: parent.width - 98px; height: 25px; text: root.reminder-title; color: AppPalette.heading; font-size: 18px; font-weight: 700; overflow: elide; }
         Text { x: 80px; y: 44px; width: parent.width - 98px; height: 22px; text: "Reminder due"; color: root.accent; font-size: 16px; }
-        Rectangle { x: 18px; y: 78px; width: parent.width - 36px; height: 34px; background: root.accent; border-radius: 6px;
+        if root.reminder-link != "": Rectangle { x: 18px; y: 73px; width: parent.width - 36px; height: 24px;
+            Text { width: parent.width; height: parent.height; text: root.reminder-link; color: root.accent; font-size: 12px; overflow: elide; vertical-alignment: center; }
+            TouchArea { clicked => { root.request-open-link(); } }
+        }
+        Rectangle { x: 18px; y: root.reminder-link == "" ? 78px : 102px; width: parent.width - 36px; height: 34px; background: root.accent; border-radius: 6px;
             Text { width: parent.width; height: parent.height; text: "Dismiss"; color: AppPalette.accent-foreground; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
             TouchArea { clicked => { root.request-dismiss(); } }
         }

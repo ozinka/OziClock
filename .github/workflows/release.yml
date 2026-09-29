@@ -63,6 +63,12 @@ jobs:
         run: |
           Copy-Item ui/fonts/OFL.txt target/release/Carlito-OFL.txt
           Compress-Archive -Path target/release/${{ matrix.binary }},target/release/Carlito-OFL.txt -DestinationPath ${{ matrix.archive }}
+      - name: Package Microsoft Store MSIX
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $releaseVersion = '${{ github.ref_name }}'.TrimStart('v')
+          .\scripts\package-windows-msix.ps1 -PackageVersion $releaseVersion
       - name: Package Unix executable
         if: runner.os == 'Linux'
         run: |
@@ -90,7 +96,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.archive }}
-          path: ${{ matrix.archive }}
+          path: |
+            ${{ matrix.archive }}
+            target/msix/*.msix*
           if-no-files-found: error
 
   publish:
@@ -112,18 +120,18 @@ jobs:
           body: |
             ## OziClock ${{ github.ref_name }}
 
-            This beta introduces the first simple cloud-folder Sync workflow.
+            This beta improves recurring reminders and prepares a Microsoft Store package.
 
             ### Highlights
 
-            - Added a Sync folder picker for Google Drive, OneDrive, Dropbox, and equivalent desktop-client folders.
-            - Choose Planner data, Clocks, and Appearance independently; a new folder receives its first `oziclock-sync.json` when Sync now runs.
-            - Added automatic best-effort publishing after local saves and configurable periodic checks for a newer profile, defaulting to 30 minutes.
-            - Simplified manual synchronization to one Sync now action.
+            - Show recurring reminder occurrences in Plan Week, including later monthly and yearly dates.
+            - Add First of month and Last of month recurrence choices.
+            - Show the first HTTP(S) link in a reminder title on its local attention card, opening it in the default browser when clicked.
+            - Include a Windows MSIX and Store upload package alongside the Windows archive.
 
             Please report beta issues with the operating system, exact steps, and a screenshot when possible.
 
-            Sync is currently intended for a simple one-writer-at-a-time workflow: it does not yet show conflict choices or merge concurrent edits from two devices. Please verify the folder picker and automatic receive flow on Windows and macOS.
+            Please verify reminder markers, month-boundary recurrence, and link opening on Windows.
 
             ### Packaging
 

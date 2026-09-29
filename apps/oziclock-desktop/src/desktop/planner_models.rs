@@ -205,6 +205,8 @@ fn format_reminder_schedule(schedule: &ReminderSchedule, enabled: bool) -> Strin
                         .join(", ")
                 ),
                 ReminderRecurrence::Monthly { .. } => "Monthly".to_owned(),
+                ReminderRecurrence::MonthlyFirst => "First of month".to_owned(),
+                ReminderRecurrence::MonthlyLast => "Last of month".to_owned(),
                 ReminderRecurrence::Yearly { .. } => "Yearly".to_owned(),
             };
             (next_at_utc, source_time_zone, label)
@@ -251,22 +253,39 @@ pub(super) fn plan_reminder_rows(
         .reminders
         .iter()
         .filter(|reminder| reminder.enabled)
-        .filter_map(|reminder| {
-            let local =
-                oziclock_app::reminder_time::due_utc(&reminder.schedule)?.with_timezone(&zone);
-            let day_index = local.date_naive().signed_duration_since(start).num_days();
-            let minutes = i32::try_from(local.time().num_seconds_from_midnight() / 60).ok()?;
-            (0..7).contains(&day_index).then_some(())?;
-            Some(PlanReminderMarkerData {
-                id: reminder.id.to_string().into(),
-                title: reminder.title.clone().into(),
-                date: local.format("%Y-%m-%d").to_string().into(),
-                time: local.format("%H:%M").to_string().into(),
-                day_index: day_index as i32,
-                minute_offset: minutes,
-                lane_index: 0,
-                lane_count: 1,
-            })
+        .flat_map(|reminder| {
+            if matches!(reminder.schedule, ReminderSchedule::ImportantDate { .. }) {
+                return Vec::new();
+            }
+            let mut markers = Vec::new();
+            // The source date may differ from the main-clock date at the week boundary.
+            for offset in -2..=8 {
+                let Some(date) = start.checked_add_signed(chrono::Duration::days(offset)) else {
+                    continue;
+                };
+                let Some(due) =
+                    oziclock_app::reminder_time::occurrence_on_date(&reminder.schedule, date)
+                else {
+                    continue;
+                };
+                let local = due.with_timezone(&zone);
+                let day_index = local.date_naive().signed_duration_since(start).num_days();
+                if !(0..7).contains(&day_index) {
+                    continue;
+                }
+                let minutes = (local.time().num_seconds_from_midnight() / 60) as i32;
+                markers.push(PlanReminderMarkerData {
+                    id: reminder.id.to_string().into(),
+                    title: reminder.title.clone().into(),
+                    date: local.format("%Y-%m-%d").to_string().into(),
+                    time: local.format("%H:%M").to_string().into(),
+                    day_index: day_index as i32,
+                    minute_offset: minutes,
+                    lane_index: 0,
+                    lane_count: 1,
+                });
+            }
+            markers
         })
         .collect();
     arrange_plan_reminder_lanes(rows)

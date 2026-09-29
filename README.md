@@ -85,6 +85,8 @@ Download the current release from [GitHub Releases](https://github.com/ozinka/Oz
 
 No installation, .NET runtime, or Visual C++ Redistributable is required. To launch OziClock automatically after signing in, create a shortcut to `oziclock-desktop.exe` in the Windows Startup folder.
 
+OziClock is also available in the [Microsoft Store](https://apps.microsoft.com/detail/9NBG48TV6NP3).
+
 ### macOS
 
 The macOS build supports Apple Silicon:
