@@ -788,10 +788,10 @@ mod tests {
     #[test]
     fn selected_alert_sound_defaults_for_old_settings_and_round_trips() {
         let mut settings: AppSettings = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
-        settings.alert_sound_id = 3;
+        settings.alert_sound_id = 5;
         let restored: AppSettings =
             serde_json::from_str(&serde_json::to_string(&settings).unwrap()).unwrap();
-        assert_eq!(restored.alert_sound_id, 3);
+        assert_eq!(restored.alert_sound_id, 5);
 
         let mut old_settings = serde_json::to_value(settings).unwrap();
         old_settings.as_object_mut().unwrap().remove("AlertSoundId");

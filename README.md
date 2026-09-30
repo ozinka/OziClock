@@ -79,13 +79,13 @@ Download the current release from [GitHub Releases](https://github.com/ozinka/Oz
 
 ### Windows
 
+Install OziClock directly from the [Microsoft Store](https://apps.microsoft.com/detail/9NBG48TV6NP3), or download the portable archive below.
+
 1. Download the Windows x64 archive from the latest release.
 2. Extract the archive to a folder of your choice.
 3. Run `oziclock-desktop.exe`.
 
 No installation, .NET runtime, or Visual C++ Redistributable is required. To launch OziClock automatically after signing in, create a shortcut to `oziclock-desktop.exe` in the Windows Startup folder.
-
-OziClock is also available in the [Microsoft Store](https://apps.microsoft.com/detail/9NBG48TV6NP3).
 
 ### macOS
 
