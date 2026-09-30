@@ -170,6 +170,8 @@ pub struct AppSettings {
     pub calendar_show_alarms: bool,
     #[serde(default = "default_alert_sound_duration_seconds")]
     pub alert_sound_duration_seconds: u8,
+    #[serde(default)]
+    pub alert_sound_id: u8,
     #[serde(default = "default_settings_window_width")]
     pub settings_window_width: f64,
     #[serde(default = "default_settings_window_height")]
@@ -778,8 +780,23 @@ mod tests {
         assert_eq!(settings.border_color, "#000000");
         assert_eq!(settings.non_main_dimming, 0.0);
         assert_eq!(settings.alert_sound_duration_seconds, 20);
+        assert_eq!(settings.alert_sound_id, 0);
         assert_eq!(settings.settings_window_height, 672.0);
         assert_eq!(settings.sync.automatic_sync_interval_minutes, 30);
+    }
+
+    #[test]
+    fn selected_alert_sound_defaults_for_old_settings_and_round_trips() {
+        let mut settings: AppSettings = serde_json::from_str(DEFAULT_SETTINGS).unwrap();
+        settings.alert_sound_id = 3;
+        let restored: AppSettings =
+            serde_json::from_str(&serde_json::to_string(&settings).unwrap()).unwrap();
+        assert_eq!(restored.alert_sound_id, 3);
+
+        let mut old_settings = serde_json::to_value(settings).unwrap();
+        old_settings.as_object_mut().unwrap().remove("AlertSoundId");
+        let restored: AppSettings = serde_json::from_value(old_settings).unwrap();
+        assert_eq!(restored.alert_sound_id, 0);
     }
 
     #[test]

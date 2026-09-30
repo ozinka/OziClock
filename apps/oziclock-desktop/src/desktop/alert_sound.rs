@@ -15,6 +15,7 @@ use super::diagnostics;
 
 const SAMPLE_RATE: u32 = 48_000;
 const SIGNAL_SECONDS: f32 = 0.8;
+const DEFAULT_SOUND_ID: u8 = 0;
 
 /// One application-owned worker; the bounded queue prevents alert bursts from
 /// creating unbounded threads or a long backlog of sounds.
@@ -22,12 +23,14 @@ const SIGNAL_SECONDS: f32 = 0.8;
 pub(super) struct AlertSound {
     sender: Option<SyncSender<SoundRequest>>,
     generation: Arc<AtomicU64>,
+    selected_sound: Arc<AtomicU64>,
 }
 
 impl AlertSound {
     pub(super) fn new() -> Self {
         let (sender, receiver) = mpsc::sync_channel::<SoundRequest>(1);
         let generation = Arc::new(AtomicU64::new(0));
+        let selected_sound = Arc::new(AtomicU64::new(u64::from(DEFAULT_SOUND_ID)));
         let worker_generation = generation.clone();
         match thread::Builder::new()
             .name("oziclock-audio".into())
@@ -51,12 +54,14 @@ impl AlertSound {
             Ok(_) => Self {
                 sender: Some(sender),
                 generation,
+                selected_sound,
             },
             Err(error) => {
                 eprintln!("Could not start alert audio worker: {error}");
                 Self {
                     sender: None,
                     generation,
+                    selected_sound,
                 }
             }
         }
@@ -73,6 +78,7 @@ impl AlertSound {
             let request = SoundRequest {
                 generation,
                 until: Instant::now() + Duration::from_secs(u64::from(seconds)),
+                sound_id: self.selected_sound.load(Ordering::Relaxed) as u8,
             };
             match sender.try_send(request) {
                 Ok(()) => {}
@@ -88,25 +94,56 @@ impl AlertSound {
     pub(super) fn stop(&self) {
         self.generation.fetch_add(1, Ordering::Relaxed);
     }
+
+    pub(super) fn set_sound(&self, sound_id: u8) {
+        self.selected_sound
+            .store(u64::from(sound_id.min(3)), Ordering::Relaxed);
+        self.stop();
+    }
+
+    pub(super) fn preview(&self, sound_id: u8) {
+        self.stop();
+        if let Some(sender) = &self.sender {
+            let request = SoundRequest {
+                generation: self.generation.load(Ordering::Relaxed),
+                until: Instant::now() + Duration::from_secs(2),
+                sound_id: sound_id.min(3),
+            };
+            let _ = sender.try_send(request);
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
 struct SoundRequest {
     generation: u64,
     until: Instant,
+    sound_id: u8,
 }
 
-fn signal_samples() -> Vec<f32> {
+fn signal_samples(sound_id: u8) -> Vec<f32> {
     let count = (SAMPLE_RATE as f32 * SIGNAL_SECONDS) as usize;
+    let (fundamental_hz, overtone_hz, overtone_gain, release_seconds) = match sound_id {
+        1 => (1046.5, 1568.0, 0.62, 0.30),
+        2 => (659.3, 987.8, 0.28, 0.48),
+        3 => (880.0, 1320.0, 0.58, 0.34),
+        _ => (880.0, 1320.0, 0.35, 0.34),
+    };
     (0..count)
         .map(|index| {
             let time = index as f32 / SAMPLE_RATE as f32;
             let attack = (time / 0.012).min(1.0);
-            let release = ((count - 1 - index) as f32 / SAMPLE_RATE as f32 / 0.08).min(1.0);
-            let envelope = attack * release * (-4.0 * time).exp();
-            let fundamental = (TAU * 880.0 * time).sin();
-            let overtone = (TAU * 1320.0 * time).sin();
-            0.25 * envelope * (fundamental + 0.35 * overtone)
+            let release =
+                ((count - 1 - index) as f32 / SAMPLE_RATE as f32 / release_seconds).min(1.0);
+            let envelope = attack * release * (-3.2 * time).exp();
+            let double_chime = if sound_id == 3 {
+                0.35 + 0.65 * (TAU * 1.25 * time).cos().powi(2)
+            } else {
+                1.0
+            };
+            let fundamental = (TAU * fundamental_hz * time).sin();
+            let overtone = (TAU * overtone_hz * time).sin();
+            0.25 * envelope * double_chime * (fundamental + overtone_gain * overtone)
         })
         .collect()
 }
@@ -140,7 +177,7 @@ fn play_signal(request: SoundRequest, generation: &AtomicU64) -> Result<(), Stri
     player.append(SamplesBuffer::new(
         nz!(1),
         std::num::NonZeroU32::new(SAMPLE_RATE).expect("sample rate is nonzero"),
-        signal_samples(),
+        signal_samples(request.sound_id),
     ));
     let deadline = Instant::now()
         + Duration::from_secs(3).min(request.until.saturating_duration_since(Instant::now()));
@@ -162,7 +199,7 @@ mod tests {
 
     #[test]
     fn signal_is_finite_audible_and_has_smooth_silent_edges() {
-        let samples = signal_samples();
+        let samples = signal_samples(0);
         assert_eq!(samples.len(), 38_400);
         assert_eq!(samples[0], 0.0);
         assert_eq!(*samples.last().unwrap(), 0.0);
@@ -186,6 +223,7 @@ mod tests {
         let sound = AlertSound {
             sender: Some(sender),
             generation: Arc::new(AtomicU64::new(0)),
+            selected_sound: Arc::new(AtomicU64::new(0)),
         };
         for _ in 0..100 {
             sound.play_for_seconds(20);
@@ -200,6 +238,7 @@ mod tests {
         let sound = AlertSound {
             sender: None,
             generation: Arc::new(AtomicU64::new(7)),
+            selected_sound: Arc::new(AtomicU64::new(0)),
         };
         sound.stop();
         assert_eq!(sound.generation.load(Ordering::Relaxed), 8);
@@ -213,9 +252,23 @@ mod tests {
             SoundRequest {
                 generation: 0,
                 until: Instant::now() + Duration::from_secs(1),
+                sound_id: 0,
             },
             &generation,
         )
         .expect("alert playback should complete on the default audio device");
+    }
+
+    #[test]
+    fn sound_presets_are_distinct_and_fade_over_at_least_three_tenths_of_a_second() {
+        let classic = signal_samples(0);
+        for sound_id in 1..=3 {
+            assert_ne!(classic, signal_samples(sound_id));
+        }
+        let samples = &classic[classic.len() - (SAMPLE_RATE as usize / 3)..];
+        let start = samples.first().unwrap().abs();
+        let end = samples.last().unwrap().abs();
+        assert!(start > end);
+        assert_eq!(end, 0.0);
     }
 }

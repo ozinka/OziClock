@@ -83,6 +83,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings.non_main_dimming = settings.non_main_dimming.clamp(0.0, 80.0);
     settings.alert_sound_duration_seconds =
         normalize_alert_sound_duration_seconds(settings.alert_sound_duration_seconds);
+    settings.alert_sound_id = settings.alert_sound_id.min(3);
+    alert_sound.set_sound(settings.alert_sound_id);
     let initial_main_window_position =
         LogicalPosition::new(settings.main_wnd_left, settings.main_wnd_top);
     let is_first_native_window = Rc::new(Cell::new(true));
@@ -168,6 +170,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     settings_window.set_alert_sound_duration_seconds(i32::from(
         normalize_alert_sound_duration_seconds(settings.alert_sound_duration_seconds),
     ));
+    settings_window.set_alert_sound_id(i32::from(settings.alert_sound_id));
     apply_sync_state(&settings_window, &settings.sync);
     settings_window.set_opacity_percent((settings.opacity.clamp(0.02, 1.0) * 100.0) as f32);
     update_settings_preview(&settings_window, &settings.clocks_settings);
@@ -1091,6 +1094,21 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
         if let Some(editor) = editor.upgrade() {
             editor.set_alert_sound_duration_seconds(i32::from(seconds));
         }
+    });
+    let state = shared_settings.clone();
+    let sound = alert_sound.clone();
+    let editor = settings_window.as_weak();
+    settings_window.on_request_set_alert_sound_id(move |sound_id| {
+        let sound_id = (sound_id as u8).min(3);
+        state.borrow_mut().alert_sound_id = sound_id;
+        sound.set_sound(sound_id);
+        if let Some(editor) = editor.upgrade() {
+            editor.set_alert_sound_id(i32::from(sound_id));
+        }
+    });
+    let sound = alert_sound.clone();
+    settings_window.on_request_preview_alert_sound(move |sound_id| {
+        sound.preview((sound_id as u8).min(3));
     });
     let editor = settings_window.as_weak();
     settings_window.on_request_select_time_zone(move |index| {

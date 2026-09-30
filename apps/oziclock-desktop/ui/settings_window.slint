@@ -58,6 +58,7 @@ export component SettingsWindow inherits Window {
     in-out property <bool> calendar-show-tasks: true;
     in-out property <bool> calendar-show-alarms: true;
     in-out property <int> alert-sound-duration-seconds: 20;
+    in-out property <int> alert-sound-id: 0;
     in-out property <string> sync-directory;
     in-out property <bool> sync-planner: true;
     in-out property <bool> sync-clocks: true;
@@ -136,6 +137,8 @@ export component SettingsWindow inherits Window {
     callback request-set-calendar-hour-range(int);
     callback request-set-calendar-indicator-filter(int, bool);
     callback request-set-alert-sound-duration-seconds(int);
+    callback request-set-alert-sound-id(int);
+    callback request-preview-alert-sound(int);
 
     Rectangle {
         width: parent.width;
@@ -283,7 +286,7 @@ export component SettingsWindow inherits Window {
         Text { x: 286px; y: 558px; visible: root.selected-section == 0; text: "Application theme"; color: AppPalette.secondary; font-family: "Carlito"; font-size: 13px; }
         ComboBox { x: 426px; y: 548px; visible: root.selected-section == 0; width: 250px; height: 38px; model: ["Light", "Dark"]; current-index: root.application-light-theme ? 0 : 1; selected => { root.request-set-application-light-theme(self.current-index == 0); } }
         if root.selected-section == 3: Rectangle {
-            x: 286px; y: 145px; width: 390px; height: 402px;
+            x: 286px; y: 145px; width: 390px; height: 435px;
             Text { x: 0px; y: 0px; width: 128px; height: 32px; text: "Accent source"; color: AppPalette.secondary; font-size: 13px; vertical-alignment: center; }
             ComboBox { x: 140px; y: 0px; width: 250px; height: 32px; model: ["Main clock", "Custom"]; current-index: root.planner-follow-main-clock ? 0 : 1; selected => { root.request-planner-option(1, self.current-index == 0); } }
             CheckBox { x: 0px; y: 84px; width: 390px; height: 30px; text: "Use accent color"; checked: root.planner-use-accent-color; toggled => { root.request-planner-option(2, self.checked); } }
@@ -294,11 +297,14 @@ export component SettingsWindow inherits Window {
                 LineEdit { x: 140px; y: 0px; width: 208px; height: parent.height; enabled: parent.editable; text: root.planner-colors[index]; edited => { root.request-planner-color(index, self.text); } }
                 Rectangle { x: 358px; y: 0px; width: 32px; height: 32px; border-radius: 5px; background: root.planner-color-previews[index]; border-width: 1px; border-color: AppPalette.disabled; TouchArea { enabled: index == 0 ? !root.planner-follow-main-clock : !root.planner-use-accent-color; accessible-role: button; accessible-label: "Choose " + label + " color"; clicked => { root.request-open-planner-color-picker(index); } } }
             }
-            Text { x: 0px; y: 342px; width: 390px; height: 20px; text: "Click a swatch or enter #RRGGBB to choose a color."; color: AppPalette.muted; font-size: 12px; }
+            Rectangle { x: 0px; y: 330px; width: 390px; height: 1px; background: AppPalette.border; }
+            Text { x: 0px; y: 340px; width: 390px; height: 20px; text: "Sound"; color: AppPalette.secondary; font-size: 13px; font-weight: 600; }
+            ComboBox { x: 0px; y: 363px; width: 340px; height: 32px; model: ["Classic", "Bright Bell", "Soft Chime", "Double Chime"]; current-index: root.alert-sound-id; selected => { root.alert-sound-id = self.current-index; root.request-set-alert-sound-id(root.alert-sound-id); } }
+            Rectangle { x: 350px; y: 363px; width: 40px; height: 32px; border-radius: 5px; background: AppPalette.selected; Text { width: parent.width; height: parent.height; text: "▶"; color: AppPalette.text; font-size: 15px; horizontal-alignment: center; vertical-alignment: center; } TouchArea { accessible-role: button; accessible-label: "Preview selected alert sound"; clicked => { root.request-preview-alert-sound(root.alert-sound-id); } } }
+            Text { x: 0px; y: 405px; width: 128px; height: 28px; text: "Alert duration"; color: AppPalette.secondary; font-size: 13px; vertical-alignment: center; }
+            ComboBox { x: 140px; y: 403px; width: 250px; height: 32px; model: ["Off", "1 second", "5 seconds", "10 seconds", "20 seconds", "30 seconds"]; current-index: root.alert-sound-duration-seconds == 0 ? 0 : (root.alert-sound-duration-seconds == 1 ? 1 : (root.alert-sound-duration-seconds == 5 ? 2 : (root.alert-sound-duration-seconds == 10 ? 3 : (root.alert-sound-duration-seconds == 20 ? 4 : 5)))); selected => { root.alert-sound-duration-seconds = self.current-index == 0 ? 0 : (self.current-index == 1 ? 1 : (self.current-index == 2 ? 5 : (self.current-index == 3 ? 10 : (self.current-index == 4 ? 20 : 30)))); root.request-set-alert-sound-duration-seconds(root.alert-sound-duration-seconds); } }
         }
         Text { x: 286px; y: 593px; width: 390px; visible: root.selected-section == 3; text: root.status-message; color: AppPalette.danger; font-size: 12px; overflow: elide; }
-        Text { x: 286px; y: 566px; visible: root.selected-section == 3; text: "Alert sound"; color: AppPalette.secondary; font-size: 13px; }
-        ComboBox { x: 426px; y: 558px; visible: root.selected-section == 3; width: 250px; height: 32px; model: ["Off", "1 second", "5 seconds", "10 seconds", "20 seconds", "30 seconds"]; current-index: root.alert-sound-duration-seconds == 0 ? 0 : (root.alert-sound-duration-seconds == 1 ? 1 : (root.alert-sound-duration-seconds == 5 ? 2 : (root.alert-sound-duration-seconds == 10 ? 3 : (root.alert-sound-duration-seconds == 20 ? 4 : 5)))); selected => { root.alert-sound-duration-seconds = self.current-index == 0 ? 0 : (self.current-index == 1 ? 1 : (self.current-index == 2 ? 5 : (self.current-index == 3 ? 10 : (self.current-index == 4 ? 20 : 30)))); root.request-set-alert-sound-duration-seconds(root.alert-sound-duration-seconds); } }
         Text { x: 286px; y: 151px; visible: root.selected-section == 2; text: "First day of week"; color: AppPalette.secondary; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         ComboBox { x: 286px; y: 173px; visible: root.selected-section == 2; width: 240px; height: 40px; model: ["Monday", "Sunday"]; current-index: root.calendar-monday-first ? 0 : 1; selected => { root.calendar-monday-first = self.current-index == 0; root.request-set-calendar-monday-first(root.calendar-monday-first); } }
         Text { x: 286px; y: 237px; visible: root.selected-section == 2; text: "Week view"; color: AppPalette.secondary; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
