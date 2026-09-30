@@ -261,6 +261,17 @@ export component PlannerWindow inherits Window {
                     TouchArea { clicked => { root.select-section(parent.section); } }
                 }
                 Rectangle { vertical-stretch: 1; }
+                Rectangle {
+                    height: 34px;
+                    border-radius: 6px;
+                    background: exit-button.has-hover ? AppPalette.negative : transparent;
+                    NavigationIcon { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; kind: NavigationIconKind.exit; icon-color: AppPalette.danger-fill; }
+                    exit-button := TouchArea {
+                        accessible-role: button;
+                        accessible-label: "Close Planner";
+                        clicked => { root.request-close(); }
+                    }
+                }
         }}
         Rectangle { x: 166px; y: 0px; width: 1px; height: parent.height; background: AppPalette.border; }
         Rectangle { x: 167px; y: 0px; width: parent.width - 167px; height: parent.height;
