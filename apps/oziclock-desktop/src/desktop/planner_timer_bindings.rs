@@ -25,6 +25,14 @@ pub(super) fn wire_timer_bindings(
     owner: &AppWindow,
     shared_settings: Rc<RefCell<AppSettings>>,
 ) {
+    let attention_for_close = attention_window.as_weak();
+    attention_window.window().on_close_requested(move || {
+        if let Some(window) = attention_for_close.upgrade() {
+            window.set_pulse_active(false);
+        }
+        slint::CloseRequestResponse::HideWindow
+    });
+
     let timer_model = Rc::new(VecModel::from(planner_timer_rows(
         &shared_settings.borrow(),
     )));
@@ -98,7 +106,6 @@ pub(super) fn wire_timer_bindings(
         &owner.as_weak(),
         &attention_queue,
     );
-    schedule_timer_attention_pulse(Rc::new(Timer::default()), attention_window.as_weak());
 
     let planner_for_edit_timer_part = planner_window.as_weak();
     let settings_for_edit_timer = shared_settings.clone();
@@ -458,31 +465,19 @@ fn display_timer_attention(
         return;
     };
     let Some(item) = queue.borrow().front().cloned() else {
+        window.set_pulse_active(false);
         let _ = window.hide();
         return;
     };
     window.set_timer_title(item.title.into());
     window.set_triggered_at(item.triggered_at.into());
-    let _ = show_auxiliary_window(
+    let shown = show_auxiliary_window(
         window.window(),
         |_| {},
         |window| position_calendar_window(window, owner),
         AuxiliaryFocusPolicy::Preserve,
     );
-}
-
-fn schedule_timer_attention_pulse(timer: Rc<Timer>, window: slint::Weak<TimerAttentionWindow>) {
-    let next_timer = timer.clone();
-    timer.start(
-        TimerMode::SingleShot,
-        Duration::from_millis(450),
-        move || {
-            if let Some(window) = window.upgrade() {
-                window.set_pulse(!window.get_pulse());
-            }
-            schedule_timer_attention_pulse(next_timer.clone(), window.clone());
-        },
-    );
+    window.set_pulse_active(shown);
 }
 
 fn timer_triggered_label(timer: &PlannerTimer, settings: &AppSettings) -> String {

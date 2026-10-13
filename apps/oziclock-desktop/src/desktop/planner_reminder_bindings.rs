@@ -25,6 +25,14 @@ pub(super) fn wire_reminder_bindings(
     plan_reminder_model: Rc<VecModel<PlanReminderMarkerData>>,
     plan_week_start: Rc<RefCell<NaiveDate>>,
 ) {
+    let attention_for_close = attention_window.as_weak();
+    attention_window.window().on_close_requested(move || {
+        if let Some(window) = attention_for_close.upgrade() {
+            window.set_pulse_active(false);
+        }
+        slint::CloseRequestResponse::HideWindow
+    });
+
     let reminder_model = Rc::new(VecModel::from(planner_reminder_rows(
         &shared_settings.borrow(),
     )));
@@ -79,7 +87,6 @@ pub(super) fn wire_reminder_bindings(
         &owner.as_weak(),
         &attention_queue,
     );
-    schedule_reminder_attention_pulse(Rc::new(Timer::default()), attention_window.as_weak());
 
     let planner_for_adjust_reminder = planner_window.as_weak();
     planner_window.on_request_adjust_reminder_part(move |part, direction| {
@@ -476,34 +483,19 @@ fn display_reminder_attention(
         return;
     };
     let Some(item) = queue.borrow().front().cloned() else {
+        window.set_pulse_active(false);
         let _ = window.hide();
         return;
     };
     window.set_reminder_link(first_web_link(&item.title).unwrap_or_default().into());
     window.set_reminder_title(item.title.into());
-    let _ = show_auxiliary_window(
+    let shown = show_auxiliary_window(
         window.window(),
         |_| {},
         |window| position_calendar_window(window, owner),
         AuxiliaryFocusPolicy::Preserve,
     );
-}
-
-fn schedule_reminder_attention_pulse(
-    timer: Rc<Timer>,
-    window: slint::Weak<ReminderAttentionWindow>,
-) {
-    let next_timer = timer.clone();
-    timer.start(
-        TimerMode::SingleShot,
-        Duration::from_millis(450),
-        move || {
-            if let Some(window) = window.upgrade() {
-                window.set_pulse(!window.get_pulse());
-            }
-            schedule_reminder_attention_pulse(next_timer.clone(), window.clone());
-        },
-    );
+    window.set_pulse_active(shown);
 }
 
 fn schedule_reminder_refresh(

@@ -17,6 +17,7 @@ pub(super) fn wire_stopwatch_bindings(
     planner_window: &PlannerWindow,
     shared_settings: Rc<RefCell<AppSettings>>,
 ) {
+    let refresh_timer = Rc::new(Timer::default());
     let stopwatch_started_at = Rc::new(Cell::new(None::<Instant>));
     if shared_settings
         .borrow()
@@ -48,6 +49,7 @@ pub(super) fn wire_stopwatch_bindings(
     let settings_for_stopwatch_toggle = shared_settings.clone();
     let started_for_stopwatch_toggle = stopwatch_started_at.clone();
     let laps_for_stopwatch_toggle = stopwatch_lap_model.clone();
+    let timer_for_toggle = refresh_timer.clone();
     planner_window.on_request_toggle_stopwatch(move || {
         let mut settings = settings_for_stopwatch_toggle.borrow_mut();
         if settings.planner.stopwatch.is_none() {
@@ -86,14 +88,23 @@ pub(super) fn wire_stopwatch_bindings(
                 );
             }
         }
+        drop(settings);
+        schedule_stopwatch_refresh(
+            timer_for_toggle.clone(),
+            stopwatch_for_toggle.clone(),
+            settings_for_stopwatch_toggle.clone(),
+            started_for_stopwatch_toggle.clone(),
+        );
     });
 
     let stopwatch_for_reset = planner_window.as_weak();
     let settings_for_stopwatch_reset = shared_settings.clone();
     let started_for_stopwatch_reset = stopwatch_started_at.clone();
     let laps_for_stopwatch_reset = stopwatch_lap_model.clone();
+    let timer_for_reset = refresh_timer.clone();
     planner_window.on_request_reset_stopwatch(move || {
         let mut settings = settings_for_stopwatch_reset.borrow_mut();
+        timer_for_reset.stop();
         started_for_stopwatch_reset.set(None);
         if execute_planner_command(&mut settings.planner, PlannerCommand::ResetStopwatch) {
             let _ = oziclock_storage::save(&settings);
@@ -172,14 +183,6 @@ pub(super) fn wire_stopwatch_bindings(
             }
         }
     });
-
-    schedule_stopwatch_refresh(
-        Rc::new(Timer::default()),
-        planner_window.as_weak(),
-        shared_settings,
-        stopwatch_started_at,
-        stopwatch_lap_model,
-    );
 }
 
 fn stopwatch_elapsed_milliseconds(settings: &AppSettings, started_at: Option<Instant>) -> u128 {
@@ -214,45 +217,79 @@ fn refresh_stopwatch_ui(
     lap_model.set_vec(stopwatch_lap_rows(settings));
 }
 
+fn refresh_delay(running: bool, visible: bool, section: i32) -> Option<Duration> {
+    running.then_some(if visible && section == 3 {
+        Duration::from_millis(16)
+    } else {
+        Duration::from_secs(1)
+    })
+}
+
 fn schedule_stopwatch_refresh(
     timer: Rc<Timer>,
     planner: slint::Weak<PlannerWindow>,
     settings: Rc<RefCell<AppSettings>>,
     started_at: Rc<Cell<Option<Instant>>>,
-    lap_model: Rc<VecModel<StopwatchLapData>>,
 ) {
+    let Some(window) = planner.upgrade() else {
+        timer.stop();
+        return;
+    };
+    let running = settings
+        .borrow()
+        .planner
+        .stopwatch
+        .as_ref()
+        .is_some_and(|stopwatch| stopwatch.state == StopwatchState::Running);
+    let Some(delay) = refresh_delay(
+        running,
+        window.window().is_visible(),
+        window.get_selected_section(),
+    ) else {
+        timer.stop();
+        return;
+    };
     let next_timer = timer.clone();
-    let next_planner = planner.clone();
-    let next_settings = settings.clone();
-    let next_started_at = started_at.clone();
-    let next_lap_model = lap_model.clone();
-    timer.start(
-        TimerMode::SingleShot,
-        Duration::from_millis(16),
-        move || {
-            if let Some(planner) = next_planner.upgrade() {
-                let settings = next_settings.borrow();
-                if settings
-                    .planner
-                    .stopwatch
-                    .as_ref()
-                    .is_some_and(|stopwatch| stopwatch.state == StopwatchState::Running)
-                {
-                    refresh_stopwatch_ui(
-                        &planner,
-                        &settings,
-                        next_started_at.get(),
-                        &next_lap_model,
-                    );
-                }
+    timer.start(TimerMode::SingleShot, delay, move || {
+        if let Some(window) = planner.upgrade()
+            && window.window().is_visible()
+            && window.get_selected_section() == 3
+        {
+            let (time, milliseconds) = format_stopwatch(stopwatch_elapsed_milliseconds(
+                &settings.borrow(),
+                started_at.get(),
+            ));
+            window.set_stopwatch_time(time.into());
+            window.set_stopwatch_milliseconds(milliseconds.into());
+            window.set_stopwatch_has_data(true);
+        }
+        schedule_stopwatch_refresh(
+            next_timer.clone(),
+            planner.clone(),
+            settings.clone(),
+            started_at.clone(),
+        );
+    });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nfr_04a_stopwatch_refresh_only_uses_frame_cadence_when_visible_and_running() {
+        for visible in [false, true] {
+            for section in 0..6 {
+                assert_eq!(refresh_delay(false, visible, section), None);
+                assert_eq!(
+                    refresh_delay(true, visible, section),
+                    Some(if visible && section == 3 {
+                        Duration::from_millis(16)
+                    } else {
+                        Duration::from_secs(1)
+                    })
+                );
             }
-            schedule_stopwatch_refresh(
-                next_timer.clone(),
-                next_planner.clone(),
-                next_settings.clone(),
-                next_started_at.clone(),
-                next_lap_model.clone(),
-            );
-        },
-    );
+        }
+    }
 }

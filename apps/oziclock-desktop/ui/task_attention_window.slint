@@ -6,6 +6,12 @@ export component TaskAttentionWindow inherits Window {
     in property <string> task-title: "Task";
     in property <string> task-time: "";
     in-out property <bool> pulse: false;
+    in property <bool> pulse-active: false;
+    Timer {
+        interval: 450ms;
+        running: root.pulse-active;
+        triggered => { root.pulse = !root.pulse; }
+    }
     callback request-dismiss();
     title: "OziClock Task"; no-frame: true; always-on-top: true;
     preferred-width: 380px; min-width: 380px; max-width: 380px;

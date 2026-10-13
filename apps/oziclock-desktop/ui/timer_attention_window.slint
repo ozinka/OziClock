@@ -6,6 +6,12 @@ export component TimerAttentionWindow inherits Window {
     in property <string> timer-title: "Timer";
     in property <string> triggered-at: "";
     in-out property <bool> pulse: false;
+    in property <bool> pulse-active: false;
+    Timer {
+        interval: 450ms;
+        running: root.pulse-active;
+        triggered => { root.pulse = !root.pulse; }
+    }
     callback request-dismiss();
     callback request-restart();
     title: "OziClock Timer";

@@ -45,6 +45,14 @@ pub(super) fn wire_event_bindings(
     models: EventPlanModels,
     plan_week_start: Rc<RefCell<NaiveDate>>,
 ) {
+    let attention_for_close = attention_window.as_weak();
+    attention_window.window().on_close_requested(move || {
+        if let Some(window) = attention_for_close.upgrade() {
+            window.set_pulse_active(false);
+        }
+        slint::CloseRequestResponse::HideWindow
+    });
+
     let event_model = models.events;
     let all_day_event_model = models.all_day_events;
     let planner_for_new_event = planner_window.as_weak();
@@ -397,7 +405,6 @@ pub(super) fn wire_event_bindings(
         &owner.as_weak(),
         &attention_queue,
     );
-    schedule_event_attention_pulse(Rc::new(Timer::default()), attention_window.as_weak());
     schedule_event_refresh(
         alert_sound,
         Rc::new(Timer::default()),
@@ -467,31 +474,19 @@ fn display_event_attention(
         return;
     };
     let Some(item) = queue.borrow().front().cloned() else {
+        window.set_pulse_active(false);
         let _ = window.hide();
         return;
     };
     window.set_event_title(item.title.into());
     window.set_event_time(item.time.into());
-    let _ = show_auxiliary_window(
+    let shown = show_auxiliary_window(
         window.window(),
         |_| {},
         |window| position_calendar_window(window, owner),
         AuxiliaryFocusPolicy::Preserve,
     );
-}
-
-fn schedule_event_attention_pulse(timer: Rc<Timer>, window: slint::Weak<EventAttentionWindow>) {
-    let next_timer = timer.clone();
-    timer.start(
-        TimerMode::SingleShot,
-        Duration::from_millis(450),
-        move || {
-            if let Some(window) = window.upgrade() {
-                window.set_pulse(!window.get_pulse());
-            }
-            schedule_event_attention_pulse(next_timer.clone(), window.clone());
-        },
-    );
+    window.set_pulse_active(shown);
 }
 
 fn schedule_event_refresh(

@@ -120,18 +120,17 @@ jobs:
           body: |
             ## OziClock ${{ github.ref_name }}
 
-            This beta improves recurring reminders and prepares a Microsoft Store package.
+            This beta reduces idle resource usage and expands Planner alert sounds.
 
             ### Highlights
 
-            - Show recurring reminder occurrences in Plan Week, including later monthly and yearly dates.
-            - Add First of month and Last of month recurrence choices.
-            - Show the first HTTP(S) link in a reminder title on its local attention card, opening it in the default browser when clicked.
-            - Include a Windows MSIX and Store upload package alongside the Windows archive.
+            - Stop writing settings to disk on every idle alarm check, while preserving save-before-delivery and retry behavior.
+            - Stop stopped-stopwatch refresh timers and hidden attention-card pulse timers.
+            - Reduce hidden running-stopwatch refresh frequency and avoid rebuilding lap rows every frame.
+            - Add selectable synthesized Planner alert sounds and a Planner sidebar close button.
+            - Include Windows MSIX and Microsoft Store upload packages (2.2.3.0).
 
-            Please report beta issues with the operating system, exact steps, and a screenshot when possible.
-
-            Please verify reminder markers, month-boundary recurrence, and link opening on Windows.
+            Automated formatting, lint and workspace tests pass. Manual CPU/wake-up comparison and platform attention/stopwatch checks remain pending.
 
             ### Packaging
 

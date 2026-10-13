@@ -24,6 +24,14 @@ pub(super) fn wire_task_bindings(
     owner: &AppWindow,
     shared_settings: Rc<RefCell<AppSettings>>,
 ) {
+    let attention_for_close = attention_window.as_weak();
+    attention_window.window().on_close_requested(move || {
+        if let Some(window) = attention_for_close.upgrade() {
+            window.set_pulse_active(false);
+        }
+        slint::CloseRequestResponse::HideWindow
+    });
+
     let attention_queue = Rc::new(RefCell::new(pending_task_attention_items(
         &shared_settings.borrow(),
     )));
@@ -58,7 +66,6 @@ pub(super) fn wire_task_bindings(
         &owner.as_weak(),
         &attention_queue,
     );
-    schedule_task_attention_pulse(Rc::new(Timer::default()), attention_window.as_weak());
     schedule_task_refresh(
         alert_sound,
         Rc::new(Timer::default()),
@@ -422,31 +429,19 @@ fn display_task_attention(
         return;
     };
     let Some(item) = queue.borrow().front().cloned() else {
+        window.set_pulse_active(false);
         let _ = window.hide();
         return;
     };
     window.set_task_title(item.title.into());
     window.set_task_time(item.time.into());
-    let _ = show_auxiliary_window(
+    let shown = show_auxiliary_window(
         window.window(),
         |_| {},
         |window| position_calendar_window(window, owner),
         AuxiliaryFocusPolicy::Preserve,
     );
-}
-
-fn schedule_task_attention_pulse(timer: Rc<Timer>, window: slint::Weak<TaskAttentionWindow>) {
-    let next_timer = timer.clone();
-    timer.start(
-        TimerMode::SingleShot,
-        Duration::from_millis(450),
-        move || {
-            if let Some(window) = window.upgrade() {
-                window.set_pulse(!window.get_pulse());
-            }
-            schedule_task_attention_pulse(next_timer.clone(), window.clone());
-        },
-    );
+    window.set_pulse_active(shown);
 }
 
 fn schedule_task_refresh(

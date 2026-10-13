@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use oziclock_app::planner::{PlannerCommand, execute_planner_command};
 use oziclock_storage::{Alarm, AlarmOccurrenceStatus, AlarmSchedule, AppSettings, PlannerId};
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
@@ -26,6 +26,14 @@ pub(super) fn wire_alarm_bindings(
     owner: &AppWindow,
     shared_settings: Rc<RefCell<AppSettings>>,
 ) {
+    let attention_for_close = attention_window.as_weak();
+    attention_window.window().on_close_requested(move || {
+        if let Some(window) = attention_for_close.upgrade() {
+            window.set_pulse_active(false);
+        }
+        slint::CloseRequestResponse::HideWindow
+    });
+
     let alarm_model = Rc::new(VecModel::from(planner_alarm_rows(
         &shared_settings.borrow(),
     )));
@@ -337,7 +345,6 @@ pub(super) fn wire_alarm_bindings(
         }
     });
 
-    schedule_alarm_attention_pulse(Rc::new(Timer::default()), attention_window.as_weak());
     display_alarm_attention(
         &attention_window.as_weak(),
         &owner.as_weak(),
@@ -390,31 +397,19 @@ fn display_alarm_attention(
         return;
     };
     let Some(item) = queue.borrow().front().cloned() else {
+        window.set_pulse_active(false);
         let _ = window.hide();
         return;
     };
     window.set_alarm_title(item.title.into());
     window.set_alarm_time(item.time.into());
-    let _ = show_auxiliary_window(
+    let shown = show_auxiliary_window(
         window.window(),
         |_| {},
         |window| position_calendar_window(window, owner),
         AuxiliaryFocusPolicy::Preserve,
     );
-}
-
-fn schedule_alarm_attention_pulse(timer: Rc<Timer>, window: slint::Weak<AlarmAttentionWindow>) {
-    let next_timer = timer.clone();
-    timer.start(
-        TimerMode::SingleShot,
-        Duration::from_millis(450),
-        move || {
-            if let Some(window) = window.upgrade() {
-                window.set_pulse(!window.get_pulse());
-            }
-            schedule_alarm_attention_pulse(next_timer.clone(), window.clone());
-        },
-    );
+    window.set_pulse_active(shown);
 }
 
 fn schedule_alarm_refresh(
@@ -431,39 +426,20 @@ fn schedule_alarm_refresh(
     timer.start(TimerMode::SingleShot, Duration::from_secs(1), move || {
         let now = Utc::now();
         let mut settings_guard = next_settings.borrow_mut();
-        let after = settings_guard
-            .planner
-            .alarm_checked_at_utc
-            .as_deref()
-            .and_then(|value| DateTime::parse_from_rfc3339(value).ok())
-            .map(|value| value.with_timezone(&Utc))
-            .unwrap_or(now - chrono::Duration::seconds(1));
-        let titles = settings_guard
-            .planner
-            .alarms
-            .iter()
-            .map(|alarm| {
-                (
-                    alarm.id.clone(),
-                    (alarm.title.clone(), alarm_time_label(alarm)),
-                )
-            })
-            .collect::<HashMap<_, _>>();
-        let mut updated = settings_guard.clone();
-        let mut receipts = oziclock_app::alarm_time::reconcile(
-            &mut updated.planner,
-            after,
-            now,
-            chrono::Duration::minutes(5),
-        );
-        receipts.extend(oziclock_app::alarm_time::reconcile_snoozes(
-            &mut updated.planner,
-            now,
-            chrono::Duration::minutes(5),
-        ));
-        oziclock_storage::prune_alarm_receipts(&mut updated, now);
-        if oziclock_storage::save(&updated).is_ok() {
-            *settings_guard = updated;
+        if let Ok(Some(receipts)) =
+            super::alarm_scheduler::reconcile_tick(&mut settings_guard, now, oziclock_storage::save)
+        {
+            let titles = settings_guard
+                .planner
+                .alarms
+                .iter()
+                .map(|alarm| {
+                    (
+                        alarm.id.clone(),
+                        (alarm.title.clone(), alarm_time_label(alarm)),
+                    )
+                })
+                .collect::<HashMap<_, _>>();
             model.set_vec(planner_alarm_rows(&settings_guard));
             let was_empty = queue.borrow().is_empty();
             for receipt in receipts

@@ -7,6 +7,12 @@ export component AlarmAttentionWindow inherits Window {
     in property <string> alarm-title: "Alarm";
     in property <string> alarm-time: "";
     in-out property <bool> pulse: false;
+    in property <bool> pulse-active: false;
+    Timer {
+        interval: 450ms;
+        running: root.pulse-active;
+        triggered => { root.pulse = !root.pulse; }
+    }
     callback request-dismiss();
     in-out property <string> snooze-minutes: "5";
     callback request-snooze(float);

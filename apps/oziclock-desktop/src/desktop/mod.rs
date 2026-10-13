@@ -1,5 +1,6 @@
 slint::include_modules!();
 
+mod alarm_scheduler;
 mod alert_sound;
 mod application_appearance;
 mod calendar_bindings;
