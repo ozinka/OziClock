@@ -139,4 +139,8 @@ jobs:
             - Carlito is embedded for consistent text metrics on Windows, macOS, and Linux.
 
             `settings.json` is stored under `%USERPROFILE%\.oziclock` on Windows, `$XDG_CONFIG_HOME/oziclock` (default `~/.config/oziclock`) on Linux, or `~/Library/Application Support/OziClock` on macOS. Existing settings are imported from their legacy location on first upgrade. The Windows and Linux releases are x64; the macOS release is Apple Silicon.
-          files: release-assets/*
+          files: |
+            release-assets/**/*.zip
+            release-assets/**/*.tar.gz
+            release-assets/**/*.msix
+            release-assets/**/*.msixupload
