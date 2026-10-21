@@ -3874,11 +3874,12 @@ dependencies = [
 
 [[package]]
 name = "oziclock-desktop"
-version = "2.2.3-beta.1"
+version = "2.2.4-beta.1"
 dependencies = [
  "chrono",
  "chrono-tz",
  "notify-rust",
+ "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
  "oziclock-app",
  "oziclock-storage",

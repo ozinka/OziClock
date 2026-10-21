@@ -4,7 +4,8 @@ use chrono::{DateTime, Utc};
 use chrono_tz::Tz;
 use oziclock_app::planner::{PlannerCommand, execute_planner_command};
 use oziclock_storage::{AppSettings, PlannerId, PlannerTimer, TimerState};
-use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
+use slint::winit_030::{EventResult, WinitWindowAccessor, winit::event::WindowEvent};
+use slint::{ComponentHandle, Model, ModelRc, Timer, TimerMode, VecModel};
 
 use super::{
     AppWindow, AuxiliaryFocusPolicy, PlannerTimerData, PlannerWindow, TimerAttentionWindow,
@@ -40,33 +41,64 @@ pub(super) fn wire_timer_bindings(
     let attention_queue = Rc::new(RefCell::new(pending_timer_attention_items(
         &shared_settings.borrow(),
     )));
+    let presenter = TimerAttentionPresenter {
+        window: attention_window.as_weak(),
+        planner: planner_window.as_weak(),
+        owner: owner.as_weak(),
+        queue: attention_queue.clone(),
+    };
+    let presenter_for_view = presenter.clone();
+    planner_window.on_request_refresh_timer_attention(move || presenter_for_view.refresh());
+    let presenter_for_events = presenter.clone();
+    planner_window
+        .window()
+        .on_winit_window_event(move |_, event| {
+            if matches!(
+                event,
+                WindowEvent::Focused(_) | WindowEvent::Occluded(_) | WindowEvent::CloseRequested
+            ) {
+                // Let the native/backend focus and visibility state settle first.
+                let presenter = presenter_for_events.clone();
+                Timer::single_shot(Duration::ZERO, move || presenter.refresh());
+            }
+            EventResult::Propagate
+        });
+    let presenter_for_inline_dismiss = presenter.clone();
+    planner_window.on_request_dismiss_timer_attention(move |id| {
+        if presenter_for_inline_dismiss.is_inline(id.as_str())
+            && let Some(window) = presenter_for_inline_dismiss.window.upgrade()
+        {
+            window.invoke_request_dismiss();
+        }
+    });
+    let presenter_for_inline_restart = presenter.clone();
+    planner_window.on_request_restart_timer_attention(move |id| {
+        if presenter_for_inline_restart.is_inline(id.as_str())
+            && let Some(window) = presenter_for_inline_restart.window.upgrade()
+        {
+            window.invoke_request_restart();
+        }
+    });
 
     let queue_for_timer_dismiss = attention_queue.clone();
     let sound_for_timer_dismiss = alert_sound.clone();
     let settings_for_timer_dismiss = shared_settings.clone();
     let model_for_timer_dismiss = timer_model.clone();
-    let attention_for_timer_dismiss = attention_window.as_weak();
-    let owner_for_timer_dismiss = owner.as_weak();
+    let presenter_for_timer_dismiss = presenter.clone();
     attention_window.on_request_dismiss(move || {
         let Some(item) = queue_for_timer_dismiss.borrow().front().cloned() else {
             return;
         };
         let mut settings = settings_for_timer_dismiss.borrow_mut();
-        let mut updated = settings.clone();
-        if execute_planner_command(
-            &mut updated.planner,
+        if commit_timer_attention(
+            &mut settings,
             PlannerCommand::DismissTimer { id: item.timer_id },
-        ) && oziclock_storage::save(&updated).is_ok()
-        {
-            *settings = updated;
+            |updated| oziclock_storage::save(updated).is_ok(),
+        ) {
             sound_for_timer_dismiss.stop();
             model_for_timer_dismiss.set_vec(planner_timer_rows(&settings));
             queue_for_timer_dismiss.borrow_mut().pop_front();
-            display_timer_attention(
-                &attention_for_timer_dismiss,
-                &owner_for_timer_dismiss,
-                &queue_for_timer_dismiss,
-            );
+            presenter_for_timer_dismiss.refresh();
         }
     });
 
@@ -74,38 +106,27 @@ pub(super) fn wire_timer_bindings(
     let sound_for_timer_restart = alert_sound.clone();
     let settings_for_timer_restart = shared_settings.clone();
     let model_for_timer_restart = timer_model.clone();
-    let attention_for_timer_restart = attention_window.as_weak();
-    let owner_for_timer_restart = owner.as_weak();
+    let presenter_for_timer_restart = presenter.clone();
     attention_window.on_request_restart(move || {
         let Some(item) = queue_for_timer_restart.borrow().front().cloned() else {
             return;
         };
         let mut settings = settings_for_timer_restart.borrow_mut();
-        let mut updated = settings.clone();
-        if execute_planner_command(
-            &mut updated.planner,
+        if commit_timer_attention(
+            &mut settings,
             PlannerCommand::RestartTimer {
                 id: item.timer_id,
                 started_at_utc: Utc::now().to_rfc3339(),
             },
-        ) && oziclock_storage::save(&updated).is_ok()
-        {
-            *settings = updated;
+            |updated| oziclock_storage::save(updated).is_ok(),
+        ) {
             sound_for_timer_restart.stop();
             model_for_timer_restart.set_vec(planner_timer_rows(&settings));
             queue_for_timer_restart.borrow_mut().pop_front();
-            display_timer_attention(
-                &attention_for_timer_restart,
-                &owner_for_timer_restart,
-                &queue_for_timer_restart,
-            );
+            presenter_for_timer_restart.refresh();
         }
     });
-    display_timer_attention(
-        &attention_window.as_weak(),
-        &owner.as_weak(),
-        &attention_queue,
-    );
+    presenter.refresh();
 
     let planner_for_edit_timer_part = planner_window.as_weak();
     let settings_for_edit_timer = shared_settings.clone();
@@ -162,8 +183,7 @@ pub(super) fn wire_timer_bindings(
     let settings_for_add_timer = shared_settings.clone();
     let timer_model_for_add_timer = timer_model.clone();
     let queue_for_add_timer = attention_queue.clone();
-    let attention_for_add_timer = attention_window.as_weak();
-    let owner_for_add_timer = owner.as_weak();
+    let presenter_for_add_timer = presenter.clone();
     planner_window.on_request_add_timer(move |title, days, hours, minutes, seconds, repeat| {
         let Some(planner) = planner_for_add_timer.upgrade() else {
             return;
@@ -259,11 +279,7 @@ pub(super) fn wire_timer_bindings(
             queue_for_add_timer
                 .borrow_mut()
                 .retain(|item| item.timer_id != id);
-            display_timer_attention(
-                &attention_for_add_timer,
-                &owner_for_add_timer,
-                &queue_for_add_timer,
-            );
+            presenter_for_add_timer.refresh();
         }
         planner.set_timer_days_draft(days.to_string().into());
         planner.set_timer_hours_draft(hours.to_string().into());
@@ -309,8 +325,7 @@ pub(super) fn wire_timer_bindings(
     let settings_for_reset_timer = shared_settings.clone();
     let model_for_reset_timer = timer_model.clone();
     let queue_for_reset_timer = attention_queue.clone();
-    let attention_for_reset_timer = attention_window.as_weak();
-    let owner_for_reset_timer = owner.as_weak();
+    let presenter_for_reset_timer = presenter.clone();
     planner_window.on_request_reset_timer(move |timer_id| {
         let Some(id) = PlannerId::new(timer_id.to_string()) else {
             return;
@@ -327,11 +342,7 @@ pub(super) fn wire_timer_bindings(
             queue_for_reset_timer
                 .borrow_mut()
                 .retain(|item| item.timer_id != id);
-            display_timer_attention(
-                &attention_for_reset_timer,
-                &owner_for_reset_timer,
-                &queue_for_reset_timer,
-            );
+            presenter_for_reset_timer.refresh();
         }
     });
 
@@ -339,8 +350,7 @@ pub(super) fn wire_timer_bindings(
     let model_for_delete_timer = timer_model.clone();
     let planner_for_delete_timer = planner_window.as_weak();
     let queue_for_delete_timer = attention_queue.clone();
-    let attention_for_delete_timer = attention_window.as_weak();
-    let owner_for_delete_timer = owner.as_weak();
+    let presenter_for_delete_timer = presenter.clone();
     planner_window.on_request_delete_timer(move |timer_id| {
         let Some(id) = PlannerId::new(timer_id.to_string()) else {
             return;
@@ -357,12 +367,11 @@ pub(super) fn wire_timer_bindings(
             queue_for_delete_timer
                 .borrow_mut()
                 .retain(|item| item.timer_id != id);
-            display_timer_attention(
-                &attention_for_delete_timer,
-                &owner_for_delete_timer,
-                &queue_for_delete_timer,
-            );
+            presenter_for_delete_timer.refresh();
             if let Some(planner) = planner_for_delete_timer.upgrade() {
+                if planner.get_expanded_timer() == timer_id {
+                    planner.set_expanded_timer("".into());
+                }
                 if planner.get_selected_timer() == timer_id {
                     planner.set_selected_timer("".into());
                 }
@@ -376,8 +385,7 @@ pub(super) fn wire_timer_bindings(
     let settings_for_toggle_timer = shared_settings.clone();
     let timer_model_for_toggle_timer = timer_model.clone();
     let queue_for_toggle_timer = attention_queue.clone();
-    let attention_for_toggle_timer = attention_window.as_weak();
-    let owner_for_toggle_timer = owner.as_weak();
+    let presenter_for_toggle_timer = presenter.clone();
     planner_window.on_request_toggle_timer(move |timer_id| {
         let Some(id) = PlannerId::new(timer_id.to_string()) else {
             return;
@@ -412,11 +420,7 @@ pub(super) fn wire_timer_bindings(
             queue_for_toggle_timer
                 .borrow_mut()
                 .retain(|item| item.timer_id != id);
-            display_timer_attention(
-                &attention_for_toggle_timer,
-                &owner_for_toggle_timer,
-                &queue_for_toggle_timer,
-            );
+            presenter_for_toggle_timer.refresh();
         }
     });
 
@@ -425,9 +429,7 @@ pub(super) fn wire_timer_bindings(
         Rc::new(Timer::default()),
         timer_model,
         shared_settings,
-        attention_window.as_weak(),
-        owner.as_weak(),
-        attention_queue,
+        presenter,
     );
 }
 
@@ -436,6 +438,19 @@ struct TimerAttentionItem {
     timer_id: PlannerId,
     title: String,
     triggered_at: String,
+}
+
+fn commit_timer_attention(
+    settings: &mut AppSettings,
+    command: PlannerCommand,
+    persist: impl FnOnce(&AppSettings) -> bool,
+) -> bool {
+    let mut updated = settings.clone();
+    if !execute_planner_command(&mut updated.planner, command) || !persist(&updated) {
+        return false;
+    }
+    *settings = updated;
+    true
 }
 
 fn pending_timer_attention_items(settings: &AppSettings) -> VecDeque<TimerAttentionItem> {
@@ -456,28 +471,127 @@ fn pending_timer_attention_items(settings: &AppSettings) -> VecDeque<TimerAttent
         .collect()
 }
 
-fn display_timer_attention(
-    window: &slint::Weak<TimerAttentionWindow>,
-    owner: &slint::Weak<AppWindow>,
-    queue: &Rc<RefCell<VecDeque<TimerAttentionItem>>>,
-) {
-    let Some(window) = window.upgrade() else {
-        return;
-    };
-    let Some(item) = queue.borrow().front().cloned() else {
-        window.set_pulse_active(false);
-        let _ = window.hide();
-        return;
-    };
-    window.set_timer_title(item.title.into());
-    window.set_triggered_at(item.triggered_at.into());
-    let shown = show_auxiliary_window(
-        window.window(),
-        |_| {},
-        |window| position_calendar_window(window, owner),
-        AuxiliaryFocusPolicy::Preserve,
-    );
-    window.set_pulse_active(shown);
+#[derive(Clone)]
+struct TimerAttentionPresenter {
+    window: slint::Weak<TimerAttentionWindow>,
+    planner: slint::Weak<PlannerWindow>,
+    owner: slint::Weak<AppWindow>,
+    queue: Rc<RefCell<VecDeque<TimerAttentionItem>>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TimerAttentionSurface {
+    Hidden,
+    Inline,
+    Card,
+}
+
+#[derive(Clone, Copy, Default)]
+struct TimerAttentionView<'a> {
+    visible: bool,
+    focused: bool,
+    timers_section: bool,
+    editor_open: bool,
+    expanded_timer: &'a str,
+}
+
+fn timer_attention_surface(
+    front: Option<&str>,
+    view: &TimerAttentionView<'_>,
+) -> TimerAttentionSurface {
+    match front {
+        None => TimerAttentionSurface::Hidden,
+        Some(id)
+            if view.visible
+                && view.focused
+                && view.timers_section
+                && !view.editor_open
+                && !view.expanded_timer.is_empty()
+                && view.expanded_timer == id =>
+        {
+            TimerAttentionSurface::Inline
+        }
+        Some(_) => TimerAttentionSurface::Card,
+    }
+}
+
+impl TimerAttentionPresenter {
+    fn surface(&self, item: Option<&TimerAttentionItem>) -> TimerAttentionSurface {
+        let Some(item) = item else {
+            return TimerAttentionSurface::Hidden;
+        };
+        let id = item.timer_id.to_string();
+        let Some(planner) = self.planner.upgrade() else {
+            return timer_attention_surface(Some(&id), &TimerAttentionView::default());
+        };
+        let expanded = planner.get_expanded_timer();
+        let focused = planner
+            .window()
+            .with_winit_window(|native| native.has_focus() && native.is_minimized() != Some(true))
+            .unwrap_or(false);
+        timer_attention_surface(
+            Some(&id),
+            &TimerAttentionView {
+                visible: planner.window().is_visible(),
+                focused,
+                timers_section: planner.get_selected_section() == 2,
+                editor_open: planner.get_editor_modal() >= 0,
+                expanded_timer: expanded.as_str(),
+            },
+        )
+    }
+
+    fn is_inline(&self, id: &str) -> bool {
+        let front = self.queue.borrow().front().cloned();
+        front
+            .as_ref()
+            .is_some_and(|item| item.timer_id.to_string() == id)
+            && self.surface(front.as_ref()) == TimerAttentionSurface::Inline
+    }
+
+    fn refresh(&self) {
+        let front = self.queue.borrow().front().cloned();
+        let surface = self.surface(front.as_ref());
+        if let Some(planner) = self.planner.upgrade() {
+            if surface == TimerAttentionSurface::Inline
+                && let Some(item) = &front
+            {
+                planner.set_inline_timer_triggered_at(item.triggered_at.clone().into());
+                planner.set_inline_timer_attention(item.timer_id.to_string().into());
+            } else {
+                planner.set_inline_timer_attention("".into());
+                planner.set_inline_timer_triggered_at("".into());
+            }
+        }
+        let Some(window) = self.window.upgrade() else {
+            return;
+        };
+        if surface != TimerAttentionSurface::Card {
+            window.set_pulse_active(false);
+            if window.window().is_visible() {
+                let _ = window.hide();
+            }
+            return;
+        }
+        let Some(item) = front else {
+            return;
+        };
+        if window.window().is_visible()
+            && window.get_timer_title() == item.title
+            && window.get_triggered_at() == item.triggered_at
+        {
+            return;
+        }
+        window.set_timer_title(item.title.into());
+        window.set_triggered_at(item.triggered_at.into());
+        let shown = show_auxiliary_window(
+            window.window(),
+            |_| {},
+            |window| position_calendar_window(window, &self.owner),
+            AuxiliaryFocusPolicy::Preserve,
+        );
+        window.set_pulse_active(shown);
+    }
 }
 
 fn timer_triggered_label(timer: &PlannerTimer, settings: &AppSettings) -> String {
@@ -506,41 +620,43 @@ fn schedule_planner_timer_refresh(
     timer: Rc<Timer>,
     model: Rc<VecModel<PlannerTimerData>>,
     settings: Rc<RefCell<AppSettings>>,
-    attention: slint::Weak<TimerAttentionWindow>,
-    owner: slint::Weak<AppWindow>,
-    queue: Rc<RefCell<VecDeque<TimerAttentionItem>>>,
+    presenter: TimerAttentionPresenter,
 ) {
     let next_timer = timer.clone();
     let next_model = model.clone();
     let next_settings = settings.clone();
     timer.start(TimerMode::SingleShot, Duration::from_secs(1), move || {
         let mut settings = next_settings.borrow_mut();
+        let queue = &presenter.queue;
         let mut updated = settings.clone();
         let timers_before = updated.planner.timers.clone();
         let finished_ids = oziclock_app::timer_time::reconcile(&mut updated.planner, Utc::now());
         let timers_changed = timers_before != updated.planner.timers;
         if timers_changed && oziclock_storage::save(&updated).is_ok() {
             *settings = updated;
-            let was_empty = queue.borrow().is_empty();
             for id in finished_ids {
                 if let Some(timer) = settings.planner.timers.iter().find(|timer| timer.id == id) {
                     let title = timer_display_title(timer);
                     let triggered_at = timer_triggered_label(timer, &settings);
-                    delivery_feedback::deliver(
-                        &title,
-                        &triggered_at,
-                        settings.alert_sound_duration_seconds,
-                        &alert_sound,
-                    );
                     queue.borrow_mut().push_back(TimerAttentionItem {
-                        timer_id: id,
-                        title,
-                        triggered_at,
+                        timer_id: id.clone(),
+                        title: title.clone(),
+                        triggered_at: triggered_at.clone(),
                     });
+                    if presenter.is_inline(&id.to_string()) {
+                        delivery_feedback::deliver_in_window(
+                            settings.alert_sound_duration_seconds,
+                            &alert_sound,
+                        );
+                    } else {
+                        delivery_feedback::deliver(
+                            &title,
+                            &triggered_at,
+                            settings.alert_sound_duration_seconds,
+                            &alert_sound,
+                        );
+                    }
                 }
-            }
-            if was_empty && !queue.borrow().is_empty() {
-                display_timer_attention(&attention, &owner, &queue);
             }
         }
         if settings
@@ -549,17 +665,176 @@ fn schedule_planner_timer_refresh(
             .iter()
             .any(|timer| timer.state == TimerState::Running || timer.state == TimerState::Finished)
         {
-            next_model.set_vec(planner_timer_rows(&settings));
+            // Keep the expanded component alive so its attention pulse retains
+            // its phase while the countdown model refreshes once per second.
+            for (index, row) in planner_timer_rows(&settings).into_iter().enumerate() {
+                next_model.set_row_data(index, row);
+            }
         }
         drop(settings);
+        presenter.refresh();
         schedule_planner_timer_refresh(
             alert_sound.clone(),
             next_timer.clone(),
             next_model.clone(),
             next_settings.clone(),
-            attention.clone(),
-            owner.clone(),
-            queue.clone(),
+            presenter.clone(),
         );
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn expanded_view() -> TimerAttentionView<'static> {
+        TimerAttentionView {
+            visible: true,
+            focused: true,
+            timers_section: true,
+            editor_open: false,
+            expanded_timer: "break",
+        }
+    }
+
+    #[test]
+    fn tmr_12_matching_expanded_timer_is_inline_only_while_pending() {
+        let view = expanded_view();
+        assert_eq!(
+            timer_attention_surface(Some("break"), &view),
+            TimerAttentionSurface::Inline
+        );
+        assert_eq!(
+            timer_attention_surface(None, &view),
+            TimerAttentionSurface::Hidden
+        );
+        assert_eq!(
+            timer_attention_surface(Some("other"), &view),
+            TimerAttentionSurface::Card
+        );
+    }
+
+    #[test]
+    fn tmr_12_focus_hide_navigation_collapse_and_modal_use_card() {
+        let view = expanded_view();
+        for unavailable in [
+            TimerAttentionView {
+                visible: false,
+                ..view
+            },
+            TimerAttentionView {
+                focused: false,
+                ..view
+            },
+            TimerAttentionView {
+                timers_section: false,
+                ..view
+            },
+            TimerAttentionView {
+                expanded_timer: "",
+                ..view
+            },
+            TimerAttentionView {
+                editor_open: true,
+                ..view
+            },
+        ] {
+            assert_eq!(
+                timer_attention_surface(Some("break"), &unavailable),
+                TimerAttentionSurface::Card
+            );
+        }
+    }
+
+    #[test]
+    fn tmr_12_fifo_front_controls_the_surface_without_skipping_other_timers() {
+        let mut queue = VecDeque::from(["other", "break"]);
+        let view = expanded_view();
+        assert_eq!(
+            timer_attention_surface(queue.front().copied(), &view),
+            TimerAttentionSurface::Card
+        );
+        queue.pop_front();
+        assert_eq!(
+            timer_attention_surface(queue.front().copied(), &view),
+            TimerAttentionSurface::Inline
+        );
+        queue.pop_front();
+        assert_eq!(
+            timer_attention_surface(queue.front().copied(), &view),
+            TimerAttentionSurface::Hidden
+        );
+    }
+
+    #[test]
+    fn tmr_12_missing_windows_preserve_pending_attention_for_recovery() {
+        let queue = Rc::new(RefCell::new(VecDeque::from([TimerAttentionItem {
+            timer_id: PlannerId::new("break").unwrap(),
+            title: "Break — 05:00".into(),
+            triggered_at: "21 Oct · 10:05".into(),
+        }])));
+        let presenter = TimerAttentionPresenter {
+            window: slint::Weak::default(),
+            planner: slint::Weak::default(),
+            owner: slint::Weak::default(),
+            queue: queue.clone(),
+        };
+        presenter.refresh();
+        presenter.refresh();
+        assert_eq!(queue.borrow().len(), 1);
+        assert_eq!(queue.borrow()[0].timer_id.to_string(), "break");
+        assert!(!presenter.is_inline("break"));
+    }
+
+    #[test]
+    fn tmr_12_dismiss_and_restart_retry_without_changing_state_after_failed_save() {
+        for restart in [false, true] {
+            let mut settings: AppSettings = serde_json::from_str(include_str!(
+                "../../../../crates/oziclock-storage/assets/default_settings.json"
+            ))
+            .unwrap();
+            let id = PlannerId::new("break").unwrap();
+            settings.planner.timers = vec![PlannerTimer {
+                id: id.clone(),
+                title: "Break".into(),
+                duration_seconds: 300,
+                remaining_seconds: 0,
+                state: TimerState::Finished,
+                repeat: false,
+                repeat_count: Some(0),
+                repeats_remaining: Some(0),
+                started_at_utc: None,
+                attention_pending: true,
+                attention_triggered_at_utc: Some("2026-10-21T10:05:00Z".into()),
+            }];
+            let original = settings.planner.timers.clone();
+            let command = || {
+                if restart {
+                    PlannerCommand::RestartTimer {
+                        id: id.clone(),
+                        started_at_utc: "2026-10-21T10:06:00Z".into(),
+                    }
+                } else {
+                    PlannerCommand::DismissTimer { id: id.clone() }
+                }
+            };
+            assert!(!commit_timer_attention(&mut settings, command(), |_| false));
+            assert_eq!(settings.planner.timers, original);
+            assert!(commit_timer_attention(&mut settings, command(), |_| true));
+            let timer = &settings.planner.timers[0];
+            assert!(!timer.attention_pending);
+            assert!(timer.attention_triggered_at_utc.is_none());
+            if restart {
+                assert_eq!(timer.state, TimerState::Running);
+                assert_eq!(timer.remaining_seconds, 300);
+                assert_eq!(
+                    timer.started_at_utc.as_deref(),
+                    Some("2026-10-21T10:06:00Z")
+                );
+            } else {
+                assert_eq!(timer.state, TimerState::Idle);
+                assert_eq!(timer.remaining_seconds, 0);
+            }
+        }
+    }
 }

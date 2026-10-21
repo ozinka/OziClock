@@ -1,0 +1,181 @@
+import { AppPalette } from "../../../ui/app_palette.slint";
+
+export struct PlannerTimerData {
+    id: string,
+    title: string,
+    name: string,
+    remaining: string,
+    large-remaining: string,
+    running: bool,
+    paused: bool,
+    finished: bool,
+    time-up: bool,
+    repeat: bool,
+    repeat-label: string,
+}
+
+export component TimerViewButton inherits Rectangle {
+    in property <bool> expanded: false;
+    in property <string> timer-name;
+    callback clicked();
+    width: 30px;
+    height: 30px;
+    border-radius: 5px;
+    background: button.has-hover ? AppPalette.border : transparent;
+    Path {
+        x: (parent.width - 18px) / 2;
+        y: (parent.height - 18px) / 2;
+        width: 18px;
+        height: 18px;
+        commands: root.expanded
+            ? "M 2 7 L 7 7 L 7 2 M 11 2 L 11 7 L 16 7 M 16 11 L 11 11 L 11 16 M 7 16 L 7 11 L 2 11"
+            : "M 2 7 L 2 2 L 7 2 M 11 2 L 16 2 L 16 7 M 16 11 L 16 16 L 11 16 M 7 16 L 2 16 L 2 11";
+        stroke: AppPalette.secondary;
+        stroke-width: 1.5px;
+    }
+    button := TouchArea {
+        accessible-role: AccessibleRole.button;
+        accessible-label: root.expanded ? "Show timer list" : "Expand " + root.timer-name;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component ExpandedTimerPanel inherits Rectangle {
+    in property <PlannerTimerData> timer;
+    in property <color> accent;
+    in property <bool> attention-active: false;
+    in property <string> triggered-at;
+    private property <bool> pulse: false;
+    callback collapse();
+    callback toggle();
+    callback reset();
+    callback dismiss();
+    callback restart();
+    Timer {
+        interval: 450ms;
+        running: root.attention-active;
+        triggered => { root.pulse = !root.pulse; }
+    }
+    changed attention-active => { if !root.attention-active { root.pulse = false; } }
+    private property <length> content-margin: 24px;
+    private property <length> countdown-font-size: Math.min(160px,
+        (root.width - 2 * root.content-margin - 16px) / (Math.max(5, root.timer.large-remaining.character-count) * 0.7),
+        root.height * 0.22);
+    private property <length> countdown-height: root.countdown-font-size * 1.25;
+    private property <length> content-height: root.countdown-height + 224px;
+    border-radius: 8px;
+    background: AppPalette.inset;
+    border-width: root.attention-active && root.pulse ? 3px : 1px;
+    border-color: root.attention-active ? root.accent : AppPalette.border;
+    drop-shadow-blur: root.pulse ? 14px : 8px;
+    drop-shadow-color: root.attention-active ? root.accent.with-alpha(root.pulse ? 0.45 : 0.15) : transparent;
+    animate border-width, drop-shadow-blur, drop-shadow-color { duration: 450ms; easing: ease-in-out; }
+
+    Text {
+        x: root.content-margin; y: 16px;
+        width: parent.width - 2 * root.content-margin - 44px;
+        height: 24px;
+        text: root.attention-active ? root.triggered-at : "";
+        color: AppPalette.muted;
+        font-size: 12px;
+        vertical-alignment: center;
+    }
+
+    TimerViewButton {
+        x: parent.width - self.width - 14px;
+        y: 14px;
+        expanded: true;
+        clicked => { root.collapse(); }
+    }
+    Rectangle {
+        x: root.content-margin;
+        y: Math.max(64px, (parent.height - root.content-height) / 2);
+        width: parent.width - 2 * root.content-margin;
+        height: root.content-height;
+        Text {
+            y: 0px;
+            width: parent.width;
+            height: 64px;
+            text: root.timer.name;
+            color: AppPalette.heading;
+            font-size: 28px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            wrap: word-wrap;
+            overflow: elide;
+        }
+        Text {
+            y: 68px;
+            width: parent.width;
+            height: 24px;
+            text: root.attention-active && root.timer.running ? "Interval finished · Next interval running" : root.timer.time-up ? "Time's up" : root.timer.running ? "Running" : root.timer.paused ? "Paused" : "Ready";
+            color: root.timer.time-up ? AppPalette.danger : AppPalette.secondary;
+            font-size: 14px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        Text {
+            y: 104px;
+            width: parent.width;
+            height: root.countdown-height;
+            text: root.timer.large-remaining;
+            color: root.timer.time-up ? AppPalette.danger : root.accent;
+            font-family: "Carlito";
+            font-size: root.countdown-font-size;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        Text {
+            y: 112px + root.countdown-height;
+            width: parent.width;
+            height: 20px;
+            text: root.timer.repeat-label;
+            color: AppPalette.muted;
+            font-size: 12px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        HorizontalLayout {
+            x: (parent.width - 240px) / 2;
+            y: 152px + root.countdown-height;
+            width: 240px;
+            height: 44px;
+            spacing: 12px;
+            Rectangle {
+                width: 132px;
+                border-radius: 6px;
+                background: root.attention-active ? AppPalette.border : root.accent;
+                Text {
+                    width: parent.width; height: parent.height;
+                    text: root.attention-active ? "Dismiss" : root.timer.running ? "Pause" : root.timer.time-up ? "Restart" : root.timer.paused ? "Resume" : "Start";
+                    color: root.attention-active ? AppPalette.text : AppPalette.accent-foreground;
+                    font-size: 14px; font-weight: 700;
+                    horizontal-alignment: center; vertical-alignment: center;
+                }
+                TouchArea {
+                    accessible-role: button;
+                    accessible-label: root.attention-active ? "Dismiss timer attention" : root.timer.running ? "Pause timer" : root.timer.time-up ? "Restart timer" : root.timer.paused ? "Resume timer" : "Start timer";
+                    clicked => { if root.attention-active { root.dismiss(); } else { root.toggle(); } }
+                }
+            }
+            Rectangle {
+                width: 96px;
+                border-radius: 6px;
+                background: root.attention-active ? root.accent : AppPalette.border;
+                Text {
+                    width: parent.width; height: parent.height; text: root.attention-active ? "Restart" : "Reset";
+                    color: root.attention-active ? AppPalette.accent-foreground : AppPalette.text; font-size: 14px;
+                    horizontal-alignment: center; vertical-alignment: center;
+                }
+                TouchArea {
+                    accessible-role: button;
+                    accessible-label: root.attention-active ? "Restart timer" : "Reset timer";
+                    clicked => { if root.attention-active { root.restart(); } else { root.reset(); } }
+                }
+            }
+        }
+    }
+}

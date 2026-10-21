@@ -26,6 +26,8 @@ mod settings_color_picker;
 mod tray;
 mod window_drag;
 #[cfg(target_os = "macos")]
+mod window_hover;
+#[cfg(target_os = "macos")]
 mod window_opacity;
 
 use calendar_bindings::{
@@ -323,6 +325,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     planner_window.on_request_close(move || {
         if let Some(planner) = planner_for_close.upgrade() {
             let _ = planner.hide();
+            planner.invoke_request_refresh_timer_attention();
         }
     });
     planner_alarm_bindings::wire_alarm_bindings(
@@ -1767,7 +1770,13 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let alarm_attention_for_shutdown = alarm_attention_window.as_weak();
     let timer_attention_for_shutdown = timer_attention_window.as_weak();
     let reminder_attention_for_shutdown = reminder_attention_window.as_weak();
+    #[cfg(target_os = "macos")]
+    let hover_monitor = window_hover::HoverMonitor::new(&window);
+    #[cfg(target_os = "macos")]
+    let hover_monitor_for_events = hover_monitor.clone();
     window.window().on_winit_window_event(move |_, event| {
+        #[cfg(target_os = "macos")]
+        hover_monitor_for_events.on_window_event(event);
         match event {
             WindowEvent::Focused(focused) => {
                 diagnostics::record(&format!("main-window-focused={focused}"));
@@ -1819,6 +1828,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     });
 
     window.show()?;
+    #[cfg(target_os = "macos")]
+    hover_monitor.sync();
     #[cfg(target_os = "macos")]
     window_opacity::sync(&window);
     set_main_window_taskbar_visibility(&window, shared_settings.borrow().show_in_task_bar);

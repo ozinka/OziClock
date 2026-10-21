@@ -23,6 +23,53 @@ appearance. Repeat at real 100%, 125%, 150% and 200% DPI when available.
 
 The project does not yet have a deterministic headless Slint screenshot renderer. Do not commit unreviewed images as golden baselines. The CI workflow runs formatting, linting, tests, and release builds on Windows, Linux, and macOS; visual golden-image automation will be added when a stable renderer harness is available.
 
+## Expanded Timer Panel (TMR-11 / BL-105)
+
+Manual acceptance is pending. Use Planner at its minimum 900 × 780 size and a
+larger window, in Light and Dark themes. Check the new expand icon in each saved
+timer row, including enough rows to show the scrollbar; title, countdown, Reset,
+Start/Pause and Delete must not overlap. Ordinary Start keeps the list visible.
+
+Expand an idle timer, start it, pause/resume and reset; collapse while running
+and verify the same remaining time in the list. Expand another timer and verify
+both continue. Switch sections or hide/reopen Planner and verify the chosen
+expanded timer is retained for the session. The collapse button returns to the
+list without changing countdown state. Check long names and hour/day durations
+(including 999d 23:59:59) for clipping; resizing should scale the digits while
+keeping all controls in the panel. New-session startup returns to the list.
+Verify the title is above the state label and digits, with no overlap at either
+window size; the first user capture exposed implicit vertical centering of the
+title, now corrected with an explicit top position.
+
+Let a short one-shot timer finish: verify red `00:00`, `Time's up`, the usual
+sound/attention card, and Restart. Dismiss the attention card and verify the large
+view still shows completion; Restart starts the full duration and Reset returns
+to Ready. A repeating timer must show its next interval while attention is
+pending. No new golden baseline has been approved for this panel; retain the
+existing clock-frame references unchanged until user-reviewed captures exist.
+
+## Inline Timer Completion (TMR-12 / BL-106)
+
+Manual acceptance and new reviewed captures are pending. Finish a short timer
+while its expanded panel is visible and Planner has focus. Verify the panel's
+accent border and glow pulse smoothly, the first completion timestamp is shown,
+the usual sound plays, and Dismiss/Restart replace the normal controls. No
+compact timer card or duplicate system banner should appear for that delivery.
+Check both themes and minimum/larger Planner sizes; titles and controls must
+remain separate from the digits and the glow must not obscure content.
+
+Before dismissing, collapse the panel, change section, open an editor, switch to
+another application, hide Planner and minimize it in separate trials. The same
+pending attention must appear in the compact card; returning to the focused
+expanded panel moves it back without another sound/banner. Check Dismiss stops
+the pulse/sound and retains one-shot `00:00`; Restart stops the pulse/sound and
+starts the full duration. For a repeating timer, verify the next interval
+continues during attention and after Dismiss, while Restart begins a new full
+sequence. Sound Off remains silent. With two pending timers, the FIFO front
+controls the attention surface and neither item is skipped or shown twice.
+Restart the application with unacknowledged attention and verify compact-card
+recovery, then expand the matching timer to move attention into Planner.
+
 ## Clock Frame Desktop Probe (MODE-06A)
 
 Run `cargo run -p oziclock-desktop --example clock_frame_gallery -- target/clock-frame`

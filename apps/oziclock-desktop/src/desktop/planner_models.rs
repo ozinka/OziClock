@@ -131,7 +131,10 @@ fn alarm_schedule_label(schedule: &AlarmSchedule) -> String {
 }
 
 pub(super) fn planner_timer_rows(settings: &AppSettings) -> Vec<PlannerTimerData> {
-    let now = Utc::now();
+    planner_timer_rows_at(settings, Utc::now())
+}
+
+fn planner_timer_rows_at(settings: &AppSettings, now: DateTime<Utc>) -> Vec<PlannerTimerData> {
     settings
         .planner
         .timers
@@ -141,9 +144,14 @@ pub(super) fn planner_timer_rows(settings: &AppSettings) -> Vec<PlannerTimerData
             PlannerTimerData {
                 id: timer.id.to_string().into(),
                 title: timer_display_title(timer).into(),
+                name: timer.title.clone().into(),
                 remaining: format_duration(remaining_seconds).into(),
+                large_remaining: format_timer_duration(remaining_seconds).into(),
                 running: timer.state == TimerState::Running,
+                paused: timer.state == TimerState::Paused,
                 finished: timer.state == TimerState::Finished,
+                time_up: remaining_seconds == 0
+                    && matches!(timer.state, TimerState::Idle | TimerState::Finished),
                 repeat: timer.repeat,
                 repeat_label: if timer.repeat {
                     timer
@@ -643,6 +651,153 @@ fn stopwatch_lap_rows_from(stopwatch: &Stopwatch) -> Vec<StopwatchLapData> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oziclock_app::planner::{PlannerCommand, execute_planner_command};
+
+    fn timer_panel_settings() -> AppSettings {
+        let mut settings: AppSettings = serde_json::from_str(include_str!(
+            "../../../../crates/oziclock-storage/assets/default_settings.json"
+        ))
+        .unwrap();
+        let timer = PlannerTimer {
+            id: PlannerId::new("break").unwrap(),
+            title: "Break 5 min".into(),
+            duration_seconds: 300,
+            remaining_seconds: 300,
+            state: TimerState::Running,
+            repeat: false,
+            repeat_count: Some(0),
+            repeats_remaining: Some(0),
+            started_at_utc: Some("2026-10-21T10:00:00Z".into()),
+            attention_pending: false,
+            attention_triggered_at_utc: None,
+        };
+        let mut other = timer.clone();
+        other.id = PlannerId::new("other").unwrap();
+        other.duration_seconds = 600;
+        other.remaining_seconds = 600;
+        settings.planner.timers = vec![timer, other];
+        settings
+    }
+
+    fn timer_rows_at(settings: &AppSettings, utc: &str) -> Vec<PlannerTimerData> {
+        planner_timer_rows_at(settings, utc.parse().unwrap())
+    }
+
+    #[test]
+    fn tmr_11_large_view_uses_custom_name_and_the_same_running_countdown() {
+        let settings = timer_panel_settings();
+        let rows = timer_rows_at(&settings, "2026-10-21T10:00:30Z");
+        assert_eq!(rows[0].name, "Break 5 min");
+        assert_eq!(rows[0].title, "Break 5 min — 05:00");
+        assert_eq!(rows[0].remaining, "04:30");
+        assert_eq!(rows[0].large_remaining, rows[0].remaining);
+        assert!(rows[0].running);
+        assert!(!rows[0].paused && !rows[0].time_up);
+        assert_eq!(rows[1].large_remaining, "09:30");
+    }
+
+    #[test]
+    fn tmr_11_pause_resume_and_reset_keep_parallel_timers_running() {
+        let mut settings = timer_panel_settings();
+        let id = settings.planner.timers[0].id.clone();
+        assert!(execute_planner_command(
+            &mut settings.planner,
+            PlannerCommand::PauseTimer {
+                id: id.clone(),
+                remaining_seconds: 270
+            },
+        ));
+        let rows = timer_rows_at(&settings, "2026-10-21T10:02:00Z");
+        assert!(rows[0].paused);
+        assert!(!rows[0].running);
+        assert_eq!(rows[0].large_remaining, "04:30");
+        assert_eq!(rows[1].large_remaining, "08:00");
+        assert!(execute_planner_command(
+            &mut settings.planner,
+            PlannerCommand::StartTimer {
+                id: id.clone(),
+                started_at_utc: "2026-10-21T10:02:00Z".into()
+            },
+        ));
+        let rows = timer_rows_at(&settings, "2026-10-21T10:02:30Z");
+        assert_eq!(rows[0].large_remaining, "04:00");
+        assert!(rows[0].running);
+        assert!(execute_planner_command(
+            &mut settings.planner,
+            PlannerCommand::ResetTimer { id }
+        ));
+        let rows = timer_rows_at(&settings, "2026-10-21T10:02:30Z");
+        assert_eq!(rows[0].large_remaining, "05:00");
+        assert!(!rows[0].running && !rows[0].paused && !rows[0].time_up);
+        assert!(rows[1].running);
+        assert_eq!(rows[1].large_remaining, "07:30");
+    }
+
+    #[test]
+    fn tmr_11_dismiss_preserves_times_up_until_restart() {
+        let mut settings = timer_panel_settings();
+        let id = settings.planner.timers[0].id.clone();
+        oziclock_app::timer_time::reconcile(
+            &mut settings.planner,
+            "2026-10-21T10:05:00Z".parse().unwrap(),
+        );
+        let rows = timer_rows_at(&settings, "2026-10-21T10:05:00Z");
+        assert!(rows[0].time_up && rows[0].finished);
+        assert_eq!(rows[0].large_remaining, "00:00");
+        assert!(execute_planner_command(
+            &mut settings.planner,
+            PlannerCommand::DismissTimer { id: id.clone() }
+        ));
+        let rows = timer_rows_at(&settings, "2026-10-21T10:05:00Z");
+        assert!(rows[0].time_up);
+        assert!(!rows[0].finished);
+        assert_eq!(rows[0].large_remaining, "00:00");
+        assert!(execute_planner_command(
+            &mut settings.planner,
+            PlannerCommand::StartTimer {
+                id,
+                started_at_utc: "2026-10-21T10:06:00Z".into()
+            }
+        ));
+        let rows = timer_rows_at(&settings, "2026-10-21T10:06:00Z");
+        assert!(!rows[0].time_up);
+        assert_eq!(rows[0].large_remaining, "05:00");
+    }
+
+    #[test]
+    fn tmr_11_repeat_displays_next_interval_while_attention_is_pending() {
+        let mut settings = timer_panel_settings();
+        let timer = &mut settings.planner.timers[0];
+        timer.repeat = true;
+        timer.repeat_count = Some(1);
+        timer.repeats_remaining = Some(1);
+        oziclock_app::timer_time::reconcile(
+            &mut settings.planner,
+            "2026-10-21T10:05:00Z".parse().unwrap(),
+        );
+        let rows = timer_rows_at(&settings, "2026-10-21T10:05:30Z");
+        assert!(settings.planner.timers[0].attention_pending);
+        assert!(rows[0].running && rows[0].repeat);
+        assert!(!rows[0].time_up);
+        assert_eq!(rows[0].large_remaining, "04:30");
+    }
+
+    #[test]
+    fn tmr_11_large_countdown_preserves_hours_and_days() {
+        let mut settings = timer_panel_settings();
+        for (seconds, expected) in [
+            (3_661, "01:01:01"),
+            (90_061, "1d 01:01:01"),
+            (86_399_999, "999d 23:59:59"),
+        ] {
+            let timer = &mut settings.planner.timers[0];
+            timer.state = TimerState::Idle;
+            timer.remaining_seconds = seconds;
+            timer.duration_seconds = seconds;
+            let rows = timer_rows_at(&settings, "2026-10-21T10:00:00Z");
+            assert_eq!(rows[0].large_remaining, expected);
+        }
+    }
 
     fn plan_marker(id: &str, day: i32, minute: i32) -> PlanReminderMarkerData {
         PlanReminderMarkerData {

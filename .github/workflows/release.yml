@@ -120,17 +120,17 @@ jobs:
           body: |
             ## OziClock ${{ github.ref_name }}
 
-            This beta reduces idle resource usage and expands Planner alert sounds.
+            This beta adds a large timer presentation and completion alerts inside Planner, and improves macOS clock dimming recovery.
 
             ### Highlights
 
-            - Stop writing settings to disk on every idle alarm check, while preserving save-before-delivery and retry behavior.
-            - Stop stopped-stopwatch refresh timers and hidden attention-card pulse timers.
-            - Reduce hidden running-stopwatch refresh frequency and avoid rebuilding lap rows every frame.
-            - Add selectable synthesized Planner alert sounds and a Planner sidebar close button.
-            - Include Windows MSIX and Microsoft Store upload packages (2.2.3.0).
+            - Expand any saved timer into a large panel with its title, adaptive countdown, pause/resume, restart and reset controls; collapse it without stopping the countdown.
+            - Show completion in the focused expanded timer panel with a pulsing accent glow, sound, timestamp, Dismiss and Restart, without a duplicate compact card or system banner.
+            - Move unacknowledged attention between the expanded panel and compact card as focus or the view changes, preserving the queue and avoiding repeated sound.
+            - Recover macOS non-primary clock dimming and inactive opacity after a missed pointer exit or lock/unlock; hover checks stop while inactive.
+            - Include Windows MSIX and Microsoft Store upload packages (2.2.4.0).
 
-            Automated formatting, lint and workspace tests pass. Manual CPU/wake-up comparison and platform attention/stopwatch checks remain pending.
+            Automated formatting, lint and 135 workspace tests pass. Native lock/unlock, focus/visibility transitions, glow and audio acceptance remain manual platform checks; existing reviewed clock-frame references are retained.
 
             ### Packaging
 

@@ -22,7 +22,10 @@ export component AppWindow inherits Window {
     in property <bool> top-most: false;
     in property <float> inactive-opacity: 1;
     in property <bool> native-opacity: false;
-    out property <float> effective-opacity: root.show-rulers || interaction.has-hover ? 1 : root.inactive-opacity;
+    in property <bool> use-native-strip-hover: false;
+    in property <bool> native-strip-hovered: false;
+    property <bool> strip-hovered: root.use-native-strip-hover ? root.native-strip-hovered && !root.modal-open : interaction.has-hover;
+    out property <float> effective-opacity: root.show-rulers || root.strip-hovered ? 1 : root.inactive-opacity;
     animate effective-opacity { duration: 300ms; }
     callback request-native-opacity(float);
     changed effective-opacity => {
@@ -126,7 +129,7 @@ export component AppWindow inherits Window {
                     width: parent.width;
                     height: parent.height;
                     background: #000000;
-                    opacity: clock.main-zone || interaction.has-hover ? 0 : root.non-main-dimming / 100;
+                    opacity: clock.main-zone || root.strip-hovered ? 0 : root.non-main-dimming / 100;
                     animate opacity { duration: 200ms; easing: ease-in-out; }
                 }
             }
