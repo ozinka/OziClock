@@ -1,4 +1,4 @@
-use super::AppWindow;
+use super::{AppWindow, clamp_inactive_opacity};
 use objc2_app_kit::NSView;
 use slint::{
     ComponentHandle,
@@ -34,7 +34,26 @@ fn apply(window: &AppWindow, opacity: f32) {
         // main UI thread, and the borrowed view never escapes this closure.
         let view = unsafe { handle.ns_view.cast::<NSView>().as_ref() };
         if let Some(native_window) = view.window() {
-            native_window.setAlphaValue(f64::from(opacity.clamp(0.02, 1.0)));
+            native_window.setAlphaValue(clamp_inactive_opacity(f64::from(opacity)));
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::clamp_inactive_opacity;
+
+    #[test]
+    fn win_06a_macos_opacity_has_a_5_1_percent_floor() {
+        for legacy_opacity in [0.02, 0.04, 0.05] {
+            assert_eq!(clamp_inactive_opacity(legacy_opacity), 0.051);
+        }
+        let slider_minimum = 5.1_f32;
+        assert_eq!(
+            clamp_inactive_opacity(f64::from(slider_minimum) / 100.0),
+            0.051
+        );
+        assert_eq!(clamp_inactive_opacity(0.13), 0.13);
+        assert_eq!(clamp_inactive_opacity(1.0), 1.0);
+    }
 }

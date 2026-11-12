@@ -40,6 +40,7 @@ export component SettingsWindow inherits Window {
     in-out property <bool> top-most;
     in-out property <bool> show-in-task-bar;
     in-out property <bool> launch-at-login;
+    in property <float> minimum-opacity-percent;
     in-out property <float> opacity-percent;
     in-out property <bool> compact-mode;
     in-out property <float> clock-scale-percent: 100;
@@ -257,7 +258,7 @@ export component SettingsWindow inherits Window {
         Rectangle { x: 510px; y: 179px; width: 22px; height: 22px; visible: root.selected-section == 0; border-radius: 5px; background: root.launch-at-login ? AppPalette.primary : AppPalette.inset; Text { width: parent.width; height: parent.height; text: root.launch-at-login ? "✓" : ""; color: white; horizontal-alignment: center; vertical-alignment: center; } TouchArea { clicked => { root.launch-at-login = !root.launch-at-login; root.request-set-launch-at-login(root.launch-at-login); } } }
         Text { x: 542px; y: 181px; visible: root.selected-section == 0; text: "Launch at login"; color: AppPalette.text; font-family: "Carlito"; font-size: 13px; }
         Text { x: 286px; y: 259px; visible: root.selected-section == 0; text: "Opacity"; color: AppPalette.secondary; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
-        Slider { x: 276px; y: 279px; width: 320px; height: 24px; visible: root.selected-section == 0; minimum: 2; maximum: 100; step: 1; value <=> root.opacity-percent; changed => { root.request-set-opacity(self.value); } }
+        Slider { x: 276px; y: 279px; width: 320px; height: 24px; visible: root.selected-section == 0; minimum: root.minimum-opacity-percent; maximum: 100; step: 1; value <=> root.opacity-percent; changed => { root.request-set-opacity(self.value); } }
         Text { x: 612px; y: 278px; width: 64px; height: 24px; visible: root.selected-section == 0; text: Math.round(root.opacity-percent) + "%"; color: AppPalette.text; font-family: "Carlito"; font-size: 13px; horizontal-alignment: right; vertical-alignment: center; }
         Text { x: 286px; y: 313px; visible: root.selected-section == 0; text: "Clock scale"; color: AppPalette.secondary; font-family: "Carlito"; font-size: 12px; font-weight: 600; }
         Slider { x: 276px; y: 333px; width: 320px; height: 24px; visible: root.selected-section == 0; minimum: 80; maximum: 150; step: 5; value <=> root.clock-scale-percent; changed => { root.request-set-clock-scale(self.value); } }

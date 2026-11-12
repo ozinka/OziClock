@@ -73,12 +73,22 @@ use slint::{Model, ModelRc, Timer, VecModel};
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::Graphics::Gdi::{GetMonitorInfoW, MONITORINFO};
 
+#[cfg(target_os = "macos")]
+const MIN_INACTIVE_OPACITY: f64 = 0.051;
+#[cfg(not(target_os = "macos"))]
+const MIN_INACTIVE_OPACITY: f64 = 0.02;
+
+fn clamp_inactive_opacity(opacity: f64) -> f64 {
+    opacity.clamp(MIN_INACTIVE_OPACITY, 1.0)
+}
+
 pub(crate) fn run() -> Result<(), slint::PlatformError> {
     diagnostics::initialize();
     let alert_sound = alert_sound::AlertSound::new();
     let mut settings = oziclock_storage::load_or_initialize().map_err(|error| {
         slint::PlatformError::Other(format!("could not load OziClock settings: {error}"))
     })?;
+    settings.opacity = clamp_inactive_opacity(settings.opacity);
     let clock_scale_percent = normalize_clock_scale_percent((settings.clock_scale * 100.0) as f32);
     settings.clock_scale = f64::from(clock_scale_percent / 100.0);
     settings.border_color =
@@ -108,7 +118,7 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     window_opacity::configure(&window);
     window.set_product_name(oziclock_app::application_name().into());
     window.set_top_most(settings.top_most);
-    window.set_inactive_opacity(settings.opacity.clamp(0.02, 1.0) as f32);
+    window.set_inactive_opacity(settings.opacity as f32);
     window.set_show_seconds(settings.show_seconds);
     window.set_show_rulers(settings.show_rulers);
     window.set_compact_mode(settings.compact_mode);
@@ -175,7 +185,8 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     ));
     settings_window.set_alert_sound_id(i32::from(settings.alert_sound_id));
     apply_sync_state(&settings_window, &settings.sync);
-    settings_window.set_opacity_percent((settings.opacity.clamp(0.02, 1.0) * 100.0) as f32);
+    settings_window.set_minimum_opacity_percent((MIN_INACTIVE_OPACITY * 100.0) as f32);
+    settings_window.set_opacity_percent((settings.opacity * 100.0) as f32);
     update_settings_preview(&settings_window, &settings.clocks_settings);
     select_clock(&settings_window, &settings.clocks_settings, 0);
     settings_window.set_selected_section(0);
@@ -1037,10 +1048,10 @@ pub(crate) fn run() -> Result<(), slint::PlatformError> {
     let state = shared_settings.clone();
     let main_window = window.as_weak();
     settings_window.on_request_set_opacity(move |opacity_percent| {
-        let opacity = (opacity_percent / 100.0).clamp(0.02, 1.0);
-        state.borrow_mut().opacity = f64::from(opacity);
+        let opacity = clamp_inactive_opacity(f64::from(opacity_percent) / 100.0);
+        state.borrow_mut().opacity = opacity;
         if let Some(main_window) = main_window.upgrade() {
-            main_window.set_inactive_opacity(opacity);
+            main_window.set_inactive_opacity(opacity as f32);
         }
     });
     let state = shared_settings.clone();

@@ -120,17 +120,13 @@ jobs:
           body: |
             ## OziClock ${{ github.ref_name }}
 
-            This beta adds a large timer presentation and completion alerts inside Planner, and improves macOS clock dimming recovery.
+            This beta raises the minimum inactive clock opacity on macOS to keep the clock accessible to mouse input.
 
             ### Highlights
 
-            - Expand any saved timer into a large panel with its title, adaptive countdown, pause/resume, restart and reset controls; collapse it without stopping the countdown.
-            - Show completion in the focused expanded timer panel with a pulsing accent glow, sound, timestamp, Dismiss and Restart, without a duplicate compact card or system banner.
-            - Move unacknowledged attention between the expanded panel and compact card as focus or the view changes, preserving the queue and avoiding repeated sound.
-            - Recover macOS non-primary clock dimming and inactive opacity after a missed pointer exit or lock/unlock; hover checks stop while inactive.
-            - Include Windows MSIX and Microsoft Store upload packages (2.2.4.0).
-
-            Automated formatting, lint and 135 workspace tests pass. Native lock/unlock, focus/visibility transitions, glow and audio acceptance remain manual platform checks; existing reviewed clock-frame references are retained.
+            - Set the macOS minimum inactive opacity to 5.1%, displayed as 5% in General settings.
+            - Apply the same minimum to older settings when OziClock starts, so a stored value such as 2% recovers automatically.
+            - Include Windows MSIX and Microsoft Store upload packages (2.2.5.0).
 
             ### Packaging
 

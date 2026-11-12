@@ -123,6 +123,8 @@ Priorities describe sequencing, not severity:
 
 ## BL-104 Investigation and Verification — 2026-10-21
 
+- November 12 follow-up (WIN-06A): the user reproduced lost mouse interaction at 4% inactive opacity. The macOS slider, loaded settings, and native window alpha now share a 5.1% floor. Pending manual acceptance: set the slider to its minimum (displayed as 5%), close Settings, move the pointer away and back, and verify hover and clicks. Repeat after restarting with an older 2–4% value.
+
 - Report: non-primary clocks sometimes remain undimmed after macOS lock/unlock or a possible fast pointer pass; another enter/leave cycle restores dimming. The exact triggering event has not been reproduced in this investigation.
 - Source finding: both tile dimming and inactive opacity depended exclusively on Slint's retained `TouchArea.has-hover`; the main-window focus/occlusion handlers did not reconcile hover. A retained hover therefore had no independent recovery path. Focus loss alone is not evidence that the pointer left the strip, so do not clear hover unconditionally on focus changes.
 - Implementation: the macOS desktop adapter samples AppKit's current pointer position in the content view, accounts for view orientation and native/UI scale, excludes rulers below the visible compact/standard strip, and confirms the strip is the frontmost window at that point. Modal, hidden, minimized and fully occluded windows do not count as hovered. Lifecycle and pointer events resample immediately; a 250ms timer runs only while hovered to recover when no exit event arrives. Other platforms retain Slint hover behavior. Existing dimming/opacity animations and reviewed rendering references are retained.
