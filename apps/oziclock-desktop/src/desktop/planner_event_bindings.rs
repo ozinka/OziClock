@@ -502,20 +502,13 @@ fn schedule_event_refresh(
     timer.start(TimerMode::SingleShot, Duration::from_secs(1), move || {
         let now = Utc::now();
         let mut settings = next_settings.borrow_mut();
-        let checked = settings
-            .planner
-            .event_checked_at_utc
-            .as_deref()
-            .and_then(|value| DateTime::parse_from_rfc3339(value).ok())
-            .map(|value| value.with_timezone(&Utc))
-            .unwrap_or(now - chrono::Duration::seconds(1));
-        let after = checked.max(now - chrono::Duration::minutes(5));
         let zone = main_time_zone(&settings);
-        let mut updated = settings.clone();
-        let receipts = oziclock_app::event_time::reconcile(&mut updated.planner, after, now, &zone);
-        oziclock_storage::prune_event_receipts(&mut updated, now);
-        if oziclock_storage::save(&updated).is_ok() {
-            *settings = updated;
+        if let Ok(Some(receipts)) = super::event_scheduler::reconcile_tick(
+            &mut settings,
+            now,
+            &zone,
+            oziclock_storage::save,
+        ) {
             let was_empty = queue.borrow().is_empty();
             for receipt in &receipts {
                 if let Some(item) = event_attention_item(receipt, &settings) {

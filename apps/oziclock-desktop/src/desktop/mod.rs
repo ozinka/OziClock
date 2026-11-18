@@ -8,6 +8,7 @@ mod clock_refresh;
 mod colors;
 mod delivery_feedback;
 mod diagnostics;
+mod event_scheduler;
 mod launch_at_login;
 mod planner_alarm_bindings;
 mod planner_appearance;
