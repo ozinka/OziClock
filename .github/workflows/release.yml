@@ -120,13 +120,13 @@ jobs:
           body: |
             ## OziClock ${{ github.ref_name }}
 
-            This beta raises the minimum inactive clock opacity on macOS to keep the clock accessible to mouse input.
+            This beta stops unnecessary settings writes during idle Event checks.
 
             ### Highlights
 
-            - Set the macOS minimum inactive opacity to 5.1%, displayed as 5% in General settings.
-            - Apply the same minimum to older settings when OziClock starts, so a stored value such as 2% recovers automatically.
-            - Include Windows MSIX and Microsoft Store upload packages (2.2.5.0).
+            - Avoid rewriting settings every second while checking Events.
+            - Preserve reliable Event alert delivery and recovery after restart.
+            - Include Windows MSIX and Microsoft Store upload packages (2.2.6.0).
 
             ### Packaging
 
