@@ -1,0 +1,60 @@
+name: Microsoft Store submission
+
+on:
+  workflow_call:
+    secrets:
+      PARTNER_CENTER_TENANT_ID:
+        required: true
+      PARTNER_CENTER_CLIENT_ID:
+        required: true
+      PARTNER_CENTER_CLIENT_SECRET:
+        required: true
+      PARTNER_CENTER_SELLER_ID:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    name: Submit Windows package to Microsoft Store
+    runs-on: windows-latest
+    timeout-minutes: 30
+    concurrency:
+      group: microsoft-store-submission
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download package from this release run
+        uses: actions/download-artifact@v4
+        with:
+          name: OziClock-${{ github.ref_name }}-windows-x64.zip
+          path: store-artifact
+      - name: Check Partner Center for a pending submission
+        env:
+          PARTNER_CENTER_TENANT_ID: ${{ secrets.PARTNER_CENTER_TENANT_ID }}
+          PARTNER_CENTER_CLIENT_ID: ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
+          PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
+        run: python scripts/check-store-submission.py
+      - name: Set up Microsoft Store CLI
+        uses: microsoft/microsoft-store-apppublisher@v1.4
+        with:
+          version: v0.4.4
+      - name: Configure Store credentials
+        shell: pwsh
+        env:
+          PARTNER_CENTER_TENANT_ID: ${{ secrets.PARTNER_CENTER_TENANT_ID }}
+          PARTNER_CENTER_CLIENT_ID: ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
+          PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
+          PARTNER_CENTER_SELLER_ID: ${{ secrets.PARTNER_CENTER_SELLER_ID }}
+        run: |
+          if (-not $env:PARTNER_CENTER_SELLER_ID) { throw 'Missing Partner Center seller ID.' }
+          msstore reconfigure --tenantId $env:PARTNER_CENTER_TENANT_ID --sellerId $env:PARTNER_CENTER_SELLER_ID --clientId $env:PARTNER_CENTER_CLIENT_ID --clientSecret $env:PARTNER_CENTER_CLIENT_SECRET
+          if ($LASTEXITCODE -ne 0) { throw 'Microsoft Store CLI configuration failed.' }
+      - name: Submit package for certification
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem -Path store-artifact -Recurse -File -Filter '*.msix')
+          if ($packages.Count -ne 1) { throw "Expected exactly one MSIX package, found $($packages.Count)." }
+          msstore publish $packages[0].FullName -id 9NBG48TV6NP3
+          if ($LASTEXITCODE -ne 0) { throw 'Microsoft Store submission failed.' }

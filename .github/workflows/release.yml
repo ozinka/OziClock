@@ -22,6 +22,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libgl1-mesa-dev libxkbcommon-dev libasound2-dev
       - name: Check documentation contracts
         run: sh scripts/check-docs.sh
+      - name: Test Store submission preflight
+        run: python3 scripts/test-store-submission.py
       - name: Verify formatting
         run: cargo fmt --check
       - name: Lint
@@ -140,3 +142,9 @@ jobs:
             release-assets/**/*.tar.gz
             release-assets/**/*.msix
             release-assets/**/*.msixupload
+
+  store:
+    name: Submit Microsoft Store update
+    needs: [publish]
+    uses: ./.github/workflows/store-publish.yml
+    secrets: inherit
